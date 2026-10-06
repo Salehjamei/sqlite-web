@@ -1,5 +1,45 @@
 ﻿@inherits LayoutComponentBase
 
-<main class="w-100 p-0 m-0">
-    @Body
-</main>
+<div class="page" dir="rtl" style="font-family: Tahoma; text-align: right;">
+
+    <!-- 🟢 هدر یکپارچه، مرکزی و نفوذناپذیر سیستم حضور و غیاب -->
+    <header class="bg-dark text-white p-3 shadow-sm mb-4">
+        <div class="container d-flex justify-content-between align-items-center">
+            <h4 class="m-0 fw-bold">⏱️ سیستم هوشمند حضور و غیاب پرسنل</h4>
+            <div class="d-flex align-items-center gap-2">
+
+                @if (hasToken && isChecked)
+                {
+                    <!-- 🔴 دکمه قرمز خروج به محض تایید نهایی سشن پدیدار می‌شود -->
+                    <span class="text-info small fw-bold me-2">👤 ادمین آنلاین: @adminUsername</span>
+                    <button type="button" @onclick="GlobalLogout" class="btn btn-danger btn-sm fw-bold me-3">🏃‍♂️ خروج از حساب</button>
+
+                    @if (MyNavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <a href="/" class="btn btn-outline-light btn-sm fw-bold">🖥️ صفحه کیوسک پرسنل</a>
+                    }
+                }
+
+                @if (!hasToken && isChecked)
+                {
+                    @if (!MyNavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        <a href="/admin" class="btn btn-outline-info btn-sm fw-bold">🔑 ورود به پنل مدیریت</a>
+                    }
+                }
+            </div>
+        </div>
+    </header>
+
+    <!-- بادی اصلی صفحات متغیر -->
+    <main class="container flex-grow-1" style="min-height: 80vh;">
+        @Body
+    </main>
+
+    <!-- فوتر سراسری سیستم -->
+    <footer class="bg-light text-center text-muted py-3 border-top mt-5">
+        <div class="container">
+            <small>© @DateTime.Now.Year | طراحی و توسعه اختصاصی سیستم اتوماسیون حضور و غیاب پرسنلی</small>
+        </div>
+    </footer>
+</div>

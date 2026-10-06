@@ -3,23 +3,6 @@
 @using sqlite_web.Components.Models
 
 <div class="container mt-5" dir="rtl" style="text-align: right; font-family: Tahoma;">
-
-    <!-- لینک ورود به پنل مدیریت -->
-    <!-- 🏃‍♂️ دکمه خروج ادمین و قفل شدن مجدد کیوسک پرسنل -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <!-- 🔒 نمایش دکمه ورود به پنل فقط برای ادمین‌های دارای مجوز -->
-        @if (isAnyAdminLoggedIn && (isCurrentUserSuperAdmin || canAddPerm || canEditPerm || canDeletePerm))
-        {
-            <a href="/admin" class="btn btn-outline-danger btn-sm">🔒 ورود به پنل مدیریت</a>
-        }
-
-        <!-- 🏃‍♂️ دکمه خروج ادمین و قفل شدن مجدد کیوسک پرسنل -->
-        @if (isAnyAdminLoggedIn)
-        {
-            <button type="button" @onclick="AdminLogoutFromHome" class="btn btn-danger btn-sm fw-bold">🏃‍♂️ خروج ادمین و قفل کیوسک</button>
-        }
-    </div>
-
     <!-- جدول لیست کارمندان و وضعیت تردد سریع -->
     <div class="card mb-4 shadow-sm">
         <div class="card-header bg-primary text-white fw-bold">📋 لیست پرسنل و ثبت تردد</div>
@@ -113,13 +96,13 @@
             </tbody>
         </table>
 
-        }
+    }
 
         
-    </div>
+</div>
 
-    @if (!string.IsNullOrEmpty(message))
-    {
-        <div class="alert alert-info text-center mt-3">@message</div>
-    }
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info text-center mt-3">@message</div>
+}
 </div>
