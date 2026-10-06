@@ -9,6 +9,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+// ثبت سرویس مدیریت وضعیت ادمین به صورت Scoped (مخصوص هر سشن کاربر)
+builder.Services.AddScoped<sqlite_web.Services.AdminStateService>();
 
 
 var app = builder.Build();

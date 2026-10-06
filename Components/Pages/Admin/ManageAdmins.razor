@@ -3,7 +3,8 @@
 @using Microsoft.EntityFrameworkCore
 @using sqlite_web
 @using sqlite_web.Components.Models.Admin
-@inherits ManageAdmins
+@inject sqlite_web.Services.AdminStateService AdminState
+
 
 <div class="container mt-4" dir="rtl" style="text-align: right; font-family: Tahoma;">
 
