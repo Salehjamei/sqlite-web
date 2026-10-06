@@ -1,0 +1,136 @@
+﻿@page "/admin/manage-admins"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using sqlite_web
+@using sqlite_web.Components.Models.Admin
+@inherits ManageAdmins
+
+<div class="container mt-4" dir="rtl" style="text-align: right; font-family: Tahoma;">
+
+    @if (!IsAuthorized)
+    {
+        <div class="alert alert-danger text-center mt-5 p-4 shadow-sm">
+            <h4 class="fw-bold">🚫 خطای عدم دسترسی ارشد</h4>
+            <p class="m-0 mt-2">این صفحه اختصاصی بوده و فقط مدیر ارشد سیستم (AdminTop) به آن دسترسی دارد.</p>
+            <a href="/admin" class="btn btn-primary btn-sm mt-3">← بازگشت به پنل اصلی</a>
+        </div>
+    }
+    else
+    {
+        <div class="bg-danger text-white p-3 rounded mb-4 d-flex justify-content-between align-items-center shadow-sm">
+            <h4 class="m-0">👑 مدیریت اختصاصی ادمین‌ها و اعطای دسترسی تفکیکی</h4>
+            <a href="/admin" class="btn btn-outline-light btn-sm">بازگشت به پنل اصلی مدیریت ←</a>
+        </div>
+
+        <div class="row">
+            <!-- فرم ثبت و اعطای دسترسی تفکیکی -->
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-dark text-white fw-bold">
+                        @(isEditMode ? "✏️ ویرایش مشخصات و دسترسی‌ها" : "👤 ثبت مدیر جدید")
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <label class="form-label text-muted small">نام و نام خانوادگی:</label>
+                            <input type="text" @bind="adminFullName" class="form-control form-control-sm" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label text-muted small">نام کاربری:</label>
+                            <input type="text" @bind="adminUsername" class="form-control form-control-sm" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">رمز عبور:</label>
+                            <input type="password" @bind="adminPassword" class="form-control form-control-sm" />
+                        </div>
+
+                        <!-- 🛠️ بخش چک‌باکس‌های اهدا دسترسی تفکیکی -->
+                        <div class="p-3 bg-light rounded border mb-3">
+                            <h6 class="fw-bold small text-secondary mb-2">🛡️ تعیین سطوح دسترسی پرسنلی:</h6>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" @bind="pCanAdd" id="chkAdd">
+                                <label class="form-check-input-label small ms-2" for="chkAdd">توانایی <b>افزودن</b> پرسنل جدید</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" @bind="pCanEdit" id="chkEdit">
+                                <label class="form-check-input-label small ms-2" for="chkEdit">توانایی <b>ویرایش ساعت و حاضر کردن</b> پرسنل</label>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" @bind="pCanDelete" id="chkDelete">
+                                <label class="form-check-input-label small ms-2" for="chkDelete">توانایی <b>حذف</b> پرسنل و رکوردها</label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" @onclick="SaveAdmin" class="btn btn-danger btn-sm flex-grow-1">ذخیره مدیر</button>
+                            @if (isEditMode)
+                            {
+                                <button type="button" @onclick="CancelEdit" class="btn btn-secondary btn-sm">انصراف</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- جدول نمایش لیست و وضعیت دسترسی‌ها -->
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-secondary text-white fw-bold">📋 لیست کل مدیران و مجوزهای فعال</div>
+                    <div class="card-body p-0">
+                        <table class="table table-bordered table-striped text-center align-middle m-0 table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>نام مدیر</th>
+                                    <th>نام کاربری</th>
+                                    <th>مجوزها (افزودن | ویرایش | حذف)</th>
+                                    <th>عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (adminList != null)
+                                {
+                                    @foreach (var ad in adminList)
+                                    {
+                                        <tr>
+                                            <td><strong>@ad.FullName</strong></td>
+                                            <td><span class="badge bg-light text-dark">@ad.Username</span></td>
+                                            <td>
+                                                @if (ad.IsSuperAdmin)
+                                                {
+                                                    <span class="badge bg-danger">👑 دسترسی کامل (ارشد کل)</span>
+                                                }
+                                                else
+                                                {
+                                                    <div class="d-flex gap-1 justify-content-center">
+                                                        <span class="badge @(ad.CanAddEmployee ? "bg-success" : "bg-outline-secondary text-muted")">افزودن</span>
+                                                        <span class="badge @(ad.CanEditEmployee ? "bg-primary" : "bg-outline-secondary text-muted")">ویرایش</span>
+                                                        <span class="badge @(ad.CanDeleteEmployee ? "bg-danger" : "bg-outline-secondary text-muted")">حذف</span>
+                                                    </div>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!ad.IsSuperAdmin)
+                                                {
+                                                    <button type="button" class="btn btn-outline-primary btn-xs fw-bold me-1" @onclick="() => StartEdit(ad)">✏️ دسترسی‌ها</button>
+                                                    <button type="button" class="btn btn-outline-danger btn-xs fw-bold" @onclick="() => DeleteAdmin(ad.Id)">🗑️ حذف</button>
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-muted">غیرقابل تغییر</small>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(feedbackMessage))
+        {
+            <div class="alert alert-info text-center mt-3 p-2 small">@feedbackMessage</div>
+        }
+    }
+</div>

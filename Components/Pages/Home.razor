@@ -1,0 +1,125 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using sqlite_web.Components.Models
+
+<div class="container mt-5" dir="rtl" style="text-align: right; font-family: Tahoma;">
+
+    <!-- لینک ورود به پنل مدیریت -->
+    <!-- 🏃‍♂️ دکمه خروج ادمین و قفل شدن مجدد کیوسک پرسنل -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- 🔒 نمایش دکمه ورود به پنل فقط برای ادمین‌های دارای مجوز -->
+        @if (isAnyAdminLoggedIn && (isCurrentUserSuperAdmin || canAddPerm || canEditPerm || canDeletePerm))
+        {
+            <a href="/admin" class="btn btn-outline-danger btn-sm">🔒 ورود به پنل مدیریت</a>
+        }
+
+        <!-- 🏃‍♂️ دکمه خروج ادمین و قفل شدن مجدد کیوسک پرسنل -->
+        @if (isAnyAdminLoggedIn)
+        {
+            <button type="button" @onclick="AdminLogoutFromHome" class="btn btn-danger btn-sm fw-bold">🏃‍♂️ خروج ادمین و قفل کیوسک</button>
+        }
+    </div>
+
+    <!-- جدول لیست کارمندان و وضعیت تردد سریع -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white fw-bold">📋 لیست پرسنل و ثبت تردد</div>
+        @if (!isAnyAdminLoggedIn)
+        {
+            <div class="alert alert-warning text-center mt-5 p-4 shadow border-warning">
+                <h4 class="fw-bold text-dark">🔒 سیستم ثبت تردد غیرفعال است</h4>
+                <p class="m-0 mt-2 text-muted">این دستگاه مجاز به ثبت تردد نیست. لطفا از ادمین مجموعه بخواهید ابتدا سیستم را فعال کند.</p>
+                <div class="mt-3">
+                    <a href="/admin" class="btn btn-sm btn-dark fw-bold px-4">🔑 ورود ادمین جهت فعال‌سازی کیوسک</a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- ... جدول نمایش پرسنل  ... --><table class="table table-bordered table-striped text-center align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th style="width: 10%;">عکس</th>
+                    <th>نام کارمند</th>
+                    <th>کد ملی</th>
+                    <th>وضعیت فعلی</th>
+                    <th>عملیات تردد سریع</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (employees == null || !employees.Any())
+                {
+                    <tr>
+                        <td colspan="5" class="text-muted">هنوز هیچ پرسنلی در سیستم تعریف نشده است.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var emp in employees)
+                    {
+                        var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
+                        var lastRecord = empRecords.LastOrDefault();
+
+                        <tr>
+                            <!-- ۱. ستون عکس پرسنل -->
+                            <td class="align-middle">
+                                @if (!string.IsNullOrEmpty(emp.ImagePath))
+                                {
+                                    <img src="@emp.ImagePath" class="rounded-circle border border-2 shadow-sm" style="width: 45px; height: 45px; object-fit: cover;" />
+                                }
+                                else
+                                {
+                                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center border border-2 shadow-sm" style="width: 45px; height: 45px; font-size: 18px; margin: 0 auto;">
+                                        👤
+                                    </div>
+                                }
+                            </td>
+
+                            <!-- ۲. ستون نام کارمند (خالص و بدون تکرار کد ملی) -->
+                            <td class="align-middle fw-bold fs-6">
+                                @emp.FullName
+                            </td>
+
+                            <!-- ۳. ستون کد ملی (دقیقاً زیر هدر کد ملی) -->
+                            <td class="align-middle text-secondary font-monospace">
+                                @emp.PersonnelCode
+                            </td>
+
+                            <!-- ۴. ستون وضعیت فعلی -->
+                            <td class="align-middle">
+                                @if (lastRecord == null || lastRecord.ClockOutTime != null)
+                                {
+                                    <span class="badge bg-danger p-2 px-3 shadow-sm rounded-pill">خارج شده / غایب</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success p-2 px-3 shadow-sm rounded-pill">حاضر در شرکت</span>
+                                }
+                            </td>
+
+                            <!-- ۵. ستون عملیات سریع -->
+                            <td class="align-middle">
+                                @if (lastRecord == null || lastRecord.ClockOutTime != null)
+                                {
+                                    <button type="button" @onclick="() => ClockIn(emp.Id)" class="btn btn-success btn-sm px-4 rounded-pill shadow-sm fw-bold">🟢 ثبت ورود</button>
+                                }
+                                else
+                                {
+                                    <button type="button" @onclick="() => ClockOut(lastRecord.Id)" class="btn btn-danger btn-sm px-4 rounded-pill shadow-sm fw-bold">🔴 ثبت خروج</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+        }
+
+        
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert alert-info text-center mt-3">@message</div>
+    }
+</div>
