@@ -36,6 +36,12 @@ else
 
                     <!-- 🛠️ بخش چک‌باکس‌های اهدا دسترسی تفکیکی -->
                     <div class="p-3 bg-light rounded border mb-3">
+                        <!-- 👑 اضافه شدن چک‌باکس جدید دسترسی سوپر ادمین در فرم ثبت/ویرایش صفحه ManageAdmins.razor -->
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="isSuperAdminCheck" @bind="pIsSuperAdmin" />
+                            <label class="form-check-label fw-bold text-danger" for="isSuperAdminCheck">👑 اعطای دسترسی سوپر ادمین (مدیریت مدیران سیستم)</label>
+                        </div>
+
                         <h6 class="fw-bold small text-secondary mb-2">🛡️ تعیین سطوح دسترسی پرسنلی:</h6>
                         <div class="form-check form-switch mb-2">
                             <input class="form-check-input" type="checkbox" @bind="pCanAdd" id="chkAdd">

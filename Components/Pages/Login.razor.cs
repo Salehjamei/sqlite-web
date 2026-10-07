@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 using System.Threading.Tasks;
 using sqlite_web.Services;
 
-namespace sqlite_web.Components.Pages.Admin
+namespace sqlite_web.Components.Pages
 {
     public partial class Login
     {
@@ -16,7 +16,7 @@ namespace sqlite_web.Components.Pages.Admin
         protected string localPassword { get; set; } = "";
         protected string feedbackMessage { get; set; } = "";
 
-        protected async Task ExecuteServiceLogin()
+        private async Task ExecuteServiceLogin()
         {
             if (string.IsNullOrWhiteSpace(localUsername) || string.IsNullOrWhiteSpace(localPassword))
             {
@@ -28,13 +28,14 @@ namespace sqlite_web.Components.Pages.Admin
 
             if (success)
             {
+                // فیکس ریدایرکت: هدایت روان بدون ریفرش تخریب‌کننده کش مرورگر
                 if (!AdminState.IsAuthorized)
                 {
-                    MyNavigationManager.NavigateTo("/", forceLoad: true);
+                    MyNavigationManager.NavigateTo("/", forceLoad: false); // انتقال ادمین معمولی به کیوسک
                 }
                 else
                 {
-                    MyNavigationManager.NavigateTo("/admin", forceLoad: true);
+                    MyNavigationManager.NavigateTo("/admin", forceLoad: false); // انتقال سوپر ادمین به پنل اصلی
                 }
             }
             else
@@ -42,5 +43,6 @@ namespace sqlite_web.Components.Pages.Admin
                 feedbackMessage = "❌ نام کاربری یا رمز عبور اشتباه است!";
             }
         }
+
     }
 }

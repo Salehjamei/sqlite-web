@@ -31,40 +31,40 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// 🌟 کدهای ایجاد خودکار ادمین ارشد اولیه در صورت خالی بودن دیتابیس
+// 🌟 ایجاد خودکار اولین ادمین سیستم با تمام دسترسی‌ها در اولین لود برنامه
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
-        var context = services.GetRequiredService<AppDbContext>();
-        
-        // مطمئن می‌شویم دیتابیس و جدول‌ها ساخته شده‌اند
+        // 🛠️ اصلاح مسیر: لود دیتابیس از فضای نام مستقل پروژه‌تان (پوشه Data)
+        var context = services.GetRequiredService<sqlite_web.AppDbContext>();
+
+        // اطمینان از اینکه دیتابیس و جداول SQLite حتماً ساخته شده‌اند
         context.Database.EnsureCreated();
 
-        // اگر هیچ مدیری در جدول نبود، ادمین ارشد را بساز
+        // اگر جدول ادمین‌ها کاملاً خالی بود، اولین مدیر ارشد سیستم را بساز
         if (!context.Admins.Any())
         {
-            context.Admins.Add(new sqlite_web.Components.Models.Admin.AdminUser
+            // 🛠️ اصلاح مسیر: لود دقیق کلاس AdminUser از پوشه اختصاصی مدل‌های ادمین شما
+            var initialSuperAdmin = new sqlite_web.Components.Models.Admin.AdminUser
             {
-                FullName = "مدیر ارشد سیستم",
                 Username = "AdminTop",
-                Password = "AdminTop",
-                IsSuperAdmin = true ,// 👈 این اکانت برای همیشه تنها مدیر ارشد دیتابیس خواهد بود
-                CanAddEmployee = true,
-                CanEditEmployee = true,
-                CanDeleteEmployee = true
-            });
+                Password = "AdminTop", // رمز عبور ادمین اولیه
+                IsSuperAdmin = true,   // 👑 دارای دسترسی ارشد مدیریت مدیران
+                CanAddEmployee = true, // ➕ دارای دسترسی ثبت کارمندان
+                CanEditEmployee = true,// ✏️ دارای دسترسی ویرایش کارمندان
+                CanDeleteEmployee = true // ❌ دارای دسترسی حذف کارمندان
+            };
+
+            context.Admins.Add(initialSuperAdmin);
             context.SaveChanges();
         }
     }
     catch (Exception ex)
     {
-        // در صورت بروز خطا در لود اولیه، برنامه متوقف نشود
-        Console.WriteLine("خطا در ایجاد ادمین اولیه: " + ex.Message);
+        // مهار خطاهای احتمالی در لود اولیه دیتابیس لوکال
     }
 }
-
-// این خط از قبل در انتهای فایل شما وجود دارد:
 app.Run();
 

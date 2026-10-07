@@ -15,7 +15,10 @@
 </head>
 
 <body>
-    <Routes />
+    <!-- درون فایل App.razor تغییر تگ روت به ساختار آبشاری احراز هویت بومی دات‌نت -->
+    <CascadingAuthenticationState>
+        <Routes />
+    </CascadingAuthenticationState>
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>

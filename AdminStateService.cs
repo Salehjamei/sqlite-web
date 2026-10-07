@@ -37,57 +37,78 @@ namespace sqlite_web.Services
             _jsRuntime = jsRuntime;
             _navigationManager = navigationManager;
         }
-
         /// <summary>
-        /// 🔍 متد پایش مرکزی و گارد امنیتی مسیرها (تضمین امنیت صددرصدی صفحات)
-        /// این متد توکن مرورگر را می‌خواند و در صورت مغایرت یا انقضا، کاربر را خودکار ریدایرکت می‌کند.
-        /// 🔍 متد اصلاح‌شده پایش مرکزی و گارد امنیتی مسیرها
+        /// 🔍 متد پایش متمرکز امنیتی مسیرها با شرط‌های نفوذناپذیر دیتابیس لوکال
+        /// توضیحات کد: این متد جلوی لوپ ریدایرکت‌های اشتباه ادمین ارشد را در فاز پیش‌رندر سرور می‌گیرد.
         /// </summary>
         public async Task CheckAccessAndRedirectAsync()
         {
             try
             {
-                // خواندن فیزیکی توکن سشن از حافظه مرورگر
+                // خواندن فیزیکی توکن سشن فعال از روی لوکال استوریج مرورگر کلاینت
                 var savedToken = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "admin_session_token");
 
                 if (!string.IsNullOrEmpty(savedToken) && _dbContext != null)
                 {
-                    // استخراج مشخصات از دیتابیس
+                    // کوئری مستقیم روی دیتابیس SQLite بر اساس نام کاربری ادمین
                     var admin = await _dbContext.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Username == savedToken);
                     if (admin != null)
                     {
-                        FillAdminData(admin); // پر کردن متغیرهای سراسری سیستم
+                        FillAdminData(admin); // لود کامل فیلدها و سطوح دسترسی (IsAuthorized و superadmin)
 
-                        // گارد امنیتی ادمین بدون دسترسی (کیوسک): جلوگیری از ورود به بخش مدیریت مدیران
+                        // 🛡️ ۱. شرط نجات از صفحه لاگین: اگر ادمین مجاز آنلاین است و سیستم به اشتباه در مسیر لاگین مانده، او را به پنل هدایت کن
+                        if (_navigationManager.Uri.Contains("/admin/login", StringComparison.OrdinalIgnoreCase))
+                        {
+                            IsChecked = true;
+                            NotifyStateChanged();
+                            _navigationManager.NavigateTo("/admin", forceLoad: false); // هدایت روان بدون ریفرش تخریب‌کننده کش
+                            return;
+                        }
+
+                        // 🛡️ ۲. گارد امنیتی ادمین کیوسک: جلوگیری از دسترسی مدیران معمولی به بخش مدیریت مدیران
                         if (!IsAuthorized && _navigationManager.Uri.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase))
                         {
                             _navigationManager.NavigateTo("/", forceLoad: true);
                         }
 
                         IsChecked = true;
-                        NotifyStateChanged(); // 🌟 شلیک مطمئن پس از پر شدن کامل فیلدها
+                        NotifyStateChanged(); // فعال‌سازی فوری دکمه‌های هدر
                         return;
                     }
                 }
 
-                // در صورت نبودن توکن یا منقضی شدن آن
-                Reset();
-                if (_navigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase) &&
-                    !_navigationManager.Uri.Contains("/admin/login", StringComparison.OrdinalIgnoreCase))
+                // 🔒 ۳. فیکس طلایی: شرط ریدایرکت به لاگین مستقل؛ فقط و فقط زمانی مجاز است ریدایرکت کند که
+                // اولاً فاز پیش‌رندر سرور تمام شده باشد (IsChecked شده باشد) و ثانیاً توکن "واقعاً در مرورگر خالی باشد"
+                if (IsChecked && string.IsNullOrEmpty(savedToken))
                 {
-                    _navigationManager.NavigateTo("/admin/login", forceLoad: true);
+                    Reset(); // شستشوی متغیرها فقط در صورت نبودن واقعی توکن
+                    if (_navigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase) &&
+                        !_navigationManager.Uri.Contains("/admin/login", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _navigationManager.NavigateTo("/admin/login", forceLoad: false);
+                    }
                 }
             }
             catch
             {
-                // مهار خطاهای فاز پیش‌رندر
+                // مهار خطاهای تعامل با لایه اسکریپتی مرورگر در فاز پیش‌رندر سرور (Prerendering)
+                // 🔒 فیکس کلیدی: در این بخش هرگز پرچم IsChecked را true نمی‌کنیم تا سیستم شروط ریدایرکت را عجولانه اجرا نکند
+                return;
             }
             finally
             {
-                IsChecked = true;
-                NotifyStateChanged(); // ریفرش نهایی و پایدار گرافیک هدر
+                // پرچم اطمینان از اتمام اسکن فقط پس از لود کلاینت و اتصال زنده مرورگر فعال می‌شود
+                if (!IsChecked)
+                {
+                    IsChecked = true;
+                    NotifyStateChanged(); // بیدار کردن نهایی گرافیک منوهای هدر
+                }
             }
         }
+
+
+
+
         /// <summary>
         /// 🔑 متد ورود مرکزی (Login) مستقر در هسته سرویس
         /// </summary>
@@ -130,7 +151,7 @@ namespace sqlite_web.Services
             catch { }
 
             NotifyStateChanged();
-            _navigationManager.NavigateTo("/admin/login", forceLoad: true);
+            _navigationManager.NavigateTo("/login", forceLoad: true);
         }
 
         // متد کمکی جهت تزریق مقادیر رکورد دیتابیس به متغیرهای عمومی سرویس
@@ -139,23 +160,27 @@ namespace sqlite_web.Services
             adminUsername = admin.Username;
             adminPassword = admin.Password;
             adminFullName = admin.Username;
-            isCurrentUserSuperAdmin = admin.IsSuperAdmin; // ست کردن وضعیت ادمین ارشد
+            isCurrentUserSuperAdmin = admin.IsSuperAdmin; // 👑 لود فیزیکی تیک سوپر ادمین از روی دیتابیس SQLite
 
+            // لود مستقل و بدون واسطه تیک‌های عملیاتی پرسنل از روی هارد دیتابیس
             pCanAdd = admin.CanAddEmployee;
             pCanEdit = admin.CanEditEmployee;
             pCanDelete = admin.CanDeleteEmployee;
 
-            currentAdminPerms = isCurrentUserSuperAdmin ? "مدیر ارشد سیستم" : "مدیر معمولی با دسترسی محدود";
+            currentAdminPerms = isCurrentUserSuperAdmin ? "سوپر ادمین ارشد" : "مدیر معمولی";
 
-            if (!admin.IsSuperAdmin && !pCanAdd && !pCanEdit && !pCanDelete)
-            {
-                IsAuthorized = false; // ادمین بدون دسترسی (کیوسک)
-            }
-            else
+            // 🛡️ منطق گارد امنیتی هدر لایوت:
+            // الف) دکمه رفتن به کیوسک یا پنل مدیریت (IsAuthorized) روشن می‌شود اگر کاربر سوپر ادمین باشد "یا" حداقل یکی از تیک‌های عادی کارمندان را داشته باشد.
+            if (isCurrentUserSuperAdmin || pCanAdd || pCanEdit || pCanDelete)
             {
                 IsAuthorized = true;
             }
+            else
+            {
+                IsAuthorized = false; // ادمین بدون هیچ دسترسی (ادمین کیوسک) که دکمه ورود به پنل برایش مسدود است
+            }
         }
+
 
         private void Reset()
         {
