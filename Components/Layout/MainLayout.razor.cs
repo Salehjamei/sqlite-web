@@ -16,7 +16,7 @@ namespace sqlite_web.Components.Layout
 
         protected override void OnInitialized()
         {
-            // گوش دادن به تغییرات وضعیت ادمین در سراسر برنامه
+            // گوش دادن به رویداد تغییر وضعیت ادمین در سراسر برنامه برای ریفرش آنی هدر
             AdminState.OnChange += StateHasChanged;
             MyNavigationManager.LocationChanged += OnLocationChanged;
         }
@@ -25,10 +25,13 @@ namespace sqlite_web.Components.Layout
         {
             if (firstRender)
             {
-                // مقداردهی اولیه سرویس فقط یک‌بار در لایه کلاینت مرورگر
+                await Task.Delay(100); // زمان کوتاه برای لود لوکال استوریج مرورگر
                 await AdminState.InitializeAsync();
+                await InvokeAsync(StateHasChanged); // اجبار هدر به لود دکمه خروج
             }
         }
+
+
 
         private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
         {
@@ -36,12 +39,6 @@ namespace sqlite_web.Components.Layout
             {
                 await AdminState.InitializeAsync();
             });
-        }
-
-        protected async Task HandleGlobalLogout()
-        {
-            await AdminState.LogoutAsync();
-            MyNavigationManager.NavigateTo("/admin", forceLoad: true);
         }
 
         public void Dispose()

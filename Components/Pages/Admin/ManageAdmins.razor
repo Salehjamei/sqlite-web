@@ -3,28 +3,31 @@
 @using Microsoft.EntityFrameworkCore
 @using sqlite_web
 @using sqlite_web.Components.Models.Admin
-@inject sqlite_web.Services.AdminStateService AdminState
-
 
 <div class="container mt-4" dir="rtl" style="text-align: right; font-family: Tahoma;">
 
-    @if (!IsAuthorized)
+    @if (!AdminState.IsChecked)
     {
-        <div class="alert alert-danger text-center mt-5 p-4 shadow-sm">
-            <h4 class="fw-bold">🚫 خطای عدم دسترسی ارشد</h4>
-            <p class="m-0 mt-2">این صفحه اختصاصی بوده و فقط مدیر ارشد سیستم (AdminTop) به آن دسترسی دارد.</p>
-            <a href="/admin" class="btn btn-primary btn-sm mt-3">← بازگشت به پنل اصلی</a>
+        <div class="text-center mt-5">
+            <div class="spinner-border text-danger" role="status"></div>
+            <p class="mt-3 fw-bold">در حال پایش امنیتی سطوح دسترسی سیستم...</p>
+        </div>
+    }
+    else if (!AdminState.IsAuthorized)
+    {
+        <div class="alert alert-danger text-center shadow-sm fw-bold mb-4">
+            ❌ این صفحه اختصاصی بوده و فقط مدیر ارشد سیستم به آن دسترسی دارد!
         </div>
     }
     else
     {
-        <!-- 👑 نوار ابزار اختصاصی بخش کنترل سطوح دسترسی مدیران (تراز شده با لایوت جدید) -->
+        <!-- 👑 نوار ابزار اختصاصی بخش کنترل مدیران مجهز به دکمه بازگشت -->
         <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded mb-4 border shadow-sm">
             <span class="text-danger fw-bold fs-6">👑 تنظیمات سطوح دسترسی مدیران سیستم</span>
             <div class="d-flex gap-2">
                 <a href="/admin" class="btn btn-dark btn-sm fw-bold">🔙 بازگشت به پنل اصلی</a>
             </div>
-        </div>
+        </div><!-- [بقیه کدهای جدول فرم ثبت ادمین جدید] -->
         <div class="row">
             <!-- فرم ثبت و اعطای دسترسی تفکیکی -->
             <div class="col-md-4">

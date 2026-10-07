@@ -1,64 +1,28 @@
 ﻿@page "/admin"
 @rendermode InteractiveServer
-@using Microsoft.EntityFrameworkCore
-@using sqlite_web
-@using sqlite_web.Components.Models
-@using sqlite_web.Components.Models.Admin
-@inject sqlite_web.Services.AdminStateService AdminState
 
-<div class="container mt-4" dir="rtl" style="text-align: right; font-family: Tahoma;">
+<div class="container mt-2" dir="rtl" style="text-align: right; font-family: Tahoma;">
 
-    @if (!isLoggedIn)
+    @if (AdminState.IsChecked && string.IsNullOrEmpty(AdminState.adminUsername))
     {
-        <div class="row justify-content-center mt-5">
-            <div class="col-md-5">
-                <div class="card shadow-lg border-0 rounded-3">
-                    <div class="card-header bg-danger text-white text-center py-3">
-                        <h5 class="m-0 fw-bold">@TxtLockTitle</h5>
-                    </div>
-                    <div class="card-body p-4">
-                        <p class="text-center text-muted small mb-4">@TxtLockSub</p>
-
-                        <div class="mb-3">
-                            <label class="form-label text-secondary small fw-bold">@TxtUsernameLabel</label>
-                            <input type="text" @bind="loginUsername" class="form-control" placeholder="username..." />
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label text-secondary small fw-bold">@TxtPasswordLabel</label>
-                            <input type="password" @bind="loginPassword" class="form-control" placeholder="password..." />
-                        </div>
-
-                        <button type="button" @onclick="HandleLogin" class="btn btn-danger w-100 py-2 fw-bold">@TxtLoginBtn</button>
-
-                        @if (!string.IsNullOrEmpty(loginErrorMessage))
-                        {
-                            <div class="alert alert-danger text-center mt-3 p-2 small">
-                                ❌ @loginErrorMessage
-                            </div>
-                        }
-                    </div>
-                    <div class="card-footer text-center bg-light">
-                        <a href="/" class="text-decoration-none small text-secondary">@TxtBackToHome</a>
-                    </div>
-                </div>
-            </div>
+        <div class="text-center mt-5">
+            <div class="spinner-border text-dark" role="status"></div>
+            <p class="mt-3 fw-bold">در حال انتقال به صفحه ورود سیستم...</p>
         </div>
     }
     else
-    {       
-        <!-- نوار ابزار اختصاصی و کوچک ادمین که جایگزین هدر قدیمی شد -->
-        <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded mb-3 border shadow-sm">
-            <span class="text-dark fw-bold">👤 مدیر آنلاین: @currentAdminName</span>
+    {
+        <!-- 👤 نوار ابزار شیک ادمین ارشد -->
+        <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded mb-4 border shadow-sm">
+            <span class="text-dark fw-bold fs-6">👤 مدیر آنلاین: @AdminState.adminUsername</span>
             <div class="d-flex gap-2">
-                @if (isCurrentUserSuperAdmin)
+                @if (AdminState.IsAuthorized)
                 {
-                    <a href="/admin/manage-admins" class="btn btn-danger btn-xs fw-bold">👑 مدیریت ادمین‌ها</a>
+                    <a href="/admin/manage-admins" class="btn btn-danger btn-sm fw-bold">👑 مدیریت ادمین‌ها</a>
                 }
-                <button type="button" @onclick="HandleLogout" class="btn btn-dark btn-xs fw-bold">🏃‍♂️ خروج از حساب</button>
             </div>
         </div>
-
+        <!-- [بقیه کدهای فرم ثبت کارمند و جدول پرسنل ] -->
         <div class="row">
             <!-- ستون سمت راست: فرم ثبت یا ویرایش کامل فیلدها -->
             <div class="col-md-4">
@@ -109,7 +73,7 @@
                                 @if (renderUploadInput)
                                 {
                                     <!-- نسخه اصلاح شده و بدون ارور تگ آپلود فایل -->
-                                    <InputFile OnChange="HandleImageUpload"class="@($"form-control form-control-sm {(isEmpImageInvalid ? "is-invalid" : "")}")"accept=".jpg,.jpeg,.png" />
+                                    <InputFile OnChange="HandleImageUpload" class="@($"form-control form-control-sm {(isEmpImageInvalid ? "is-invalid" : "")}")" accept=".jpg,.jpeg,.png" />
 
                                 }
                                 @if (isEmpImageInvalid)
@@ -361,5 +325,6 @@
                 </div>
             </div>
         }
+    }
     }
 </div>

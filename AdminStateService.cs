@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
-using sqlite_web.Components.Models; // 👈 مطمئن شوید این نیم‌پیس با پروژه شما یکی باشد
+using sqlite_web.Components.Models;
+using sqlite_web.Components.Models.Admin;
 
 namespace sqlite_web.Services
 {
@@ -10,9 +12,10 @@ namespace sqlite_web.Services
     {
         private readonly AppDbContext _dbContext;
         private readonly IJSRuntime _jsRuntime;
+        private readonly NavigationManager _navigationManager;
 
-        // 🌟 دقیقاً همان متغیرهای عمومی و اختصاصی مورد نیاز شما در صفحات
-        public bool IsAuthorized { get; set; } = false;
+        // متغیرهای عمومی و یکپارچه سیستم شما
+        public bool IsAuthorized { get; set; } = true;
         public string adminFullName { get; set; } = "";
         public string adminUsername { get; set; } = "";
         public string adminPassword { get; set; } = "";
@@ -20,69 +23,91 @@ namespace sqlite_web.Services
         public bool pCanAdd { get; set; } = false;
         public bool pCanEdit { get; set; } = false;
         public bool pCanDelete { get; set; } = false;
-        
-        // پرچم برای تشخیص اینکه آیا اسکن توکن اولیه پایان یافته یا خیر
-        public bool IsChecked { get; private set; } = false;
 
-        // رویداد مرکزی برای مطلع کردن هدر و بقیه صفحات از تغییر وضعیت ادمین
+        public bool IsChecked { get; private set; } = false;
         public event Action? OnChange;
 
-        public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime)
+        // تزریق دیتابیس، ناوبری و جاوااسکریپت به درون سرویس
+        public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime, NavigationManager navigationManager)
         {
             _dbContext = dbContext;
             _jsRuntime = jsRuntime;
+            _navigationManager = navigationManager;
         }
 
-        // متد اصلی اسکن توکن و استخراج دسترسی‌ها از دیتابیس SQLite
-        public async Task InitializeAsync()
+        // ۱. متد پایش مرکزی: اسکن توکن و اعمال گارد امنیتی ریدایرکت بر روی صفحات با دسترسی حساس
+        public async Task CheckAccessAndRedirectAsync()
         {
             try
             {
                 var savedToken = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "admin_session_token");
-                
+
                 if (!string.IsNullOrEmpty(savedToken) && _dbContext != null)
                 {
-                    // جستجوی مستقیم ادمین در دیتابیس بر اساس توکن ذخیره شده
                     var admin = await _dbContext.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Username == savedToken);
                     if (admin != null)
                     {
-                        // پر کردن متغیرهای شما
-                        adminUsername = admin.Username;
-                        adminPassword = admin.Password;
-                        adminFullName = admin.Username; 
+                        FillAdminData(admin);
 
-                        pCanAdd = admin.CanAddEmployee;
-                        pCanEdit = admin.CanEditEmployee;
-                        pCanDelete = admin.CanDeleteEmployee;
+                        // 🛡️ لایه محافظتی: اگر ادمین معمولی بدون دسترسی بخواهد دستی وارد صفحه مدیریت مدیران شود، او را شوت کن به کیوسک
+                        if (!IsAuthorized && _navigationManager.Uri.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _navigationManager.NavigateTo("/", forceLoad: true);
+                        }
 
-                        // بررسی سطح دسترسی: اگر سوپر ادمین باشد یا حداقل یک دسترسی داشته باشد مجاز است
-                        if (admin.IsSuperAdmin || pCanAdd || pCanEdit || pCanDelete)
-                        {
-                            IsAuthorized = true;
-                        }
-                        else
-                        {
-                            IsAuthorized = false; // ادمین بدون دسترسی (کیوسک)
-                        }
+                        IsChecked = true;
+                        NotifyStateChanged();
+                        return;
                     }
                 }
-                else
+
+                // 🔒 اگر توکن منقضی یا خالی بود و کاربر در صفحات حساس ادمین بود، انتقال خودکار به لاگین مجزا
+                Reset();
+                if (_navigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase) &&
+                    !_navigationManager.Uri.Contains("/admin/login", StringComparison.OrdinalIgnoreCase))
                 {
-                    Reset();
+                    _navigationManager.NavigateTo("/admin/login", forceLoad: true);
                 }
             }
             catch
             {
-                // مهار خطا در فاز Prerendering سمت سرور
+                // مهار خطای فاز پیش‌رندر سرور
             }
             finally
             {
                 IsChecked = true;
-                NotifyStateChanged(); // رندر مجدد هدر
+                NotifyStateChanged();
             }
         }
 
-        // متد خروج مرکزی سیستم
+        // ۲. متد ورود مرکزی
+        public async Task<bool> LoginAsync(string inputUsername, string inputPassword)
+        {
+            if (_dbContext == null || string.IsNullOrWhiteSpace(inputUsername) || string.IsNullOrWhiteSpace(inputPassword))
+                return false;
+
+            var admin = await _dbContext.Admins.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Username.ToLower() == inputUsername.ToLower() && a.Password == inputPassword);
+
+            if (admin != null)
+            {
+                FillAdminData(admin);
+
+                try
+                {
+                    await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "admin_session_token", admin.Username);
+                }
+                catch { }
+
+                IsChecked = true;
+                NotifyStateChanged();
+                return true;
+            }
+
+            return false;
+        }
+
+        // ۳. متد خروج مرکزی
         public async Task LogoutAsync()
         {
             Reset();
@@ -91,7 +116,29 @@ namespace sqlite_web.Services
                 await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "admin_session_token");
             }
             catch { }
+
             NotifyStateChanged();
+            _navigationManager.NavigateTo("/admin/login", forceLoad: true);
+        }
+
+        private void FillAdminData(AdminUser admin)
+        {
+            adminUsername = admin.Username;
+            adminPassword = admin.Password;
+            adminFullName = admin.Username;
+
+            pCanAdd = admin.CanAddEmployee;
+            pCanEdit = admin.CanEditEmployee;
+            pCanDelete = admin.CanDeleteEmployee;
+
+            if (!admin.IsSuperAdmin && !pCanAdd && !pCanEdit && !pCanDelete)
+            {
+                IsAuthorized = false; // ادمین بدون دسترسی (کیوسک)
+            }
+            else
+            {
+                IsAuthorized = true; // ادمین مجاز ارشد یا دارای سطح دسترسی پایه
+            }
         }
 
         private void Reset()
@@ -99,7 +146,7 @@ namespace sqlite_web.Services
             adminUsername = "";
             adminFullName = "";
             adminPassword = "";
-            IsAuthorized = false;
+            IsAuthorized = true;
             pCanAdd = false;
             pCanEdit = false;
             pCanDelete = false;
