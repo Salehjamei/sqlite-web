@@ -2,38 +2,39 @@
 
 <div class="page" dir="rtl" style="font-family: Tahoma; text-align: right;">
 
-    <!-- 🟢 هدر یکپارچه و متصل به سرویس وضعیت سراسری -->
+    <!-- 🟢 هدر یکپارچه، هوشمند و سراسری سیستم حضور و غیاب -->
     <header class="bg-dark text-white p-3 shadow-sm mb-4">
         <div class="container d-flex justify-content-between align-items-center">
             <h4 class="m-0 fw-bold">⏱️ سیستم هوشمند حضور و غیاب پرسنل</h4>
             <div class="d-flex align-items-center gap-2">
 
-                <!-- ۱. شرط نمایش نام و دکمه خروج: اگر نام کاربری ادمین در سرویس پر شده باشد -->
-                @if (!(AdminState.adminUsername==null) && AdminState.IsChecked)
+                <!-- 🛡️ اگر ادمین آنلاین بود (نام کاربری در سرویس پر شده باشد) -->
+                @if (!string.IsNullOrEmpty(AdminState.adminUsername))
                 {
                     <span class="text-info small fw-bold me-2">👤 ادمین آنلاین: @AdminState.adminUsername</span>
-                    <!-- کادر دکمه خروج در هدر -->
-                    <button type="button" @onclick="AdminState.LogoutAsync" class="btn btn-danger btn-sm fw-bold me-3">🏃‍ خروج از حساب</button>
-                    <!-- دکمه ورود به کیوسک: فقط برای ادمین‌های مجاز (IsAuthorized) و زمانی که در صفحه ادمین هستند -->
-                    @if (AdminState.IsAuthorized && MyNavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
+
+                    <!-- دکمه خروج سراسری که مستقیماً متد خروج سرویس ادمین را صدا می‌زند -->
+                    <button type="button" @onclick="HandleGlobalLogout" class="btn btn-danger btn-sm fw-bold me-3">🏃‍♂️ خروج از حساب</button>
+
+                    <!-- 🖥️ دکمه رفتن به کیوسک: برای ادمین‌های با دسترسی کامل (IsAuthorized) نمایش داده شود -->
+                    @if (AdminState.IsAuthorized)
                     {
                         <a href="/" class="btn btn-outline-light btn-sm fw-bold">🖥️ صفحه کیوسک پرسنل</a>
                     }
                 }
-
-                <!-- 🔒 شرط نمایش دکمه ورود به پنل: فقط زمانی که هیچ ادمینی لاگین نکرده باشد (نام کاربری خالی باشد) -->
-                @if (string.IsNullOrEmpty(AdminState.adminUsername) && AdminState.IsChecked)
+                else
                 {
-                    @if (!MyNavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
+                    <!-- 🔒 اگر هیچ ادمینی لاگین نکرده باشد، دکمه ورود نمایش داده شود -->
+                    @if (!MyNavigationManager.Uri.Contains("/admin/login", StringComparison.OrdinalIgnoreCase))
                     {
-                        <a href="/admin" class="btn btn-outline-info btn-sm fw-bold">🔑 ورود به پنل مدیریت</a>
+                        <a href="/admin/login" class="btn btn-outline-info btn-sm fw-bold">🔑 ورود به پنل مدیریت</a>
                     }
                 }
             </div>
         </div>
     </header>
 
-    <!-- بادی اصلی صفحات سیستم که حالا با تگ بالا کاملاً بیدار می‌شود -->
+    <!-- بادی اصلی صفحات متغیر سیستم -->
     <main class="container flex-grow-1" style="min-height: 80vh;">
         @Body
     </main>
