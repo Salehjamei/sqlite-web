@@ -31,40 +31,23 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// 🌟 ایجاد خودکار اولین ادمین سیستم با تمام دسترسی‌ها در اولین لود برنامه
+// 🌟 توضیحات کد: ارجاع متمرکز فرآیند ساخت و مقداردهی اولیه سوپر ادمین ارشد به هسته سرویس ادمین
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
-        // 🛠️ اصلاح مسیر: لود دیتابیس از فضای نام مستقل پروژه‌تان (پوشه Data)
-        var context = services.GetRequiredService<sqlite_web.AppDbContext>();
+        // فراخوانی مستقیم کلاس وضعیت ادمین از لایه خدمات تزریق شده سیستم
+        var adminState = services.GetRequiredService<sqlite_web.Services.AdminStateService>();
 
-        // اطمینان از اینکه دیتابیس و جداول SQLite حتماً ساخته شده‌اند
-        context.Database.EnsureCreated();
-
-        // اگر جدول ادمین‌ها کاملاً خالی بود، اولین مدیر ارشد سیستم را بساز
-        if (!context.Admins.Any())
-        {
-            // 🛠️ اصلاح مسیر: لود دقیق کلاس AdminUser از پوشه اختصاصی مدل‌های ادمین شما
-            var initialSuperAdmin = new sqlite_web.Components.Models.Admin.AdminUser
-            {
-                Username = "AdminTop",
-                Password = "AdminTop", // رمز عبور ادمین اولیه
-                IsSuperAdmin = true,   // 👑 دارای دسترسی ارشد مدیریت مدیران
-                CanAddEmployee = true, // ➕ دارای دسترسی ثبت کارمندان
-                CanEditEmployee = true,// ✏️ دارای دسترسی ویرایش کارمندان
-                CanDeleteEmployee = true // ❌ دارای دسترسی حذف کارمندان
-            };
-
-            context.Admins.Add(initialSuperAdmin);
-            context.SaveChanges();
-        }
+        // اجرای متد ساخت متمرکز دیتابیس ادمین اولیه به صورت ناهمزمان
+        Task.Run(async () => await adminState.InitializeDefaultSuperAdminAsync()).Wait();
     }
     catch (Exception ex)
     {
-        // مهار خطاهای احتمالی در لود اولیه دیتابیس لوکال
+        // مهار خطاهای احتمالی فاز لود اولیه روی هارد سرور
     }
 }
+
 app.Run();
 

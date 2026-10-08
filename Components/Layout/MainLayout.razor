@@ -2,30 +2,33 @@
 
 <div class="page" dir="rtl" style="font-family: Tahoma; text-align: right;">
 
-    <!-- 🟢 هدر مرکزی و یکپارچه سیستم حضور و غیاب پرسنل -->
+    <!-- 🟢 هدر یکپارچه، هوشمند و سراسری سیستم حضور و غیاب پرسنل -->
     <header class="bg-dark text-white p-3 shadow-sm mb-4">
         <div class="container d-flex justify-content-between align-items-center">
             <h4 class="m-0 fw-bold">⏱️ سیستم هوشمند حضور و غیاب پرسنل</h4>
             <div class="d-flex align-items-center gap-2">
 
-                <!-- 🛡️ بررسی شرط: اگر سشن ادمین آنلاین تایید شده باشد -->
-                @if (AdminState.IsAuthorized)
+                <!-- 🛡️ اگر توکن سشن آنلاین در بلایزر تایید شده باشد -->
+                @if (hasToken)
                 {
-                    <!-- 🌟 فیکس قطعی: چاپ مستقیم نام کاربری ادمین بدون هیچ متنی به عنوان fallback -->
-                    <span class="text-info small fw-bold me-2">👤 ادمین آنلاین: @AdminState.adminUsername</span>
+                    <!-- نمایش مستقیم نام کاربری واقعی ادمین لاگین شده بدون فیلد تداخل‌زا -->
+                    <span class="text-info small fw-bold me-2">👤 ادمین آنلاین: @adminUsername</span>
 
-                    <!-- دکمه خروج مرکزی هدر متصل به متد شستشوی سشن سرویس ادمین -->
-                    <button type="button" @onclick="HandleGlobalLogout" class="btn btn-danger btn-sm fw-bold me-3">🏃‍♂️ خروج از حساب</button>
+                    <!-- دکمه خروج بومی بلایزر که متد شستشوی مستقیم را صدا می‌زند -->
+                    <button type="button" @onclick="ExecuteGlobalLogout" class="btn btn-danger btn-sm fw-bold me-3">🏃‍♂️ خروج از حساب</button>
 
-                    <!-- دکمه ناوبری به کیوسک پرسنل فقط زمانی دیده شود که در صفحات مدیریت هستیم -->
-                    @if (MyNavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
+                    <!-- دکمه ناوبری به کیوسک پرسنل: برای ادمین ارشد (IsAuthorized) نمایش داده شود -->
+                    @if (IsAuthorized)
                     {
-                        <a href="/" class="btn btn-outline-light btn-sm fw-bold">🖥️ صفحه کیوسک پرسنل</a>
+                        @if (MyNavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <a href="/" class="btn btn-outline-light btn-sm fw-bold">🖥️ صفحه کیوسک پرسنل</a>
+                        }
                     }
                 }
                 else
                 {
-                    <!-- 🔒 اگر هیچ ادمینی اصلاً لاگین نکرده باشد، دکمه ورود به پنل رندر شود -->
+                    <!-- 🔒 اگر هیچ ادمینی لاگین نکرده باشد، دکمه ورود رندر شود -->
                     @if (!MyNavigationManager.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
                     {
                         <a href="/login" class="btn btn-outline-info btn-sm fw-bold">🔑 ورود به پنل مدیریت</a>
