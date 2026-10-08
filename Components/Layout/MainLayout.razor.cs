@@ -12,14 +12,10 @@ namespace sqlite_web.Components.Layout
         [Inject]
         public NavigationManager MyNavigationManager { get; set; } = default!;
 
-        // متد خروج سراسری و مرکزی هدر لایوت
+        // متد خروج مرکزی هدر مجهز به هدایت اجباری به لاگین مجزا
         protected async Task HandleGlobalLogout()
         {
-            // شستشوی توکن از روی هارد لوکال مرورگر از طریق سرویس
             await AdminState.LogoutAsync();
-
-            // هدایت اجباری به لاگین مجزا همراه با ریفرش سشن‌ها
-            MyNavigationManager.NavigateTo("/admin/login", forceLoad: true);
         }
     }
 }

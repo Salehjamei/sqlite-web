@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 using sqlite_web.Components.Models;
-using sqlite_web.Components.Models.Admin; // کلاس مدل ادمین شما
+using sqlite_web.Components.Models.Admin; // فضای نام مدل جدول AdminUser شما
 
 namespace sqlite_web.Services
 {
@@ -14,22 +14,24 @@ namespace sqlite_web.Services
         private readonly IJSRuntime _jsRuntime;
         private readonly NavigationManager _navigationManager;
 
-        // 🔘 متغیرهای عمومی احراز هویت مورد نیاز هدر و تمام صفحات سیستم
-        public bool IsAuthorized { get; set; } = true; // سطح دسترسی (true = مدیر ارشد یا دارای دسترسی / false = ادمین بدون دسترسی)
-        public string adminFullName { get; set; } = ""; // نام کامل مدیر آنلاین
-        public string adminUsername { get; set; } = ""; // نام کاربری مدیر آنلاین (توکن فعال)
-        public string adminPassword { get; set; } = ""; // رمز عبور مدیر آنلاین
-        public bool isCurrentUserSuperAdmin { get; set; } = false; // 🌟 پرکاربرد: تشخیص مستقیم ادمین ارشد (SuperAdmin) برای پایداری منوها
+        // 🌟 فیکس بنیادی: متغیری که کل اطلاعات مدیر آنلاین را مستقیم از روی رکورد دیتابیس نگه می‌دارد
+        public AdminUser? CurrentOnlineAdmin { get; private set; }
 
-        // 🛡️ فیلدهای سه‌گانه سطوح دسترسی تفکیکی ادمین آنلاین
-        public bool pCanAdd { get; set; } = false; // مجوز ثبت کارمند جدید
-        public bool pCanEdit { get; set; } = false; // مجوز ویرایش کارمندان
-        public bool pCanDelete { get; set; } = false; // مجوز حذف کارمندان
+        // متغیرهای عمومی احراز هویت که هدر و صفحات به آن نیاز دارند (دیگر به متغیرهای صفحه لاگین ربطی ندارند)
+        public bool IsAuthorized { get; set; } = true;
+        public string adminFullName => CurrentOnlineAdmin?.Username ?? ""; // واکشی زنده نام از دیتابیس
+        public string adminUsername => CurrentOnlineAdmin?.Username ?? ""; // واکشی زنده نام کاربری
+        public string adminPassword => CurrentOnlineAdmin?.Password ?? "";
 
-        // ⚙️ پرچم‌های کنترلی چرخه حیات بلایزر
-        public bool IsChecked { get; private set; } = false; // تایید اتمام اسکن توکن مرورگر
-        public string currentAdminPerms { get; set; } = "ادمین معمولی"; // 🌟 پرکاربرد: نمایش متنی سطح دسترسی در پنل‌ها
-        public event Action? OnChange; // رویداد مرکزی جهت مطلع‌سازی آنی هدر برای رندر دکمه خروج
+        // فیلدهای سه‌گانه سطوح دسترسی عملیاتی پرسنل استخراج شده از روی سشن واقعی
+        public bool pCanAdd => CurrentOnlineAdmin?.CanAddEmployee ?? false;
+        public bool pCanEdit => CurrentOnlineAdmin?.CanEditEmployee ?? false;
+        public bool pCanDelete => CurrentOnlineAdmin?.CanDeleteEmployee ?? false;
+        public bool isCurrentUserSuperAdmin => CurrentOnlineAdmin?.IsSuperAdmin ?? false;
+
+        public bool IsChecked { get; private set; } = false;
+        public string currentAdminPerms => isCurrentUserSuperAdmin ? "سوپر ادمین ارشد" : "مدیر معمولی";
+        public event Action? OnChange;
 
         public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime, NavigationManager navigationManager)
         {
@@ -37,81 +39,81 @@ namespace sqlite_web.Services
             _jsRuntime = jsRuntime;
             _navigationManager = navigationManager;
         }
+
         /// <summary>
-        /// 🔍 متد پایش متمرکز امنیتی مسیرها با شرط‌های نفوذناپذیر دیتابیس لوکال
-        /// توضیحات کد: این متد جلوی لوپ ریدایرکت‌های اشتباه ادمین ارشد را در فاز پیش‌رندر سرور می‌گیرد.
+        /// 🔍 متد پایش زنده: واکشی نام ادمین از روی توکن واقعی هدر مرورگر و اتصال به SQLite
         /// </summary>
         public async Task CheckAccessAndRedirectAsync()
         {
             try
             {
-                // خواندن فیزیکی توکن سشن فعال از روی لوکال استوریج مرورگر کلاینت
+                // خواندن فیزیکی توکن ادمینی که لاگین کرده از روی LocalStorage مرورگر کلاینت
                 var savedToken = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "admin_session_token");
 
                 if (!string.IsNullOrEmpty(savedToken) && _dbContext != null)
                 {
-                    // کوئری مستقیم روی دیتابیس SQLite بر اساس نام کاربری ادمین
+                    // 🔍 اسکن مستقیم جدول ادمین‌ها در دیتابیس بر اساس توکن فعال مرورگر
                     var admin = await _dbContext.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Username == savedToken);
                     if (admin != null)
                     {
-                        FillAdminData(admin); // لود کامل فیلدها و سطوح دسترسی (IsAuthorized و superadmin)
+                        CurrentOnlineAdmin = admin; // 🌟 جفت کردن هدر با رکورد واقعی دیتابیس به جای متغیرهای اشتباه
 
-                        // 🛡️ ۱. شرط نجات از صفحه لاگین: اگر ادمین مجاز آنلاین است و سیستم به اشتباه در مسیر لاگین مانده، او را به پنل هدایت کن
-                        if (_navigationManager.Uri.Contains("/admin/login", StringComparison.OrdinalIgnoreCase))
+                        // تنظیم مستقل سطوح دسترسی تفکیکی
+                        if (admin.IsSuperAdmin || admin.CanAddEmployee || admin.CanEditEmployee || admin.CanDeleteEmployee)
+                        {
+                            IsAuthorized = true;
+                        }
+                        else
+                        {
+                            IsAuthorized = false; // ادمین بدون دسترسی کیوسک
+                        }
+
+                        // اگر ادمین سشن فعال دارد و اشتباهاً در صفحه لاگین مانده، هدایت خودکار به پنل مدیریت
+                        if (_navigationManager.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
                         {
                             IsChecked = true;
                             NotifyStateChanged();
-                            _navigationManager.NavigateTo("/admin", forceLoad: false); // هدایت روان بدون ریفرش تخریب‌کننده کش
+                            _navigationManager.NavigateTo("/admin", forceLoad: false);
                             return;
                         }
 
-                        // 🛡️ ۲. گارد امنیتی ادمین کیوسک: جلوگیری از دسترسی مدیران معمولی به بخش مدیریت مدیران
+                        // گارد امنیتی ادمین معمولی برای صفحه مدیریت ادمین‌ها
                         if (!IsAuthorized && _navigationManager.Uri.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase))
                         {
                             _navigationManager.NavigateTo("/", forceLoad: true);
+                            return;
                         }
 
                         IsChecked = true;
-                        NotifyStateChanged(); // فعال‌سازی فوری دکمه‌های هدر
+                        NotifyStateChanged();
                         return;
                     }
                 }
 
-                // 🔒 ۳. فیکس طلایی: شرط ریدایرکت به لاگین مستقل؛ فقط و فقط زمانی مجاز است ریدایرکت کند که
-                // اولاً فاز پیش‌رندر سرور تمام شده باشد (IsChecked شده باشد) و ثانیاً توکن "واقعاً در مرورگر خالی باشد"
+                // اگر توکن منقضی یا خالی بود و کاربر خواست فیزیکی وارد پنل‌ها شود
                 if (IsChecked && string.IsNullOrEmpty(savedToken))
                 {
-                    Reset(); // شستشوی متغیرها فقط در صورت نبودن واقعی توکن
-                    if (_navigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase) &&
-                        !_navigationManager.Uri.Contains("/admin/login", StringComparison.OrdinalIgnoreCase))
+                    Reset();
+                    if (_navigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
                     {
-                        _navigationManager.NavigateTo("/admin/login", forceLoad: false);
+                        _navigationManager.NavigateTo("/login", forceLoad: false);
                     }
                 }
             }
             catch
             {
-                // مهار خطاهای تعامل با لایه اسکریپتی مرورگر در فاز پیش‌رندر سرور (Prerendering)
-                // 🔒 فیکس کلیدی: در این بخش هرگز پرچم IsChecked را true نمی‌کنیم تا سیستم شروط ریدایرکت را عجولانه اجرا نکند
                 return;
             }
             finally
             {
-                // پرچم اطمینان از اتمام اسکن فقط پس از لود کلاینت و اتصال زنده مرورگر فعال می‌شود
                 if (!IsChecked)
                 {
                     IsChecked = true;
-                    NotifyStateChanged(); // بیدار کردن نهایی گرافیک منوهای هدر
+                    NotifyStateChanged();
                 }
             }
         }
 
-
-
-
-        /// <summary>
-        /// 🔑 متد ورود مرکزی (Login) مستقر در هسته سرویس
-        /// </summary>
         public async Task<bool> LoginAsync(string inputUsername, string inputPassword)
         {
             if (_dbContext == null || string.IsNullOrWhiteSpace(inputUsername) || string.IsNullOrWhiteSpace(inputPassword))
@@ -122,7 +124,7 @@ namespace sqlite_web.Services
 
             if (admin != null)
             {
-                FillAdminData(admin);
+                CurrentOnlineAdmin = admin; // ست کردن شیء ادمین در لحظه لاگین موفق
 
                 try
                 {
@@ -138,9 +140,6 @@ namespace sqlite_web.Services
             return false;
         }
 
-        /// <summary>
-        /// 🏃‍♂️ متد خروج مرکزی (Logout) و شستشوی کامل سشن‌ها برای هدر سراسری
-        /// </summary>
         public async Task LogoutAsync()
         {
             Reset();
@@ -154,45 +153,10 @@ namespace sqlite_web.Services
             _navigationManager.NavigateTo("/login", forceLoad: true);
         }
 
-        // متد کمکی جهت تزریق مقادیر رکورد دیتابیس به متغیرهای عمومی سرویس
-        private void FillAdminData(AdminUser admin)
-        {
-            adminUsername = admin.Username;
-            adminPassword = admin.Password;
-            adminFullName = admin.Username;
-            isCurrentUserSuperAdmin = admin.IsSuperAdmin; // 👑 لود فیزیکی تیک سوپر ادمین از روی دیتابیس SQLite
-
-            // لود مستقل و بدون واسطه تیک‌های عملیاتی پرسنل از روی هارد دیتابیس
-            pCanAdd = admin.CanAddEmployee;
-            pCanEdit = admin.CanEditEmployee;
-            pCanDelete = admin.CanDeleteEmployee;
-
-            currentAdminPerms = isCurrentUserSuperAdmin ? "سوپر ادمین ارشد" : "مدیر معمولی";
-
-            // 🛡️ منطق گارد امنیتی هدر لایوت:
-            // الف) دکمه رفتن به کیوسک یا پنل مدیریت (IsAuthorized) روشن می‌شود اگر کاربر سوپر ادمین باشد "یا" حداقل یکی از تیک‌های عادی کارمندان را داشته باشد.
-            if (isCurrentUserSuperAdmin || pCanAdd || pCanEdit || pCanDelete)
-            {
-                IsAuthorized = true;
-            }
-            else
-            {
-                IsAuthorized = false; // ادمین بدون هیچ دسترسی (ادمین کیوسک) که دکمه ورود به پنل برایش مسدود است
-            }
-        }
-
-
         private void Reset()
         {
-            adminUsername = "";
-            adminFullName = "";
-            adminPassword = "";
+            CurrentOnlineAdmin = null; // شستشوی کامل رکورد ادمین آنلاین
             IsAuthorized = true;
-            isCurrentUserSuperAdmin = false;
-            pCanAdd = false;
-            pCanEdit = false;
-            pCanDelete = false;
-            currentAdminPerms = "بدون هویت";
         }
 
         private void NotifyStateChanged() => OnChange?.Invoke();
