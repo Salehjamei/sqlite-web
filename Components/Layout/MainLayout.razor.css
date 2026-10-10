@@ -2,40 +2,37 @@
    🌐 استایل‌های هدر بومی سیستم در حالت دسکتاپ و مانیتورهای بزرگ (Desktop Mode)
    ========================================================================= */
 
-/* قفل قطعی رنگ مشکی ذغالی و پدینگ افقی هدر بالای صفحه */
 html body .top-row,
 html body .navbar-system {
-    background-color: #212529 !important;
+    background-color: #212529 !important; /* رنگ مشکی عمیق و یکدست هدر */
     border-bottom: 1px solid #343a40 !important;
-    height: 4.5rem !important;
+    height: 3.2rem !important; /* 🟢 کاهش ارتفاع دسکتاپ از 4.5rem به 3.2rem برای فشرده‌سازی */
     display: flex !important;
-    flex-direction: row-reverse !important; /* چینش هوشمند آینه‌ای جهت پرتاب خروج به چپ */
+    flex-direction: row !important;
     justify-content: space-between !important;
     align-items: center !important;
-    padding: 10px 24px !important;
+    padding: 4px 24px !important; /* کاهش پدینگ سقف و کف */
     color: white !important;
     font-family: Tahoma, Arial !important;
     box-sizing: border-box !important;
+    z-index: 9999 !important;
 }
 
-/* کانتینر اصلی دکمه‌های هدر در دسکتاپ */
 .header-actions-container {
     display: flex !important;
-    flex-direction: row-reverse !important;
+    flex-direction: row !important;
     align-items: center !important;
     justify-content: space-between !important;
     width: 100% !important;
 }
 
-/* 🎯 زون اختصاصی دکمه خروج و نام ادمین چسبیده به سمت چپ مانیتور */
 .logout-left-zone {
     display: flex !important;
-    flex-direction: row-reverse !important; /* تراز نام ادمین در سمت راست دکمه خروج */
+    flex-direction: row !important;
     align-items: center !important;
     gap: 15px !important;
 }
 
-/* گروه دکمه‌های ناوبری مرکزی (کیوسک، پرسنل، دسترسی‌ها) */
 .nav-management-group {
     display: flex !important;
     flex-direction: row !important;
@@ -49,7 +46,6 @@ html body .navbar-system {
     gap: 10px !important;
 }
 
-/* پایش نمایشگرها */
 .mobile-only {
     display: none !important;
 }
@@ -63,27 +59,29 @@ html body .navbar-system {
 }
 
 .user-welcome-text {
-    color: #ffc107 !important; /* رنگ طلایی شکیل برای نام ادمین */
+    color: #ffc107 !important;
     font-size: 13.5px !important;
     font-weight: bold !important;
     white-space: nowrap !important;
 }
 
 /* =========================================================================
-   💎 دکمه‌های مدرن، فلت و شیک هدر (Modern Flat UI Buttons)
+   💎 دکمه‌های مدرن، ۱۰۰٪ فلت و بدون حاشیه هدر (Borderless Flat UI)
    ========================================================================= */
+.top-row ::deep .btn-modern,
 .btn-modern {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 6px 14px !important;
-    font-size: 12.5px !important;
+    padding: 5px 12px !important; /* کمی فشرده‌تر شدن پدینگ دکمه‌ها در دسکتاپ */
+    font-size: 12px !important;
     font-weight: bold !important;
-    border: none !important;
     cursor: pointer !important;
     border-radius: 6px !important;
     white-space: nowrap !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none !important;
     transition: all 0.2s ease-in-out !important;
 }
 
@@ -113,16 +111,15 @@ html body .navbar-system {
 }
 
 .btn-modern:hover {
-    opacity: 0.95 !important;
+    opacity: 0.90 !important;
     transform: translateY(-1px) !important;
 }
 
 .btn-modern.active-custom {
     border: 2px solid #28a745 !important;
-    box-shadow: 0 0 10px rgba(40, 167, 69, 0.6) !important;
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.5) !important;
 }
 
-/* انیمیشن زنده پاپ‌آ‌پ */
 .modal-animation-fade {
     animation: modalFadeIn 0.2s ease-out !important;
 }
@@ -140,7 +137,35 @@ html body .navbar-system {
 }
 
 /* =========================================================================
-   📱 قوانین اختصاصی حالت موبایل (زیر 768px)
+   📟 مدیا کوئری اختصاصی حالت تبلت (769px تا 1024px)
+   ========================================================================= */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .top-row {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        height: 2.8rem !important;
+    }
+
+    .navbar-brand-title {
+        font-size: 12px !important;
+    }
+
+    .user-welcome {
+        font-size: 11px !important;
+    }
+
+    .header-actions-container {
+        gap: 6px !important;
+    }
+
+    .top-row ::deep .btn-modern, .btn-modern {
+        padding: 4px 8px !important;
+        font-size: 11px !important;
+    }
+}
+
+/* =========================================================================
+   📱 🚀 منوی شناور تک‌ردیفه کاملاً متمرکز در وسط هدر (حالت باریک موبایل زیر 768px)
    ========================================================================= */
 @media (max-width: 768px) {
     .mobile-only {
@@ -151,57 +176,115 @@ html body .navbar-system {
         display: none !important;
     }
 
-    html body .top-row {
-        flex-direction: column !important;
-        height: auto !important;
-        padding: 12px 15px !important;
+    html body .top-row,
+    html body .navbar-system {
+        height: 2.5rem !important; /* 🟢 کاهش ارتفاع هدر موبایل از 3.5rem به 2.5rem برای مینی‌مال شدن فوق‌العاده */
+        padding: 0 12px !important;
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
     }
 
-    .navbar-main {
-        width: 100% !important;
-        flex-direction: row-reverse !important;
-        justify-content: space-between !important;
-    }
+        html body .navbar-system .navbar-main {
+            width: 100% !important;
+            display: flex !important;
+            flex-direction: row-reverse !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+        }
 
     .menu-toggle-btn {
         display: block !important;
         background: none !important;
         border: none !important;
         color: white !important;
-        font-size: 24px !important;
+        font-size: 20px !important; /* 🟢 ابعاد همبرگری کمی ظریف‌تر شد تا با ارتفاع همخوانی داشته باشد */
+        cursor: pointer !important;
     }
 
     .user-welcome-text.mobile-only {
         color: #ffc107 !important;
-        background: none !important;
-        padding: 0 !important;
+        font-size: 12px !important;
+        font-weight: bold !important;
     }
 
+    /* باکس منوی شناور تیره مرکز هدر */
     .header-actions-container {
         display: none !important;
-        flex-direction: column !important;
-        width: 100% !important;
-        margin-top: 10px !important;
-        gap: 8px !important;
+        position: absolute !important;
+        top: 3px !important; /* 🟢 کاهش فاصله از سقف متناسب با ارتفاع جدید هدر */
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: auto !important;
+        background-color: #212529 !important;
+        padding: 3px 8px !important; /* فشرده‌تر شدن باکس تیره */
+        border-radius: 6px !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+        border: 1px solid #343a40 !important;
+        z-index: 999999 !important;
     }
 
         .header-actions-container.open {
             display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 4px !important;
         }
 
-    .nav-management-group {
-        flex-direction: column !important;
-        width: 100% !important;
-        gap: 6px !important;
+    html body .navbar-system .header-actions-container .nav-grid-mobile {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 4px !important;
+        width: auto !important;
+        margin: 0 !important;
     }
 
-    .logout-left-zone {
-        flex-direction: column !important;
-        width: 100% !important;
-        gap: 6px !important;
+    html body .navbar-system .header-actions-container .logout-left-zone {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        width: auto !important;
+        margin-top: 0 !important;
     }
 
+    /* کلید ضربدر بومی کیبورد شناور زیر هدر باریک */
+    .btn-close-keyboard-x {
+        display: inline-flex !important;
+        position: absolute !important;
+        top: 2.2rem !important; /* 🟢 فیکس موقعیت: دکمه X متناسب با هدر باریک‌تر، بالاتر آمد */
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: none !important;
+        border: none !important;
+        color: #dc3545 !important;
+        font-family: Arial, sans-serif !important;
+        font-weight: bold !important;
+        font-size: 15px !important;
+        cursor: pointer !important;
+        padding: 4px 10px !important;
+        z-index: 1000000 !important;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+        .btn-close-keyboard-x:hover {
+            transform: translateX(-50%) scale(1.15) !important;
+            color: #bd2130 !important;
+        }
+
+    /* ابعاد فشرده و مینی‌مال دکمه‌ها در حالت موبایل */
+    .top-row ::deep .btn-modern,
     .btn-modern {
-        width: 100% !important;
+        width: auto !important;
+        padding: 3px 6px !important; /* 🟢 پدینگ فشرده‌تر دکمه‌ها برای همخوانی با ارتفاع باریک */
+        font-size: 10px !important;
+        box-sizing: border-box !important;
+        border-radius: 4px !important;
+    }
+
+    html body .navbar-system .header-actions-container .btn-modern-danger {
+        padding: 3px 6px !important;
+        font-size: 10px !important;
     }
 }

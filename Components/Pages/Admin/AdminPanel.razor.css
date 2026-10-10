@@ -1,106 +1,228 @@
 /* =========================================================================
-   🌐 کلاس‌های متمرکز و پایه‌ای مدیریت پنجره‌های بازشو (Modals)
+   🌐 استایل‌های هدر سیستم در حالت دسکتاپ و مانیتورهای بزرگ (Desktop Mode)
    ========================================================================= */
 
-/* لایه تیره تمام‌صفحه پشت مودال‌ها */
-.modal-backdrop-layer {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    height: 100vh !important;
-    background-color: rgba(0, 0, 0, 0.6) !important;
-    z-index: 9999 !important; /* بالاترین لایه گرافیکی روی تمام جداول */
+html body .top-row,
+html body .navbar-system {
+    background-color: #212529 !important; /* رنگ مشکی عمیق و یکدست */
+    border-bottom: 1px solid #343a40 !important;
+    height: 4.5rem !important; /* ارتفاع ثابت فقط برای دسکتاپ */
     display: flex !important;
-    justify-content: center !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
     align-items: center !important;
-    padding: 15px !important;
+    padding: 10px 24px !important;
+    color: white !important;
+    font-family: Tahoma, Arial !important;
+    box-sizing: border-box !important;
+    z-index: 9999 !important;
 }
 
-/* باکس اصلی محتوای کارنامه تفکیکی */
-.modal-main-container {
-    background: #ffffff !important;
-    border-radius: 8px !important;
-    width: 100% !important;
-    max-width: 850px !important;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+.header-actions-container {
     display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
-    max-height: 92vh !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
 }
 
-/* باکس اصلی مودال کوچک حذف کارمند یا ساعت تردد */
-.modal-delete-box {
-    background: #ffffff !important;
-    border-radius: 8px !important;
-    width: 100% !important;
-    max-width: 450px !important;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
+.logout-left-zone {
     display: flex !important;
-    flex-direction: column !important;
-    overflow: hidden !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 15px !important;
+}
+
+.nav-management-group {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px !important;
+    align-items: center !important;
+}
+
+.navbar-main {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.mobile-only {
+    display: none !important;
+}
+
+.desktop-only {
+    display: inline-block !important;
+}
+
+.menu-toggle-btn {
+    display: none !important;
+}
+
+.user-welcome-text {
+    color: #ffc107 !important;
+    font-size: 13.5px !important;
+    font-weight: bold !important;
+    white-space: nowrap !important;
 }
 
 /* =========================================================================
-   📊 استایل‌های داخلی گزارش کارنامه تفکیکی پرسنل
+   💎 دکمه‌های مدرن، فلت و شیک هدر (Modern Flat UI Buttons)
    ========================================================================= */
-
-/* بدنه داخلی گزارشات جدول مودال */
-.modal-report-body {
-    padding: 15px;
-    overflow-y: auto;
-    text-align: right;
-    direction: rtl;
-}
-
-/* کادر هوشمند گزارش جمع کل کارکرد در ماه جاری پرسنل */
-.monthly-report-box {
-    padding: 0.75rem !important;
-    border: 1px solid #dee2e6 !important;
+.top-row ::deep .btn-modern,
+.btn-modern {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 6px 14px !important;
+    font-size: 12.5px !important;
+    font-weight: bold !important;
+    border: none !important;
+    cursor: pointer !important;
     border-radius: 6px !important;
-    text-align: center !important;
-    background-color: #ffffff !important;
-    border-left: 5px solid #28a745 !important;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-    font-size: 14px;
+    white-space: nowrap !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+    transition: all 0.2s ease-in-out !important;
 }
 
-/* متمایز کردن ردیف‌های فعال و در حال کار (پرسنل خروج نزده) */
-.tr-active-attendance {
-    background-color: #fff3cd !important;
-    transition: background-color 0.3s ease;
+.btn-modern-secondary {
+    background-color: #495057 !important;
+    color: #ffffff !important;
 }
 
-/* انیمیشن زنده و نرم ظاهر شدن پاپ‌آپ‌ها از مرکز مانیتور */
-.modal-animation-fade {
-    animation: modalAnim 0.2s ease-out !important;
+.btn-modern-primary {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
 }
 
-@keyframes modalAnim {
-    from {
-        transform: scale(0.92);
-        opacity: 0;
+.btn-modern-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+.btn-modern-danger {
+    background-color: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+.btn-modern-success {
+    background-color: #198754 !important;
+    color: #ffffff !important;
+}
+
+.btn-modern:hover {
+    opacity: 0.95 !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-modern.active-custom {
+    border: 2px solid #28a745 !important;
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.6) !important;
+}
+
+/* =========================================================================
+   📟 مدیا کوئری اختصاصی حالت تبلت (769px تا 1024px)
+   ========================================================================= */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .top-row {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        height: 3.4rem !important;
     }
 
-    to {
-        transform: scale(1);
-        opacity: 1;
+    .navbar-brand-title {
+        font-size: 13px !important;
+    }
+
+    .user-welcome {
+        font-size: 11.5px !important;
+    }
+
+    .header-actions-container {
+        gap: 6px !important;
+    }
+
+    .top-row ::deep .btn-modern, .btn-modern {
+        padding: 5px 10px !important;
+        font-size: 11.5px !important;
     }
 }
 
-/* استایل کادرهای ورودی و دکمه‌های قفل شده (Disabled) برای ادمین‌های فاقد مجوز */
-input:disabled,
-button:disabled {
-    cursor: not-allowed !important;
-    opacity: 0.65 !important;
-}
+/* =========================================================================
+   📱 🏛️ ساختار جدید و قدرتمند دو ستونه موبایل (با شکستن تداخل خط ۱۹۵)
+   ========================================================================= */
+@media (max-width: 768px) {
+    .mobile-only {
+        display: inline-block !important;
+    }
 
-/* دکمه‌های بسیار کوچک کاربردی درون جدول اصلی */
-.btn-xs {
-    padding: 2px 6px !important;
-    font-size: 11px !important;
-    border-radius: 3px !important;
+    .desktop-only {
+        display: none !important;
+    }
+
+    /* لغو ارتفاع دسکتاپ برای باز شدن فضا در زمان باز شدن منوی کشویی */
+    html body .top-row,
+    html body .navbar-system {
+        flex-direction: column !important;
+        height: auto !important;
+        align-items: stretch !important;
+        padding: 12px 15px !important;
+        position: relative !important;
+    }
+
+    .navbar-main {
+        width: 100% !important;
+        flex-direction: row-reverse !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+    }
+
+    .menu-toggle-btn {
+        display: block !important;
+        background: none !important;
+        border: none !important;
+        color: white !important;
+        font-size: 24px !important;
+    }
+
+    .user-welcome-text.mobile-only {
+        color: #ffc107 !important;
+        background: none !important;
+        padding: 0 !important;
+    }
+
+    .header-actions-container {
+        display: none !important;
+        width: 100% !important;
+        margin-top: 12px !important;
+        padding-top: 12px !important;
+        border-top: 1px solid #343a40 !important;
+    }
+
+        .header-actions-container.open {
+            display: block !important;
+        }
+
+    /* 🎯 🏛️ درهم‌کوبیدن تداخل خط ۱۹۵: با مالتی‌کلاس کردن ریشه، اولویت گرید دو ستونه را بالاتر می‌بریم */
+    html body .navbar-system .header-actions-container .nav-management-group {
+        display: grid !important; /* 👈 تبدیل به گرید برای خنثی کردن فدرال افقی/عمودی */
+        grid-template-columns: repeat(2, 1fr) !important; /* 👈 چیدمان دقیق دو ستونه موازی */
+        gap: 10px !important;
+        width: 100% !important;
+        margin-top: 0 !important;
+        margin-bottom: 10px !important;
+    }
+
+    /* کادر دکمه خروج در زیر دو ستون */
+    html body .navbar-system .header-actions-container .logout-left-zone {
+        display: block !important;
+        width: 100% !important;
+        margin-top: 0 !important;
+    }
+
+    .top-row ::deep .btn-modern,
+    .btn-modern {
+        width: 100% !important;
+        padding: 10px 5px !important;
+        box-sizing: border-box !important;
+    }
 }
