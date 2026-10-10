@@ -8,19 +8,24 @@
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
     <link rel="stylesheet" href="@Assets["app.css"]" />
-    <link rel="stylesheet" href="@Assets["sqlite_web.styles.css"]" />
+    @* 🟢 فیکس باگ دات‌نت ۹: تغییر آندرلاین به خط تیره جهت برطرف شدن خطای ۴۰۴ فایل استایل *@
+    <link rel="stylesheet" href="sqlite-web.styles.css" />
+
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <HeadOutlet />
+    <!-- 🟢 فعال‌سازی رندرمود تعاملی برای بخش هدر صفحات -->
+    <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body>
     <!-- درون فایل App.razor تغییر تگ روت به ساختار آبشاری احراز هویت بومی دات‌نت -->
     <CascadingAuthenticationState>
-        <Routes />
+        <!-- 🟢 فعال‌سازی رندرمود تعاملی برای کل مسیرها و دکمه‌های هدر لایوت -->
+        <Routes @rendermode="InteractiveServer" />
     </CascadingAuthenticationState>
-    <ReconnectModal />
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
+    @using Microsoft.AspNetCore.Components.Authorization
+<ReconnectModal />
+<script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 
 </html>

@@ -1,48 +1,53 @@
-using Microsoft.AspNetCore.Components;
 using System.Threading.Tasks;
-using sqlite_web.Services;
+using Microsoft.AspNetCore.Components;
 
 namespace sqlite_web.Components.Pages
 {
     public partial class Login
     {
         [Inject]
-        public AdminStateService AdminState { get; set; } = default!;
+        private NavigationManager NavigationManager { get; set; } = default!;
 
-        [Inject]
-        public NavigationManager MyNavigationManager { get; set; } = default!;
+        // رفع وارنینگ‌های BL0008 با حذف مقداردهی اولیه مستقیم فیلدهای فرم
+        [SupplyParameterFromForm]
+        public string? Username { get; set; }
 
-        protected string localUsername { get; set; } = "";
-        protected string localPassword { get; set; } = "";
-        protected string feedbackMessage { get; set; } = "";
+        [SupplyParameterFromForm]
+        public string? Password { get; set; }
 
-        private async Task ExecuteServiceLogin()
+        /// <summary>
+        /// انتقال منطق بررسی توکن به محیط تعاملی بعد از رندر شدن فیزیکی صفحه در مرورگر
+        /// </summary>
+        protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (string.IsNullOrWhiteSpace(localUsername) || string.IsNullOrWhiteSpace(localPassword))
+            if (firstRender)
             {
-                feedbackMessage = "❌ لطفاً تمام کادرها را پر کنید!";
-                return;
-            }
+                await AdminState.CheckAccessAndRedirectAsync();
 
-            bool success = await AdminState.LoginAsync(localUsername, localPassword);
+                if (AdminState.IsAuthorized)
+                {
+                    NavigationManager.NavigateTo("/", forceLoad: false);
+                }
 
-            if (success)
-            {
-                // فیکس ریدایرکت: هدایت روان بدون ریفرش تخریب‌کننده کش مرورگر
-                if (!AdminState.IsAuthorized)
-                {
-                    MyNavigationManager.NavigateTo("/", forceLoad: false); // انتقال ادمین معمولی به کیوسک
-                }
-                else
-                {
-                    MyNavigationManager.NavigateTo("/admin", forceLoad: false); // انتقال سوپر ادمین به پنل اصلی
-                }
-            }
-            else
-            {
-                feedbackMessage = "❌ نام کاربری یا رمز عبور اشتباه است!";
+                StateHasChanged();
             }
         }
 
+        private async Task HandleLogin()
+        {
+            if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+            {
+                AdminState.FeedbackMessage = "❌ لطفا نام کاربری و رمز عبور را وارد نمایید.";
+                return;
+            }
+
+            // فراخوانی سرویس مرکزی با مقادیر پر شده
+            bool loginResult = await AdminState.LoginAsync(Username, Password);
+
+            if (loginResult)
+            {
+                NavigationManager.NavigateTo("/", forceLoad: false);
+            }
+        }
     }
 }

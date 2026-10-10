@@ -1,17 +1,25 @@
 using Microsoft.EntityFrameworkCore;
 using sqlite_web;
 using sqlite_web.Components;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 var connectionString = builder.Configuration.GetConnectionString("SqliteConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
+
+// 🟢 بهینه‌سازی کانال ارتباطی تعاملی و افزایش سقف پیام‌ها برای جابه‌جایی بدون کرش عکس پرسنل
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddHubOptions(options =>
+    {
+        options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // افزایش سقف به ۱۰ مگابایت
+    });
+
+
 // ثبت سرویس مدیریت وضعیت ادمین به صورت Scoped (مخصوص هر سشن کاربر)
 builder.Services.AddScoped<sqlite_web.Services.AdminStateService>();
-
 
 var app = builder.Build();
 
@@ -22,6 +30,7 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
@@ -40,14 +49,15 @@ using (var scope = app.Services.CreateScope())
         // فراخوانی مستقیم کلاس وضعیت ادمین از لایه خدمات تزریق شده سیستم
         var adminState = services.GetRequiredService<sqlite_web.Services.AdminStateService>();
 
-        // اجرای متد ساخت متمرکز دیتابیس ادمین اولیه به صورت ناهمزمان
-        Task.Run(async () => await adminState.InitializeDefaultSuperAdminAsync()).Wait();
+        // اصلاح الگو: اجرای امن و مستقیم متد آسنکرون بدون خطر مسدودسازی ریسمان‌ها (Thread Blocking)
+        await adminState.InitializeDefaultSuperAdminAsync();
     }
     catch (Exception ex)
     {
-        // مهار خطاهای احتمالی فاز لود اولیه روی هارد سرور
+        // رفع وارنینگ CS0168 با چاپ واقعی خطا در محیط کنسول سرور
+        Console.WriteLine($"❌ خطا در ساخت دیتابیس یا مقداردهی اولیه ادمین: {ex.Message}");
+        Console.WriteLine(ex.StackTrace);
     }
 }
 
 app.Run();
-

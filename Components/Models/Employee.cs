@@ -3,10 +3,12 @@
     public class Employee
     {
         public int Id { get; set; }
+        //نام اجباری نباید تکراری باشد
         public string FullName { get; set; }
-        public string PersonnelCode { get; set; } // اختیاری: برای بزرگ‌تر شدن نرم‌افزار در آینده
+        // کد ملی 10 رقمی اجباری ، نباید تکراری باشد
+        public string PersonnelCode { get; set; }
         
-        // 👈 فیلدهای جدید برای شماره تماس و عکس پرسنلی
+        // اختیاری فیلدهای جدید برای شماره تماس و عکس پرسنلی
         public string Phone { get; set; } = string.Empty;
         public string ImagePath { get; set; } = string.Empty;
     }

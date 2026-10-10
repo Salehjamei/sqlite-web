@@ -1,116 +1,162 @@
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Routing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.JSInterop;
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Routing;
+using Microsoft.JSInterop;
+using sqlite_web.Services;
 
 namespace sqlite_web.Components.Layout
 {
-    public partial class MainLayout : IDisposable
+    public partial class MainLayout : LayoutComponentBase, IDisposable
     {
-        [Inject] public NavigationManager MyNavigationManager { get; set; } = default!;
+        [Inject] public AdminStateService AdminState { get; set; } = default!;
+        [Inject] public NavigationManager NavigationManager { get; set; } = default!;
         [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
-        [Inject] public sqlite_web.AppDbContext DbContext { get; set; } = default!; // اتصال مستقیم به دیتابیس پروژه شما
 
-        // 🔘 متغیرهای بومی و اختصاصی لایوت جهت رندر بدون باگ دکمه‌ها
-        protected bool hasToken = false;
-        protected bool IsAuthorized = false;
-        protected string adminUsername = "";
+        protected bool ShowAccessDeniedModal { get; set; } = false;
+        protected bool ShowUrlHijackModal { get; set; } = false;
+        protected bool ShowLogoutConfirmModal { get; set; } = false;
+
+        // متغیر کنترل وضعیت بک‌گراند دکمه فعال
+        protected string ActivePage { get; set; } = "home";
+        protected bool IsMobileMenuOpen { get; set; } = false;
+
+        protected void OpenLogoutModal()
+        {
+            IsMobileMenuOpen = false;
+            ShowLogoutConfirmModal = true;
+        }
+
+        protected void CloseLogoutModal() => ShowLogoutConfirmModal = false;
+
+        protected async Task ExecuteConfirmedLogout()
+        {
+            ShowLogoutConfirmModal = false;
+            await AdminState.LogoutAsync();
+        }
+
+        protected void ToggleMobileMenu()
+        {
+            IsMobileMenuOpen = !IsMobileMenuOpen;
+            InvokeAsync(StateHasChanged);
+        }
+
+        protected void CloseMobileMenu()
+        {
+            IsMobileMenuOpen = false;
+            InvokeAsync(StateHasChanged);
+        }
+
+        private bool IsCurrentlyInAdminPanel => NavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase);
 
         protected override void OnInitialized()
         {
-            // اتصال به رویداد ناوبری برای پایش مداوم آدرس صفحات
-            MyNavigationManager.LocationChanged += OnLocationChanged;
+            AdminState.OnChange += OnAdminStateChanged;
+            NavigationManager.LocationChanged += OnLocationChanged;
+
+            // 🟢 فیکس باگ اکتیو صفحه: پایش آدرس دقیق به محض مقداردهی اولیه کامپوننت لایوت
+            UpdateActivePageIndicator(NavigationManager.Uri);
         }
 
-        /// <summary>
-        /// 🕒 اجرای تضمینی اسکن توکن در فاز بومی OnAfterRender بلایزر
-        /// این متد مشکل Prerendering سرور را کاملاً حل کرده و منوها را فوراً روشن می‌کند.
-        /// </summary>
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
-                await Task.Delay(50); // وقفه فوق‌العاده کوتاه برای ثبات کدهای جاوااسکریپت
-                await CheckOnlineSessionAsync();
+                await AdminState.CheckAccessAndRedirectAsync();
+                EvaluateUrlSecurity(NavigationManager.Uri);
+
+                // 🟢 تازه‌سازی مجدد وضعیت دکمه‌ها پس از اولین رندر فیزیکی لایوت در مرورگر کلاینت
+                UpdateActivePageIndicator(NavigationManager.Uri);
+                await InvokeAsync(StateHasChanged);
             }
         }
 
-        // متد مرکزی اسکن حافظه مرورگر و واکشی زنده سطوح دسترسی از SQLite
-        private async Task CheckOnlineSessionAsync()
+        private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
         {
-            try
-            {
-                var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "admin_session_token");
+            UpdateActivePageIndicator(e.Location);
+            EvaluateUrlSecurity(e.Location);
+            InvokeAsync(StateHasChanged);
+        }
 
-                if (!string.IsNullOrEmpty(token) && DbContext != null)
+        private void EvaluateUrlSecurity(string url)
+        {
+            if (AdminState.CurrentOnlineAdmin == null) return;
+            var user = AdminState.CurrentOnlineAdmin;
+
+            if (url.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase) && !user.IsSuperAdmin)
+            {
+                ShowUrlHijackModal = true;
+                NavigationManager.NavigateTo("/admin/panel", forceLoad: false);
+            }
+
+            if (url.Contains("/admin/panel", StringComparison.OrdinalIgnoreCase) && !user.IsSuperAdmin)
+            {
+                if (!user.CanAddEmployee && !user.CanEditEmployee && !user.CanDeleteEmployee)
                 {
-                    // اسکن مستقیم جدول ادمین‌ها در دیتابیس لوکال شما
-                    var admin = await DbContext.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Username == token);
-                    if (admin != null)
-                    {
-                        hasToken = true;
-                        adminUsername = admin.Username;
-
-                        // تفکیک دقیق دسترسی سوپر ادمین و ادمین کیوسک بر پایه دیتابیس شما
-                        if (admin.IsSuperAdmin || admin.CanAddEmployee || admin.CanEditEmployee || admin.CanDeleteEmployee)
-                        {
-                            IsAuthorized = true; // سوپر ادمین یا مجاز
-                        }
-                        else
-                        {
-                            IsAuthorized = false; // ادمین کیوسک بدون دسترسی
-                        }
-
-                        StateHasChanged(); // فرمان بومی بلایزر جهت رندر آنی دکمه خروج و رفتن به کیوسک
-                        return;
-                    }
+                    ShowUrlHijackModal = true;
+                    NavigationManager.NavigateTo("/", forceLoad: false);
                 }
+            }
+        }
 
-                // اگر توکنی یافت نشد، متغیرها ریست شوند
-                hasToken = false;
-                adminUsername = "";
-                IsAuthorized = false;
-                StateHasChanged();
-            }
-            catch
+        protected void CloseUrlHijackModal() => ShowUrlHijackModal = false;
+
+        protected void NavigateToDashboardSafe()
+        {
+            if (AdminState.CurrentOnlineAdmin == null) return;
+            var currentAdmin = AdminState.CurrentOnlineAdmin;
+
+            if (currentAdmin.IsSuperAdmin || currentAdmin.CanAddEmployee || currentAdmin.CanEditEmployee || currentAdmin.CanDeleteEmployee)
             {
-                // مهار خطاهای تعامل در فاز پیش‌رندر سرور
+                NavigationManager.NavigateTo("/admin/panel", forceLoad: false);
             }
+            else
+            {
+                ShowAccessDeniedModal = true;
+                InvokeAsync(StateHasChanged);
+            }
+        }
+
+        protected void CloseAccessModal() => ShowAccessDeniedModal = false;
+
+        private void OnAdminStateChanged()
+        {
+            UpdateActivePageIndicator(NavigationManager.Uri);
+            InvokeAsync(StateHasChanged);
         }
 
         /// <summary>
-        /// 🏃‍♂️ متد خروج بومی و قطعی هدر لایوت
+        /// 🟢 بازنویسی متد پایش آدرس فعال با حذف کامل تداخل حروف کوچک و بزرگ برای تثبیت حاشیه سبز دکمه‌ها
         /// </summary>
-        protected async Task ExecuteGlobalLogout()
+        private void UpdateActivePageIndicator(string url)
         {
-            hasToken = false;
-            adminUsername = "";
-            IsAuthorized = false;
-
-            try
+            if (url.Contains("/admin/panel", StringComparison.OrdinalIgnoreCase))
             {
-                // پاک کردن فیزیکی توکن سشن از روی حافظه لوکال کلاینت
-                await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "admin_session_token");
+                ActivePage = "panel";
             }
-            catch { }
-
-            // هدایت اجباری به صفحه لاگین مجزا همراه با ریفرش کامل سشن‌ها
-            MyNavigationManager.NavigateTo("/login", forceLoad: true);
-        }
-
-        private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-        {
-            await InvokeAsync(async () =>
+            else if (url.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase))
             {
-                await CheckOnlineSessionAsync();
-            });
+                ActivePage = "manage";
+            }
+            else
+            {
+                ActivePage = "home";
+            }
         }
 
         public void Dispose()
         {
-            MyNavigationManager.LocationChanged -= OnLocationChanged;
+            AdminState.OnChange -= OnAdminStateChanged;
+            NavigationManager.LocationChanged -= OnLocationChanged;
         }
+        /// <summary>
+        /// 🟢 متد جدید هدایت هوشمند آدرس مرورگر به محض فشردن دکمه‌های فیزیکی هدر سیستم
+        /// </summary>
+        protected void NavigateToPage(string targetUrl)
+        {
+            IsMobileMenuOpen = false; // منوی همبرگری موبایل را در صورت باز بودن ببند
+            NavigationManager.NavigateTo(targetUrl, forceLoad: false); // تغییر آدرس زنده صفحه بدون لود مجدد کل مرورگر
+        }
+
     }
 }

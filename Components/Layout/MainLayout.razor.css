@@ -1,98 +1,207 @@
-.page {
-    position: relative;
-    display: flex;
-    flex-direction: column;
+/* =========================================================================
+   🌐 استایل‌های هدر بومی سیستم در حالت دسکتاپ و مانیتورهای بزرگ (Desktop Mode)
+   ========================================================================= */
+
+/* قفل قطعی رنگ مشکی ذغالی و پدینگ افقی هدر بالای صفحه */
+html body .top-row,
+html body .navbar-system {
+    background-color: #212529 !important;
+    border-bottom: 1px solid #343a40 !important;
+    height: 4.5rem !important;
+    display: flex !important;
+    flex-direction: row-reverse !important; /* چینش هوشمند آینه‌ای جهت پرتاب خروج به چپ */
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 10px 24px !important;
+    color: white !important;
+    font-family: Tahoma, Arial !important;
+    box-sizing: border-box !important;
 }
 
-main {
-    flex: 1;
+/* کانتینر اصلی دکمه‌های هدر در دسکتاپ */
+.header-actions-container {
+    display: flex !important;
+    flex-direction: row-reverse !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
 }
 
-.sidebar {
-    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+/* 🎯 زون اختصاصی دکمه خروج و نام ادمین چسبیده به سمت چپ مانیتور */
+.logout-left-zone {
+    display: flex !important;
+    flex-direction: row-reverse !important; /* تراز نام ادمین در سمت راست دکمه خروج */
+    align-items: center !important;
+    gap: 15px !important;
 }
 
-.top-row {
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
-    justify-content: flex-end;
-    height: 3.5rem;
-    display: flex;
-    align-items: center;
+/* گروه دکمه‌های ناوبری مرکزی (کیوسک، پرسنل، دسترسی‌ها) */
+.nav-management-group {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px !important;
+    align-items: center !important;
 }
 
-    .top-row ::deep a, .top-row ::deep .btn-link {
-        white-space: nowrap;
-        margin-left: 1.5rem;
-        text-decoration: none;
+.navbar-main {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+/* پایش نمایشگرها */
+.mobile-only {
+    display: none !important;
+}
+
+.desktop-only {
+    display: inline-block !important;
+}
+
+.menu-toggle-btn {
+    display: none !important;
+}
+
+.user-welcome-text {
+    color: #ffc107 !important; /* رنگ طلایی شکیل برای نام ادمین */
+    font-size: 13.5px !important;
+    font-weight: bold !important;
+    white-space: nowrap !important;
+}
+
+/* =========================================================================
+   💎 دکمه‌های مدرن، فلت و شیک هدر (Modern Flat UI Buttons)
+   ========================================================================= */
+.btn-modern {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 6px 14px !important;
+    font-size: 12.5px !important;
+    font-weight: bold !important;
+    border: none !important;
+    cursor: pointer !important;
+    border-radius: 6px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.btn-modern-secondary {
+    background-color: #495057 !important;
+    color: #ffffff !important;
+}
+
+.btn-modern-primary {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+.btn-modern-warning {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+.btn-modern-danger {
+    background-color: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+.btn-modern-success {
+    background-color: #198754 !important;
+    color: #ffffff !important;
+}
+
+.btn-modern:hover {
+    opacity: 0.95 !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-modern.active-custom {
+    border: 2px solid #28a745 !important;
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.6) !important;
+}
+
+/* انیمیشن زنده پاپ‌آ‌پ */
+.modal-animation-fade {
+    animation: modalFadeIn 0.2s ease-out !important;
+}
+
+@keyframes modalFadeIn {
+    from {
+        transform: scale(0.92);
+        opacity: 0;
     }
 
-    .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
-        text-decoration: underline;
-    }
-
-    .top-row ::deep a:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-@media (max-width: 640.98px) {
-    .top-row {
-        justify-content: space-between;
-    }
-
-    .top-row ::deep a, .top-row ::deep .btn-link {
-        margin-left: 0;
+    to {
+        transform: scale(1);
+        opacity: 1;
     }
 }
 
-@media (min-width: 641px) {
-    .page {
-        flex-direction: row;
+/* =========================================================================
+   📱 قوانین اختصاصی حالت موبایل (زیر 768px)
+   ========================================================================= */
+@media (max-width: 768px) {
+    .mobile-only {
+        display: inline-block !important;
     }
 
-    .sidebar {
-        width: 250px;
-        height: 100vh;
-        position: sticky;
-        top: 0;
+    .desktop-only {
+        display: none !important;
     }
 
-    .top-row {
-        position: sticky;
-        top: 0;
-        z-index: 1;
+    html body .top-row {
+        flex-direction: column !important;
+        height: auto !important;
+        padding: 12px 15px !important;
     }
 
-    .top-row.auth ::deep a:first-child {
-        flex: 1;
-        text-align: right;
-        width: 0;
+    .navbar-main {
+        width: 100% !important;
+        flex-direction: row-reverse !important;
+        justify-content: space-between !important;
     }
 
-    .top-row, article {
-        padding-left: 2rem !important;
-        padding-right: 1.5rem !important;
+    .menu-toggle-btn {
+        display: block !important;
+        background: none !important;
+        border: none !important;
+        color: white !important;
+        font-size: 24px !important;
+    }
+
+    .user-welcome-text.mobile-only {
+        color: #ffc107 !important;
+        background: none !important;
+        padding: 0 !important;
+    }
+
+    .header-actions-container {
+        display: none !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        margin-top: 10px !important;
+        gap: 8px !important;
+    }
+
+        .header-actions-container.open {
+            display: flex !important;
+        }
+
+    .nav-management-group {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 6px !important;
+    }
+
+    .logout-left-zone {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 6px !important;
+    }
+
+    .btn-modern {
+        width: 100% !important;
     }
 }
-
-#blazor-error-ui {
-    color-scheme: light only;
-    background: lightyellow;
-    bottom: 0;
-    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
-    box-sizing: border-box;
-    display: none;
-    left: 0;
-    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
-    position: fixed;
-    width: 100%;
-    z-index: 1000;
-}
-
-    #blazor-error-ui .dismiss {
-        cursor: pointer;
-        position: absolute;
-        right: 0.75rem;
-        top: 0.5rem;
-    }

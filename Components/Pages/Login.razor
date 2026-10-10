@@ -1,33 +1,33 @@
 ﻿@page "/login"
 @rendermode InteractiveServer
+@using sqlite_web.Services
+@inject AdminStateService AdminState
 
-<div class="container mt-5" dir="rtl" style="text-align: right; font-family: Tahoma;">
-    <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card shadow border-0 rounded-3">
-                <div class="card-header bg-dark text-white text-center py-3">
-                    <h5 class="m-0 fw-bold">🔒 ورود به پنل مدیریت سیستم</h5>
-                </div>
-                <div class="card-body p-4">
-                    <form @onsubmit="ExecuteServiceLogin" @onsubmit:preventDefault>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">نام کاربری ادمین:</label>
-                            <input type="text" class="form-control" @bind="localUsername" placeholder="نام کاربری را وارد کنید..." />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold small text-muted">رمز عبور ادمین:</label>
-                            <input type="password" class="form-control" @bind="localPassword" placeholder="رمز عبور را وارد کنید..." />
-                        </div>
+<div class="login-container" style="max-width: 400px; margin: 100px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <h3 style="text-align: center; margin-bottom: 20px;">ورود به پنل مدیریت</h3>
 
-                        @if (!string.IsNullOrEmpty(feedbackMessage))
-                        {
-                            <div class="alert alert-danger text-center small fw-bold py-2">@feedbackMessage</div>
-                        }
-
-                        <button type="submit" class="btn btn-dark w-100 fw-bold mt-2 py-2">🔑 ورود به حساب کاربری</button>
-                    </form>
-                </div>
-            </div>
+    <EditForm Model="this" OnValidSubmit="HandleLogin" FormName="admin-login-form">
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px;">نام کاربری:</label>
+            <input type="text" class="form-control" style="width: 100%; padding: 8px; box-sizing: border-box;" @bind="Username" autocomplete="username" />
         </div>
-    </div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px;">رمز عبور:</label>
+            <input type="password" class="form-control" style="width: 100%; padding: 8px; box-sizing: border-box;" @bind="Password" autocomplete="current-password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            ورود به سیستم
+        </button>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(AdminState.FeedbackMessage))
+    {
+        <div style="margin-top: 15px; padding: 10px; border-radius: 4px; text-align: center;
+            background-color: @(AdminState.FeedbackMessage.Contains("✅") ? "#d4edda" : "#f8d7da");
+            color: @(AdminState.FeedbackMessage.Contains("✅") ? "#155724" : "#721c24");">
+            @AdminState.FeedbackMessage
+        </div>
+    }
 </div>

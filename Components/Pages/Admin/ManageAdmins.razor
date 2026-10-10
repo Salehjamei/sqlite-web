@@ -8,59 +8,12 @@
 @* فعال‌سازی حالت رندر زنده و دوطرفه کامپوننت بر روی مرورگر *@
 @rendermode InteractiveServer
 
-@* بارگذاری فضاهای نام مدل جدول ادمین دیتابیس SQLite پروژه شما *@
-@using Microsoft.EntityFrameworkCore
-@using sqlite_web
-@using sqlite_web.Components.Models.Admin
-
-
 @* =========================================================================
    🖥️ لایه ۲: تگ والد اصلی و شروط گارد امنیتی ورود ادمین ارشد
    ========================================================================= *@
 
 @* ⚡ کادر باز تگ والد اصلی کل چیدمان صفحه با فونت تاهوما و راست‌چین *@
 <div class="container mt-4" dir="rtl" style="text-align: right; font-family: Tahoma;">
-
-    @* 🛡️ بررسی شرط اول: اگر فرآیند اسکن توکن مرورگر کلاینت هنوز تمام نشده است *@
-    @if (!AdminState.IsChecked)
-    {
-        @* ⚡ کادر باز دایو باکس انیمیشن لودینگ انتظار *@
-        <div class="text-center mt-5">
-            <div class="spinner-border text-danger" role="status"></div>
-            <p class="mt-3 fw-bold">در حال اسکن زنده سشن‌های امنیتی سرور...</p>
-        </div> @* ⚡ کادر بسته دایو باکس انیمیشن لودینگ انتظار *@
-    }
-    else if (string.IsNullOrEmpty(AdminState.adminUsername))
-    {
-        <div class="text-center mt-5">
-            <p class="fw-bold">عدم احراز هویت؛ انتقال به صفحه ورود...</p>
-        </div>
-        @* 🚀 صدا زدن متد متمرکز ریدایرکت مستقر در سرویس ادمین شما *@
-        
-            AdminState.RedirectToLogin();
-        
-    }
-    @* 🛡️ بررسی شرط دوم: اگر ادمین آنلاین دسترسی ارشد مدیریت مدیران را ندارد *@
-    else if (!AdminState.IsAuthorized)
-    {
-        @* رندر باکس قرمز رنگ پیام هشدار عدم دسترسی مجاز ادمین سیستم *@
-        <div class="alert alert-danger text-center shadow-sm fw-bold mb-4">
-            ❌ این صفحه اختصاصی بوده و فقط سوپر ادمین ارشد سیستم به آن دسترسی دارد!
-        </div>
-    }
-    @* 🔓 لایه سوم: اگر ادمین ارشد از تمام فیلترهای امنیتی بالا با موفقیت عبور کرد *@
-    else
-    {
-        @* رندر نوار ابزار و وضعیت بالای صفحه همراه با دکمه بازگشت به پنل اصلی *@
-        <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded mb-4 border shadow-sm">
-            <span class="text-danger fw-bold fs-6">👑 تنظیمات تفکیکی و مدیریت سشن مدیران سیستم</span>
-            <div class="d-flex gap-2">
-                <a href="/admin" class="btn btn-dark btn-sm fw-bold">🔙 بازگشت به پنل اصلی</a>
-            </div>
-        </div>
-    }
-    @* ⚡ کادر بسته بلاک شرطی else امنیتی سایت *@
-
     @* =========================================================================
    ➡️ بخش دوم: ستون فرم ثبت و ویرایش دسترسی‌های مدیر جدید (Form Column)
    توضیحات کد: این لایه کادرهای متنی و سوئیچ‌های تفویض تیک دسترسی را رندر می‌کند.

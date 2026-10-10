@@ -10,7 +10,7 @@ using sqlite_web.Components.Models.Admin;
 namespace sqlite_web.Services
 {
     /// <summary>
-    /// سرویس متمرکز مدیریت وضعیت، سطوح دسترسی و تمام عملیات دیتابیسی مدیران سیستم
+    /// سرویس متمرکز مدیریت وضعیت، سطوح دسترسی و عملیات دیتابیسی مدیران سیستم
     /// </summary>
     public class AdminStateService
     {
@@ -21,14 +21,16 @@ namespace sqlite_web.Services
         // 🔘 شیء زنده ادمین آنلاین واکشی شده از دیتابیس
         public AdminUser? CurrentOnlineAdmin { get; private set; }
 
-        // 🔘 متغیرهای عمومی احراز هویت مورد نیاز هدر لایوت و صفحات
-        public bool IsAuthorized { get; set; } = true;
+        // 🔘 پرچم اصلی احراز هویت (سشن فعال)
+        public bool IsAuthorized { get; private set; } = false;
         public string adminUsername => CurrentOnlineAdmin?.Username ?? "";
         public bool isCurrentUserSuperAdmin => CurrentOnlineAdmin?.IsSuperAdmin ?? false;
         public bool IsChecked { get; private set; } = false;
+
+        // رویداد مطلع‌سازی کامپوننت‌ها (مانند هدر لایوت) از تغییرات سشن ادمین
         public event Action? OnChange;
 
-        // 🌟 متغیرهای فرم مدیریت ادمین‌ها (انتقال یافته به سرویس جهت یکنواختی کامل)
+        // 🌟 متغیرهای فرم مدیریت دسترسی ادمین‌ها
         public List<AdminUser> AdminList { get; set; } = new();
         public bool IsEditMode { get; set; } = false;
         public string FeedbackMessage { get; set; } = string.Empty;
@@ -41,63 +43,78 @@ namespace sqlite_web.Services
         public bool FormCanEdit { get; set; } = false;
         public bool FormCanDelete { get; set; } = false;
 
+        private int? _editingAdminId = null;
+
         public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime, NavigationManager navigationManager)
         {
             _dbContext = dbContext;
             _jsRuntime = jsRuntime;
             _navigationManager = navigationManager;
         }
+
+        public void RedirectToLogin() => _navigationManager.NavigateTo("/login", forceLoad: false);
+
         /// <summary>
-        /// 🌟 متد عمومی و پرکاربرد انتقال خودکار به صفحه ورود کلاینت
-        /// این متد در تمام صفحات آینده به صورت یکپارچه برای اخراج کلاینت‌های غیرمجاز صدا زده می‌شود.
-        /// </summary>
-        public void RedirectToLogin()
-        {
-            _navigationManager.NavigateTo("/login", forceLoad: false);
-        }
-        /// <summary>
-        /// 🔍 پایش مرکزی و گارد امنیتی مسیرهای پنل مدیریت
+        /// 🔍 پایش مرکزی و گارد امنیتی بررسی اصالت سشن و سلامت توکن‌ها در دیتابیس
         /// </summary>
         public async Task CheckAccessAndRedirectAsync()
         {
             try
             {
+                // واکشی توکن فعال موجود در لایو حافظه مرورگر کلاینت
                 var savedToken = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "admin_session_token");
+                var currentUri = _navigationManager.Uri;
 
+                // بررسی و راستی‌آزمایی توکن در دیتابیس با تمام شروط امنیتی سیستم
+                AdminUser? verifiedAdmin = null;
                 if (!string.IsNullOrEmpty(savedToken) && _dbContext != null)
                 {
-                    var admin = await _dbContext.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.CurrentToken == savedToken);
-                    if (admin != null)
+                    verifiedAdmin = await _dbContext.Admins.AsNoTracking()
+                        .FirstOrDefaultAsync(a => a.CurrentToken == savedToken
+                                               && !a.IsFrozen
+                                               && !a.IsTokenStopped
+                                               && a.TokenExpireTime > DateTime.Now);
+                }
+
+                // 🔘 مدیریت هوشمند ورود به صفحه لاگین
+                if (currentUri.Contains("/login", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (verifiedAdmin != null)
                     {
-                        FillAdminData(admin);
-
-                        if (!IsAuthorized && _navigationManager.Uri.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase))
+                        FillAdminData(verifiedAdmin);
+                        IsChecked = true;
+                        NotifyStateChanged();
+                        // هدایت مستقیم به اولین صفحه پنل
+                        _navigationManager.NavigateTo("/admin/panel", forceLoad: false);
+                        return;
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(savedToken))
                         {
-                            _navigationManager.NavigateTo("/", forceLoad: true);
-                            return;
+                            await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "admin_session_token");
                         }
-
-                        if (_navigationManager.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsChecked = true;
-                            NotifyStateChanged();
-                            _navigationManager.NavigateTo("/admin", forceLoad: false);
-                            return;
-                        }
-
+                        Reset();
                         IsChecked = true;
                         NotifyStateChanged();
                         return;
                     }
                 }
 
-                if (IsChecked && string.IsNullOrEmpty(savedToken))
+                // 🔘 اگر ادمین معتبر در سیستم یافت شد
+                if (verifiedAdmin != null)
+                {
+                    FillAdminData(verifiedAdmin);
+                    IsChecked = true;
+                    NotifyStateChanged();
+                    return; // اجازه بده لایوت فرآیند کنترل آدرس (هک لینک) را به صورت تعاملی با مودال جلو ببرد
+                }
+
+                // 🔘 لایه محافظتی: اگر توکن نامعتبر بود یا وجود نداشت و کاربر سعی داشت مسیرهای گارد شده /admin را باز کند
+                if (currentUri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
                 {
                     Reset();
-                    if (_navigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
-                    {
-                        _navigationManager.NavigateTo("/login", forceLoad: false);
-                    }
+                    _navigationManager.NavigateTo("/login", forceLoad: false);
                 }
             }
             catch
@@ -113,81 +130,85 @@ namespace sqlite_web.Services
                 }
             }
         }
+
         /// <summary>
-        /// 👑 متد متمرکز مقداردهی اولیه و ساخت اولین سوپر ادمین ارشد سیستم در SQLite
-        /// توضیحات کد: این متد تضمین می‌کند که فیلدهای امنیتی توکن و وضعیت فریز ادمین ارشد در بدو ساخت کاملاً تراز باشند.
+        /// 🔐 متد احراز هویت، تولید توکن امن و ایجاد سشن فعال ادمین
         /// </summary>
-        public async Task InitializeDefaultSuperAdminAsync()
+        public async Task<bool> LoginAsync(string username, string password)
         {
-            if (_dbContext == null) return;
-
-            // اطمینان از ساخت فیزیکی فایل دیتابیس و جداول SQLite روی هارد دیسک
-            await _dbContext.Database.EnsureCreatedAsync();
-
-            // اگر جدول ادمین‌ها کاملاً خالی بود، اولین مدیر ارشد سیستم را با دسترسی تفکیکی کامل بساز
-            if (!await _dbContext.Admins.AnyAsync())
+            if (_dbContext == null) return false;
+            try
             {
-                var initialSuperAdmin = new sqlite_web.Components.Models.Admin.AdminUser
+                // بررسی صحت نام کاربری و رمز عبور در جدول ادمین‌ها
+                var admin = await _dbContext.Admins.FirstOrDefaultAsync(a =>
+                    a.Username.ToLower() == username.ToLower() && a.Password == password);
+
+                if (admin == null)
                 {
-                    Username = "AdminTop",
-                    Password = "AdminTop", // رمز عبور پیش‌فرض شما
-                    IsSuperAdmin = true,   // 👑 دارای دسترسی ارشد مدیریت مدیران
-                    CanAddEmployee = true, // ➕ دارای دسترسی ثبت کارمندان
-                    CanEditEmployee = true,// ✏️ دارای دسترسی ویرایش کارمندان
-                    CanDeleteEmployee = true, // ❌ دارای دسترسی حذف کارمندان
-                    IsFrozen = false,      // اکانت فعال است و فریز نیست
-                    IsTokenStopped = false, // توکن متوقف نشده است
-                    CurrentToken = null,   // توکن در اولین ورود پس از ثبت فرم صادر خواهد شد
-                    TokenExpireTime = null
-                };
-
-                _dbContext.Admins.Add(initialSuperAdmin);
-                await _dbContext.SaveChangesAsync();
-            }
-        }
-
-        /// <summary>
-        /// 🔑 متد ورود مرکزی سیستم و تولید توکن معتبر
-        /// </summary>
-        public async Task<bool> LoginAsync(string inputUsername, string inputPassword)
-        {
-            if (_dbContext == null || string.IsNullOrWhiteSpace(inputUsername) || string.IsNullOrWhiteSpace(inputPassword))
-                return false;
-
-            var admin = await _dbContext.Admins
-                .FirstOrDefaultAsync(a => a.Username.ToLower() == inputUsername.ToLower() && a.Password == inputPassword);
-
-            if (admin != null)
-            {
-                if (admin.IsFrozen)
+                    FeedbackMessage = "❌ نام کاربری یا رمز عبور اشتباه است!";
                     return false;
+                }
 
-                string uniqueToken = Guid.NewGuid().ToString("N");
-                admin.CurrentToken = uniqueToken;
-                admin.IsTokenStopped = false;
-                admin.TokenExpireTime = DateTime.Now.AddDays(7);
+                // بررسی وضعیت انجماد و قفل بودن حساب
+                if (admin.IsFrozen)
+                {
+                    FeedbackMessage = "❄️ حساب کاربری شما فریز شده است و اجازه ورود ندارید!";
+                    return false;
+                }
+
+                // تولید توکن منحصربه‌فرد برای سشن جدید
+                string newToken = Guid.NewGuid().ToString("N");
+                admin.CurrentToken = newToken;
+                admin.IsTokenStopped = false; // بازنشانی پرچم متوقف شده
+                admin.TokenExpireTime = DateTime.Now.AddDays(7); // سشن تا ۷ روز معتبر است
 
                 _dbContext.Admins.Update(admin);
                 await _dbContext.SaveChangesAsync();
 
-                CurrentOnlineAdmin = admin;
+                // ذخیره فیزیکی توکن در مرورگر کلاینت جهت پایش‌های بعدی
+                await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "admin_session_token", newToken);
+                FillAdminData(admin);
 
-                try
-                {
-                    await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "admin_session_token", uniqueToken);
-                }
-                catch { }
-
-                IsChecked = true;
+                FeedbackMessage = "✅ ورود با موفقیت انجام شد.";
                 NotifyStateChanged();
+
+                // 🟢 فیکس باگ هدایت ناوبری: انتقال مستقیم به اولین صفحه داشبورد
+                _navigationManager.NavigateTo("/admin/panel", forceLoad: false);
                 return true;
             }
-
-            return false;
+            catch
+            {
+                FeedbackMessage = "❌ خطایی در فرآیند ورود رخ داد!";
+                return false;
+            }
         }
 
         /// <summary>
-        /// 🏃‍♂️ متد خروج مرکزی سیستم و ابطال سشن
+        /// 👑 مقداردهی اولیه و ساخت مدیر ارشد سیستم در اولین اجرای پروژه
+        /// </summary>
+        public async Task InitializeDefaultSuperAdminAsync()
+        {
+            if (_dbContext == null) return;
+            await _dbContext.Database.EnsureCreatedAsync();
+            if (!await _dbContext.Admins.AnyAsync())
+            {
+                _dbContext.Admins.Add(new AdminUser
+                {
+                    Username = "AdminTop",
+                    Password = "AdminTop",
+                    IsSuperAdmin = true,
+                    CanAddEmployee = true,
+                    CanEditEmployee = true,
+                    CanDeleteEmployee = true,
+                    IsFrozen = false,
+                    IsTokenStopped = false
+                });
+                await _dbContext.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
+        /// 🏃‍♂️ متد خروج مرکزی سیستم و ابطال همزمان سشن در دیتابیس و کلاینت
         /// </summary>
         public async Task LogoutAsync()
         {
@@ -199,32 +220,20 @@ namespace sqlite_web.Services
                     if (admin != null)
                     {
                         admin.CurrentToken = null;
-                        admin.IsTokenStopped = true;
+                        admin.IsTokenStopped = true; // ابطال سشن
+                        admin.TokenExpireTime = null;
                         _dbContext.Admins.Update(admin);
                         await _dbContext.SaveChangesAsync();
                     }
                 }
                 catch { }
             }
-
             Reset();
-            try
-            {
-                await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "admin_session_token");
-            }
-            catch { }
-
+            try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "admin_session_token"); } catch { }
             NotifyStateChanged();
             _navigationManager.NavigateTo("/login", forceLoad: true);
         }
 
-        // =========================================================================
-        // 👑 بخش متدها و عملیات مدیریت ادمین‌ها (پوشش کامل نیازمندی صفحه ManageAdmins)
-        // =========================================================================
-
-        /// <summary>
-        /// 💾 بارگذاری فیزیکی لیست مدیران از دیتابیس SQLite
-        /// </summary>
         public async Task LoadAdminsDataAsync()
         {
             if (_dbContext != null)
@@ -234,115 +243,81 @@ namespace sqlite_web.Services
             }
         }
 
-        /// <summary>
-        /// 💾 ثبت یا ویرایش اطلاعات مدیر در دیتابیس
-        /// </summary>
         public async Task SaveAdminAsync()
         {
             if (_dbContext == null) return;
+            if (string.IsNullOrWhiteSpace(FormAdminUsername) || string.IsNullOrWhiteSpace(FormAdminPassword)) return;
 
-            if (string.IsNullOrWhiteSpace(FormAdminUsername) || string.IsNullOrWhiteSpace(FormAdminPassword))
+            if (IsEditMode && _editingAdminId.HasValue)
             {
-                FeedbackMessage = "❌ لطفاً نام کاربری و رمز عبور را وارد کنید!";
-                return;
-            }
-
-            if (IsEditMode)
-            {
-                var existingAdmin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Username == FormAdminUsername);
+                var existingAdmin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == _editingAdminId.Value);
                 if (existingAdmin != null)
                 {
+                    existingAdmin.Username = FormAdminUsername;
                     existingAdmin.Password = FormAdminPassword;
                     existingAdmin.IsSuperAdmin = FormIsSuperAdmin;
                     existingAdmin.CanAddEmployee = FormCanAdd;
                     existingAdmin.CanEditEmployee = FormCanEdit;
                     existingAdmin.CanDeleteEmployee = FormCanDelete;
-
                     _dbContext.Admins.Update(existingAdmin);
-                    FeedbackMessage = "✅ مشخصات و دسترسی‌های مدیر با موفقیت ویرایش شد.";
+                    if (CurrentOnlineAdmin != null && CurrentOnlineAdmin.Id == existingAdmin.Id)
+                    {
+                        CurrentOnlineAdmin = existingAdmin;
+                    }
                 }
             }
             else
             {
-                var checkDuplicate = await _dbContext.Admins.AnyAsync(a => a.Username.ToLower() == FormAdminUsername.ToLower());
-                if (checkDuplicate)
-                {
-                    FeedbackMessage = "❌ این نام کاربری قبلاً ثبت شده است!";
-                    return;
-                }
-
-                var newAdmin = new AdminUser
+                _dbContext.Admins.Add(new AdminUser
                 {
                     Username = FormAdminUsername,
                     Password = FormAdminPassword,
                     IsSuperAdmin = FormIsSuperAdmin,
                     CanAddEmployee = FormCanAdd,
                     CanEditEmployee = FormCanEdit,
-                    CanDeleteEmployee = FormCanDelete,
-                    IsFrozen = false,
-                    IsTokenStopped = false
-                };
-
-                _dbContext.Admins.Add(newAdmin);
-                FeedbackMessage = "✅ مدیر جدید با موفقیت در سیستم ثبت شد.";
+                    CanDeleteEmployee = FormCanDelete
+                });
             }
-
             await _dbContext.SaveChangesAsync();
             await LoadAdminsDataAsync();
             ClearForm();
         }
-
-        /// <summary>
-        /// ❄️ فریز / فعال‌سازی موقت سشن ادمین‌ها در دیتابیس
-        /// </summary>
         public async Task ToggleFreezeAdminAsync(int id, bool freezeStatus)
         {
-            if (_dbContext == null) return;
-
+            if (_dbContext == null || (CurrentOnlineAdmin != null && CurrentOnlineAdmin.Id == id)) return;
             var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == id);
-            if (admin != null)
+            if (admin != null && admin.Username.ToLower() != "admintop")
             {
-                if (admin.Username.ToLower() == "admintop")
-                {
-                    FeedbackMessage = "❌ اکانت ادمین اصلی سیستم قابل فریز شدن نیست!";
-                    return;
-                }
                 admin.IsFrozen = freezeStatus;
                 if (freezeStatus)
                 {
                     admin.IsTokenStopped = true;
                     admin.CurrentToken = null;
+                    admin.TokenExpireTime = null;
                 }
                 _dbContext.Admins.Update(admin);
                 await _dbContext.SaveChangesAsync();
-                FeedbackMessage = freezeStatus ? "❄️ ادمین فریز شد و سشن او منقضی گردید." : "🔥 ادمین از حالت فریز خارج و فعال شد.";
             }
             await LoadAdminsDataAsync();
         }
-        /// 
-        /// 🛑 ابطال و متوقف کردن دستی توکن یک ادمین بدون فریز کاربری
-        /// 
         public async Task StopAdminTokenAsync(int id)
         {
-            if (_dbContext == null) return;
+            if (_dbContext == null || (CurrentOnlineAdmin != null && CurrentOnlineAdmin.Id == id)) return;
             var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == id);
             if (admin != null)
             {
                 admin.IsTokenStopped = true;
                 admin.CurrentToken = null;
+                admin.TokenExpireTime = null;
                 _dbContext.Admins.Update(admin);
                 await _dbContext.SaveChangesAsync();
-                FeedbackMessage = "🛑 توکن فعال ادمین انتخاب شده متوقف و باطل شد.";
             }
             await LoadAdminsDataAsync();
         }
-        /// 
-        /// ✏️ بارگذاری مشخصات مدیر در فرم جهت ویرایش
-        /// 
         public void StartEdit(AdminUser admin)
         {
             IsEditMode = true;
-            FeedbackMessage = string.Empty;
+            _editingAdminId = admin.Id;
             FormAdminUsername = admin.Username;
             FormAdminPassword = admin.Password;
             FormIsSuperAdmin = admin.IsSuperAdmin;
@@ -351,33 +326,20 @@ namespace sqlite_web.Services
             FormCanDelete = admin.CanDeleteEmployee;
             NotifyStateChanged();
         }
-        /// 
-        /// ↩️ انصراف از ویرایش و پاک‌سازی فرم
-        /// 
         public void CancelEdit()
         {
             IsEditMode = false;
-            FeedbackMessage = string.Empty;
             ClearForm();
             NotifyStateChanged();
         }
-        /// 
-        /// 🗑️ حذف فیزیکی کامل ادمین از سیستم همراه با لایه محافظتی اکانت ارشد
-        /// 
         public async Task DeleteAdminAsync(int id)
         {
             if (_dbContext == null) return;
             var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == id);
-            if (admin != null)
+            if (admin != null && admin.Username.ToLower() != "admintop")
             {
-                if (admin.Username.ToLower() == "admintop")
-                {
-                    FeedbackMessage = "❌ مدیر اصلی سیستم (AdminTop) قابل حذف نیست!";
-                    return;
-                }
                 _dbContext.Admins.Remove(admin);
                 await _dbContext.SaveChangesAsync();
-                FeedbackMessage = "🗑️ مدیر انتخاب شده با موفقیت از دیتابیس حذف شد.";
             }
             await LoadAdminsDataAsync();
         }
@@ -389,16 +351,17 @@ namespace sqlite_web.Services
             FormCanAdd = false;
             FormCanEdit = false;
             FormCanDelete = false;
+            _editingAdminId = null;
         }
         private void FillAdminData(AdminUser admin)
         {
             CurrentOnlineAdmin = admin;
-            IsAuthorized = admin.IsSuperAdmin || admin.CanAddEmployee || admin.CanEditEmployee || admin.CanDeleteEmployee;
+            IsAuthorized = true;
         }
         private void Reset()
         {
             CurrentOnlineAdmin = null;
-            IsAuthorized = true;
+            IsAuthorized = false;
         }
         private void NotifyStateChanged() => OnChange?.Invoke();
     }

@@ -1,30 +1,43 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.JSInterop;
 using sqlite_web.Components.Models;
+using sqlite_web.Services;
 
 namespace sqlite_web.Components.Pages
 {
-    // استفاده از کلمه partial برای اتصال به فایل HTML الزامی است
     public partial class Home
     {
-        // تزریق وابستگی دیتابیس به سبک Code-Behind
-        [Inject]
-        public AppDbContext DbContext { get; set; } = default!;
-        [Inject]
-        public IJSRuntime JSRuntime { get; set; } = default!;
-
-        private bool isAnyAdminLoggedIn = false;
-        private bool isCurrentUserSuperAdmin = false;
-        private bool canAddPerm = false;
-        private bool canEditPerm = false;
-        private bool canDeletePerm = false;
+        [Inject] public AppDbContext DbContext { get; set; } = default!;
+        [Inject] public AdminStateService AdminState { get; set; } = default!; // 👈 تزریق سرویس متمرکز
 
         private string message = "";
+        private List<Employee> employees = new();
+        private List<Attendance> allAttendances = new();
 
-        private List<Employee> employees = new List<Employee>();
-        private List<Attendance> allAttendances = new List<Attendance>();
+        // 🔘 پروپرتی‌های دسترسی که مستقیماً و بدون متغیر کمکی از سرویس خوانده می‌شوند
+        private bool isAnyAdminLoggedIn => AdminState.IsAuthorized;
+        private bool isCurrentUserSuperAdmin => AdminState.isCurrentUserSuperAdmin;
+        private bool canAddPerm => AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false;
+        private bool canEditPerm => AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false;
+        private bool canDeletePerm => AdminState.CurrentOnlineAdmin?.CanDeleteEmployee ?? false;
 
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (firstRender)
+            {
+                // پایش و اعتبارسنجی توکن از طریق هسته سرویس
+                await AdminState.CheckAccessAndRedirectAsync();
+
+                if (AdminState.IsAuthorized)
+                {
+                    await LoadData();
+                }
+                StateHasChanged();
+            }
+        }
 
         private async Task LoadData()
         {
@@ -32,13 +45,13 @@ namespace sqlite_web.Components.Pages
             {
                 if (DbContext != null)
                 {
-                    employees = await DbContext.Employees.AsNoTracking().ToListAsync() ?? new List<Employee>();
-                    allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync() ?? new List<Attendance>();
+                    employees = await DbContext.Employees.AsNoTracking().ToListAsync();
+                    allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync();
                 }
             }
             catch (Exception ex)
             {
-                message = "خطا در بارگذاری داده‌ها: " + ex.Message;
+                message = $"خطا در بارگذاری داده‌ها: {ex.Message}";
             }
         }
 
@@ -54,7 +67,7 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                message = "خطا در ثبت ورود: " + (ex.InnerException?.Message ?? ex.Message);
+                message = $"خطا در ثبت ورود: {ex.InnerException?.Message ?? ex.Message}";
             }
         }
 
@@ -73,70 +86,15 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                message = "خطا در ثبت خروج: " + (ex.InnerException?.Message ?? ex.Message);
+                message = $"خطا در ثبت خروج: {ex.InnerException?.Message ?? ex.Message}";
             }
         }
-        protected override async Task OnAfterRenderAsync(bool firstRender)
-        {
-            if (firstRender)
-            {
-                try
-                {
-                    // خواندن توکن ادمینی که سیستم را باز نگه داشته است
-                    var savedToken = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "admin_session_token");
-                    if (!string.IsNullOrEmpty(savedToken) && DbContext != null)
-                    {
-                        var admin = await DbContext.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.Username == savedToken);
-                        if (admin != null)
-                        {
-                            isAnyAdminLoggedIn = true;
 
-                            // 👈 خواندن وضعیت مجوزهای ادمین جاری برای مخفی‌سازی دکمه مدیریت
-                            isCurrentUserSuperAdmin = admin.IsSuperAdmin;
-                            canAddPerm = admin.CanAddEmployee;
-                            canEditPerm = admin.CanEditEmployee;
-                            canDeletePerm = admin.CanDeleteEmployee;
-
-                            await LoadData();
-                            StateHasChanged();
-                        }
-
-                    }
-                }
-                catch { }
-            }
-        }
-        // 🌟 متد خروج ادمین از صفحه اصلی و قفل شدن آنی کیوسک پرسنل
         private async Task AdminLogoutFromHome()
         {
-            try
-            {
-                if (JSRuntime != null)
-                {
-                    // پاک کردن توکن سشن ادمین از لایو حافظه مرورگر
-                    await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "admin_session_token");
-
-                    // تغییر وضعیت متغیر برای اعمال تغییرات آنی در فرانت‌اَند
-                    isAnyAdminLoggedIn = false;
-
-                    // پاک کردن پیغام‌های احتمالی قبلی
-                    message = "🔒 سیستم مدیریت خارج شد و کیوسک تردد قفل گردید.";
-                    isAnyAdminLoggedIn = false;
-                    isCurrentUserSuperAdmin = false;
-                    canAddPerm = false;
-                    canEditPerm = false;
-                    canDeletePerm = false;
-
-                    // تازه سازی اجباری صفحه وب Blazor
-                    StateHasChanged();
-                }
-            }
-            catch (Exception ex)
-            {
-                message = "خطا در خروج ادمین: " + ex.Message;
-            }
+            await AdminState.LogoutAsync(); // ابطال کامل سشن در دیتابیس و مرورگر
+            message = "🔒 سیستم مدیریت خارج شد و کیوسک تردد قفل گردید.";
+            StateHasChanged();
         }
-
-
     }
 }

@@ -1,53 +1,128 @@
 ﻿@inherits LayoutComponentBase
+@namespace sqlite_web.Components.Layout
 
-<div class="page" dir="rtl" style="font-family: Tahoma; text-align: right;">
+<div class="page">
+    @* --- هدر ریسپانسیو و بهینه‌سازی شده طبق آخرین نیازمندی اپراتور --- *@
+    <header class="navbar-system">
 
-    <!-- 🟢 هدر یکپارچه، هوشمند و سراسری سیستم حضور و غیاب پرسنل -->
-    <header class="bg-dark text-white p-3 shadow-sm mb-4">
-        <div class="container d-flex justify-content-between align-items-center">
-            <h4 class="m-0 fw-bold">⏱️ سیستم هوشمند حضور و غیاب پرسنل</h4>
-            <div class="d-flex align-items-center gap-2">
+        @* 🔹 بخش سمت راست هدر: منوی همبرگری و نام ادمین در حالت موبایل *@
+        <div class="navbar-main">
+            @* دکمه منوی همبرگری (نمایش خودکار فقط در ابعاد موبایل) *@
+            <button type="button" class="menu-toggle-btn" @onclick="ToggleMobileMenu">
+                ☰
+            </button>
 
-                <!-- 🛡️ اگر توکن سشن آنلاین در بلایزر تایید شده باشد -->
-                @if (hasToken)
-                {
-                    <!-- نمایش مستقیم نام کاربری واقعی ادمین لاگین شده بدون فیلد تداخل‌زا -->
-                    <span class="text-info small fw-bold me-2">👤 ادمین آنلاین: @adminUsername</span>
+            @* 🟢 نمایش مینی‌مال فقط نام ادمین در کنار منوی همبرگری در حالت موبایل *@
+            @if (AdminState.IsAuthorized)
+            {
+                <span class="user-welcome-text mobile-only">👤 @AdminState.adminUsername</span>
+            }
+        </div>
 
-                    <!-- دکمه خروج بومی بلایزر که متد شستشوی مستقیم را صدا می‌زند -->
-                    <button type="button" @onclick="ExecuteGlobalLogout" class="btn btn-danger btn-sm fw-bold me-3">🏃‍♂️ خروج از حساب</button>
-
-                    <!-- دکمه ناوبری به کیوسک پرسنل: برای ادمین ارشد (IsAuthorized) نمایش داده شود -->
-                    @if (IsAuthorized)
+        @* 🔹 بخش سمت چپ هدر: دکمه‌های ناوبری فلت و دکمه خروج تفکیک شده *@
+        <div class="header-actions-container @(IsMobileMenuOpen ? "open" : "")">
+            @if (AdminState.IsAuthorized)
+            {
+                @* 🟢 گروه دکمه‌های ناوبری صفحات مدیریت (کیوسک، پرسنل و دسترسی‌ها) *@
+                <div class="nav-management-group">
+                    @if (IsCurrentlyInAdminPanel)
                     {
-                        @if (MyNavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase))
+                        <button type="button" class="btn-modern btn-modern-secondary @(ActivePage == "home" ? "active-custom" : "")" @onclick='() => NavigateToPage("/")'>
+                            🏠 کیوسک تردد
+                        </button>
+
+                        <button type="button" class="btn-modern btn-modern-primary @(ActivePage == "panel" ? "active-custom" : "")" @onclick='() => NavigateToPage("/admin/panel")'>
+                            👥 مدیریت پرسنل
+                        </button>
+
+                        @if (AdminState.isCurrentUserSuperAdmin)
                         {
-                            <a href="/" class="btn btn-outline-light btn-sm fw-bold">🖥️ صفحه کیوسک پرسنل</a>
+                            <button type="button" class="btn-modern btn-modern-warning @(ActivePage == "manage" ? "active-custom" : "")" @onclick='() => NavigateToPage("/admin/manage-admins")'>
+                                👑 سطوح دسترسی
+                            </button>
                         }
                     }
-                }
-                else
-                {
-                    <!-- 🔒 اگر هیچ ادمینی لاگین نکرده باشد، دکمه ورود رندر شود -->
-                    @if (!MyNavigationManager.Uri.Contains("/login", StringComparison.OrdinalIgnoreCase))
+                    else
                     {
-                        <a href="/login" class="btn btn-outline-info btn-sm fw-bold">🔑 ورود به پنل مدیریت</a>
+                        <button type="button" class="btn-modern btn-modern-primary" @onclick="NavigateToDashboardSafe">
+                            💼 داشبورد مدیریت
+                        </button>
                     }
-                }
+                </div>
 
-            </div>
+                @* 🟢 گروه خروج و ادمین حاضر: چسبیده به منتهی‌الیه سمت چپ هدر دسکتاپ *@
+                <div class="logout-left-zone">
+                    <span class="user-welcome-text desktop-only">👤 @AdminState.adminUsername</span>
+                    <button type="button" class="btn-modern btn-modern-danger" @onclick="OpenLogoutModal">
+                        🏃‍♂️ خروج از پنل
+                    </button>
+                </div>
+            }
+            else
+            {
+                <button type="button" class="btn-modern btn-modern-success" @onclick='() => NavigateToPage("/login")'>
+                    🔑 ورود به پنل مدیریت
+                </button>
+            }
         </div>
     </header>
 
-    <!-- بادی اصلی صفحات سیستم -->
-    <main class="container flex-grow-1" style="min-height: 80vh;">
+    @* --- محل تزریق زنده صفحات سیستم --- *@
+    <main class="content px-4">
         @Body
     </main>
-
-    <!-- فوتر سراسری سیستم -->
-    <footer class="bg-light text-center text-muted py-3 border-top mt-5">
-        <div class="container">
-            <small>© @DateTime.Now.Year | طراحی و توسعه اختصاصی سیستم اتوماسیون حضور و غیاب پرسنلی</small>
-        </div>
-    </footer>
 </div>
+
+@* =========================================================================
+   🔒 مودال تعاملی تاییدیه خروج ادمین فیکس شده در مرکز کل مانیتور
+   ========================================================================= *@
+@if (ShowLogoutConfirmModal)
+{
+    <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
+        <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 440px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;">
+            <div class="bg-dark text-white p-3 fw-bold" style="text-align: right; direction: rtl; font-size: 15px;">🚪 تاییدیه خروج از سیستم</div>
+            <div class="p-3 text-right" style="direction: rtl; background: #ffffff;">
+                <p class="fw-bold text-dark" style="font-size: 14px; margin-bottom: 8px;">آیا برای خروج از پنل مدیریت سیستم مطمئن هستید؟</p>
+                <p class="text-muted small m-0" style="line-height: 1.6;">با خروج شما، سشن فعلی باطل شده و برای دسترسی مجدد نیاز به ورود با رمز عبور خواهید داشت.</p>
+            </div>
+            <div class="p-3 bg-light d-flex justify-content-end gap-2 border-top" style="direction: ltr;">
+                <button type="button" class="btn btn-danger btn-sm px-3 fw-bold" @onclick="ExecuteConfirmedLogout">بله، خارج می‌شوم</button>
+                <button type="button" class="btn btn-secondary btn-sm px-3" @onclick="CloseLogoutModal">انصراف</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* --- 🔒 مودال تعاملی عدم دسترسی ادمین به دکمه داشبورد مدیریت --- *@
+@if (ShowAccessDeniedModal)
+{
+    <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
+        <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;">
+            <div class="bg-danger text-white p-3 fw-bold" style="text-align: right; direction: rtl;">⚠️ خطای دسترسی سیستم</div>
+            <div class="p-3 text-right" style="direction: rtl; background: #ffffff;">
+                <p class="fw-bold text-danger" style="font-size: 14px;">حساب کاربری شما فاقد مجوز ورود است!</p>
+                <p class="text-muted small m-0" style="line-height: 1.6;">شما اجازه ورود به پنل مدیریت پرسنل را ندارید. جهت اعطای دسترسی‌های لازم، لطفاً با مدیر ارشد سیستم تماس حاصل فرمایید.</p>
+            </div>
+            <div class="p-3 bg-light d-flex justify-content-end border-top">
+                <button type="button" class="btn btn-secondary btn-sm px-4" @onclick="CloseAccessModal">متوجه شدم</button>
+            </div>
+        </div>
+    </div>
+}
+
+@* --- 🔒 مودال هشدار تغییر دستی آدرس مرورگر (URL Hijacking) --- *@
+@if (ShowUrlHijackModal)
+{
+    <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
+        <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;">
+            <div class="bg-warning text-dark p-3 fw-bold" style="text-align: right; direction: rtl;">⚠️ هشدار عدم سطح دسترسی</div>
+            <div class="p-3 text-right" style="direction: rtl; background: #ffffff;">
+                <p class="fw-bold text-warning" style="color: #856404 !important; font-size: 14px;">دسترسی غیرمجاز از طریق تغییر لینک!</p>
+                <p class="text-muted small m-0" style="line-height: 1.6;">کاربر محترم، حساب شما مجوز ورود مستقیم به صفحه درخواستی را ندارد. سیستم به صورت خودکار شما را به مسیر مجاز بازگرداند.</p>
+            </div>
+            <div class="p-3 bg-light d-flex justify-content-end border-top">
+                <button type="button" class="btn btn-warning btn-sm px-4 fw-bold text-dark" @onclick="CloseUrlHijackModal">متوجه شدم</button>
+            </div>
+        </div>
+    </div>
+}

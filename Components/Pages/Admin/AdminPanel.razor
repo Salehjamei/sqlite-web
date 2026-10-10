@@ -1,161 +1,251 @@
-﻿@page "/admin"
+﻿@page "/admin/panel"
 @rendermode InteractiveServer
+@namespace sqlite_web.Components.Pages
+@using sqlite_web.Services
 
-<div class="container mt-2" dir="rtl" style="text-align: right; font-family: Tahoma;">
+<div class="container mt-2 modal-animation-fade" dir="rtl" style="text-align: right; font-family: Tahoma;">
 
-    @* 🛡️ شرط امنیتی بومی: اگر پایش مرورگر تمام شده و نام کاربری ادمین در سرویس کاملاً خالی است *@
-    @if (AdminState.IsChecked && string.IsNullOrEmpty(AdminState.adminUsername))
+    @* 🛡️ پایش اصالت سشن: اگر سیستم توکن را ارزیابی کرده ولی ادمین مجاز نیست *@
+    @if (AdminState.IsChecked && !AdminState.IsAuthorized)
     {
         <div class="text-center mt-5">
             <div class="spinner-border text-dark" role="status"></div>
-            <p class="mt-3 fw-bold">سشن شما منقضی شده است. در حال انتقال به صفحه ورود...</p>
+            <p class="mt-3 fw-bold">سشن شما منقضی شده یا دسترسی ندارید. در حال انتقال به صفحه ورود...</p>
         </div>
-
-        @* 🚀 صدا زدن متد پرکاربرد سرویس در پنل اصلی *@
-        
-            AdminState.RedirectToLogin();
-        
     }
-    else
+    else if (AdminState.IsChecked && AdminState.IsAuthorized)
     {
+        @* 🔔 بنر نمایش زنده پیغام‌های موفقیت یا خطای عملیات سیستم *@
+        @if (!string.IsNullOrEmpty(SystemMessage))
+        {
+            <div class="alert @(SystemMessage.Contains("❌") ? "alert-danger" : "alert-success") alert-dismissible fade show text-center fw-bold p-2 small shadow-sm" role="alert">
+                @SystemMessage
+                <button type="button" class="btn-close p-2" @onclick="ClearSystemMessage"></button>
+            </div>
+        }
 
-        <!-- [بقیه کدهای فرم ثبت کارمند و جدول پرسنل ] -->
         <div class="row">
-            <!-- ستون سمت راست: فرم ثبت یا ویرایش کامل فیلدها -->
-            <div class="col-md-4">
-                <div class="card shadow-sm border-0 mb-4">
-                    <div class="card-header @(isEmpEditMode ? "bg-warning text-dark" : "bg-success text-white") fw-bold">
-                        @(isEmpEditMode ? "✏️ ویرایش کامل اطلاعات پرسنل" : "➕ تعریف پرسنل جدید")
-                    </div>
-                    <div class="card-body">
-                        <form @onsubmit="SaveEmployeeData" @onsubmit:preventDefault>
+            <!-- ➕ ستون سمت راست: فرم تعریف و ویرایش کارمندان -->
+            @* 🟢 دکمه بالادستی برای باز کردن فرم ثبت پرسنل جدید (فقط برای دارندگان مجوز canAddPerm یا SuperAdmin) *@
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="m-0 fw-bold" style="font-size: 17px; color: #333;">🛠️ مدیریت پرسنل و کارکردها</h4>
 
-                            <!-- کادر نام کارمند -->
-                            <div class="mb-2">
-                                <label class="form-label text-muted small mb-1">نام و نام خانوادگی:</label>
-                                <input @ref="empNameInput" type="text" @bind="newEmpName" class="form-control form-control-sm @(isEmpNameInvalid ? "is-invalid" : "")" />
-                                @if (isEmpNameInvalid)
-                                {
-                                    <div class="invalid-feedback" style="display: block; font-size: 11px; margin-top: 2px;">⚠️ @empNameError</div>
-                                }
-                            </div>
+                @if (canAddPerm)
+                {
+                    <button type="button" class="btn btn-sm btn-success fw-bold px-3" @onclick="OpenAddEmployeeModal">
+                        ➕ افزودن پرسنل جدید
+                    </button>
+                }
+                else
+                {
+                    <button type="button" disabled class="btn btn-sm btn-secondary fw-bold px-3" title="شما مجوز تعریف کارمند جدید را ندارید">
+                        🔒 افزودن پرسنل جدید
+                    </button>
+                }
+            </div>
+            <!-- 🛠️ ستون سمت چپ: جدول اصلی پرسنل ویژه ادمین -->
+            <div class="row">
+                @* 🛠️ جدول پرسنل به صورت تمام‌عرض (col-md-12) برای نمایش شکیل عکس و اطلاعات *@
+                <div class="col-md-12 mb-4">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body p-0 table-responsive">
+                            <table class="table table-bordered table-striped text-center align-middle m-0 table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>📸 عکس</th>
+                                        <th>نام پرسنل</th>
+                                        <th>📱 شماره تماس</th>
+                                        <th>کارنامه تفکیکی</th>
+                                        <th>وضعیت / تردد سریع</th>
+                                        <th>عملیات پرونده</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (employees != null && employees.Any())
+                                    {
+                                        @foreach (var emp in employees)
+                                        {
+                                            var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
+                                            var lastRec = empRecords.LastOrDefault(a => a.ClockInTime >= DateTime.Today);
 
-                            <!-- کادر کد ملی -->
-                            <div class="mb-2">
-                                <label class="form-label text-muted small mb-1">کد ملی (۱۰ رقم):</label>
-                                <input @ref="empCodeInput" type="number" @bind="newEmpCode" oninput="if(this.value.length > 10) this.value = this.value.slice(0, 10);" class="form-control form-control-sm @(isEmpCodeInvalid ? "is-invalid" : "")" />
-                                @if (isEmpCodeInvalid)
-                                {
-                                    <div class="invalid-feedback" style="display: block; font-size: 11px; margin-top: 2px;">⚠️ @empCodeError</div>
-                                }
-                            </div>
-
-                            <!-- کادر شماره تماس پرسنل قفل کاراکتر حداکثر ۱۵ رقم -->
-                            <div class="mb-2">
-                                <label class="form-label text-muted small mb-1">شماره تماس پرسنل:</label>
-                                <input @ref="empPhoneInput" type="text" maxlength="15"
-                                       value="@newEmpPhone" @oninput="HandlePhoneInput"
-                                       class="form-control form-control-sm text-center @(isEmpPhoneInvalid ? "is-invalid" : "")"
-                                       placeholder="09123456789" />
-                                @if (isEmpPhoneInvalid)
-                                {
-                                    <div class="invalid-feedback" style="display: block; font-size: 11px; margin-top: 2px;">⚠️ @empPhoneError</div>
-                                }
-                            </div>
-
-
-                            <!-- کادر آپلود عکس مجهز به سیستم گزارش خطای زنده -->
-                            <div class="mb-3">
-                                <label class="form-label text-muted small mb-1">آپلود عکس پرسنلی (اختیاری):</label>
-                                @if (renderUploadInput)
-                                {
-                                    <!-- نسخه اصلاح شده و بدون ارور تگ آپلود فایل -->
-                                    <InputFile OnChange="HandleImageUpload" class="@($"form-control form-control-sm {(isEmpImageInvalid ? "is-invalid" : "")}")" accept=".jpg,.jpeg,.png" />
-
-                                }
-                                @if (isEmpImageInvalid)
-                                {
-                                    <div class="invalid-feedback" style="display: block; font-size: 11px; margin-top: 2px;">⚠️ @empImageError</div>
-                                }
-                                @if (!string.IsNullOrEmpty(previewImageUrl) && !isEmpImageInvalid)
-                                {
-                                    <div class="text-center mt-2">
-                                        <img src="@previewImageUrl" class="rounded border shadow-sm" style="max-width: 100px; max-height: 100px; object-fit: cover;" />
-                                    </div>
-                                }
-                            </div>
-
-
-                            <!-- دکمه سابمیت-->
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn @(isEmpEditMode ? "btn-warning text-dark" : "btn-success") btn-sm flex-grow-1 fw-bold">💾 ذخیره اطلاعات</button>
-                                @if (isEmpEditMode)
-                                {
-                                    <button type="button" @onclick="CancelEmpEdit" class="btn btn-secondary btn-sm">انصراف</button>
-                                }
-                            </div>
-
-                        </form>
+                                            <tr>
+                                                <td>
+                                                    @* 📸 نمایش دایره‌ای عکس پرسنل یا آیکون پیش‌فرض کاربری *@
+                                                    @if (!string.IsNullOrEmpty(emp.ImagePath))
+                                                    {
+                                                        <img src="@emp.ImagePath" class="rounded-circle border shadow-sm" style="width: 38px; height: 34px; object-fit: cover;" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span style="font-size: 18px;">👤</span>
+                                                    }
+                                                </td>
+                                                <td><strong>@emp.FullName</strong></td>
+                                                <td class="text-primary fw-bold">@(string.IsNullOrEmpty(emp.Phone) ? "-" : emp.Phone)</td>
+                                                <td>
+                                                    <button type="button" @onclick="() => OpenReportModal(emp)" class="btn btn-info btn-xs fw-bold text-white px-2">📊 کارنامه تفکیکی</button>
+                                                </td>
+                                                <td>
+                                                    @if (lastRec != null && lastRec.ClockOutTime == null)
+                                                    {
+                                                        <button type="button" disabled="@(!canEditPerm)" @onclick="() => StopAttendanceNow(lastRec.Id)" class="btn btn-danger btn-xs fw-bold">🛑 توقف تردد</button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button type="button" disabled="@(!canEditPerm)" @onclick="() => ForcePresent(emp.Id)" class="btn btn-outline-success btn-xs fw-bold">🟢 حاضر کردن</button>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <button type="button" disabled="@(!canEditPerm)" class="btn btn-sm text-warning p-0 me-2" @onclick="() => StartEmpEdit(emp)" title="ویرایش">✏️</button>
+                                                    <button type="button" disabled="@(!canDeletePerm)" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)" title="حذف">🗑️</button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr><td colspan="6" class="text-muted py-3">هیچ رکوردی در جدول کارمندان وجود ندارد.</td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <!-- ستون سمت چپ: جدول اصلی پرسنل ویژه ادمین همراه با شماره تلفن -->
-            <div class="col-md-8">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-primary text-white fw-bold">🛠️ @TxtManageEmpTitle</div>
-                    <div class="card-body p-0">
-                        <table class="table table-bordered table-striped text-center align-middle m-0 table-sm">
-                            <thead class="table-light">
+            </div> @* پایان تگ row جدول *@
+        </div> @* پایان تگ row بخش اول *@
+    } @* 🔒 پایان بلاک else شرط زنده دسترسی هویت آنلاین *@
+    <!-- 📊 ۴. بخش پنجره بازشو (Modal) کارنامه تفکیکی و ثبت دستی ساعت کاری -->
+    @if (showModal && selectedEmployee != null)
+    {
+        @* تزریق مستقیم استایل لایه تمام‌صفحه تیره با بالاترین z-index مرورگر جهت مهار باگ دات‌نت ۹ *@
+        <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
+            <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 850px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; max-height: 92vh !important;">
+
+                <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
+                    <h5 class="m-0" style="font-size: 15px;">📊 کارنامه تفکیکی و مدیریت ساعت کاری: @selectedEmployee.FullName</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+
+                <div class="modal-report-body">
+
+                    @* 🔒 کادر ثبت دستی و ویرایش دوکاره ردیف ساعت کاری پرسنل *@
+                    @if (canEditPerm)
+                    {
+                        <div class="card mb-3 bg-light border-primary shadow-sm">
+                            <div class="card-header bg-secondary text-white fw-bold small py-1.5">
+                                @(isAttEditMode ? "✏️ ویرایش و اصلاح ردیف ساعت کاری انتخاب شده" : "📅 ثبت دستی ساعت تردد جدید (روزهای گذشته یا امروز)")
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-3">
+                                        <label class="form-label text-muted small mb-1">انتخاب تاریخ روز:</label>
+                                        <input type="date" @bind="manualDate" disabled="@isAttEditMode" class="form-control form-control-sm" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label text-muted small mb-1">ساعت ورود:</label>
+                                        <input type="text" @bind="manualInTime" class="form-control form-control-sm text-center" placeholder="07:00" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label text-muted small mb-1">ساعت خروج:</label>
+                                        <input type="text" @bind="manualOutTime" class="form-control form-control-sm text-center" placeholder="17:30" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        @if (isAttEditMode)
+                                        {
+                                            <div class="d-flex gap-1">
+                                                <button type="button" @onclick="AddManualAttendance" class="btn btn-warning btn-sm w-100 fw-bold text-dark">💾 اعمال تغییرات</button>
+                                                <button type="button" @onclick="CancelAttEdit" class="btn btn-secondary btn-sm">انصراف</button>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" @onclick="AddManualAttendance" class="btn btn-success btn-sm w-100 fw-bold">➕ ثبت ساعت</button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    @* 🧮 کادر هوشمند فیلتر ماهانه و گزارش تفکیکی کارکرد موظف و اضافه کاری پرسنل *@
+                    <div class="row mb-3 g-2">
+                        @* سلکتور انتخاب ماه (واکشی داینامیک ماه‌های دارای سابقه تردد کارمند) *@
+                        <div class="col-md-4">
+                            <div class="input-group input-group-sm">
+                                <label class="input-group-text bg-secondary text-white small">📅 انتخاب ماه کارکرد:</label>
+                                <select class="form-select text-center fw-bold" value="@SelectedMonthFilter" @onchange="OnMonthSelectorChanged">
+                                    @if (AvailableMonths != null)
+                                    {
+                                        @foreach (var m in AvailableMonths)
+                                        {
+                                            <option value="@m.Value">@m.Text</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        @* کادر نمایش جمع کل ساعت موظف در ماه انتخابی *@
+                        <div class="col-md-4">
+                            <div class="p-2 border rounded text-center bg-white shadow-sm" style="border-left: 5px solid #0d6efd !important;">
+                                <span class="fw-bold text-muted small">💼 جمع کارکرد موظف: </span>
+                                <span class="badge bg-primary fs-6 fw-bold">@TotalRegularHours</span>
+                            </div>
+                        </div>
+
+                        @* کادر نمایش جمع کل ساعت اضافه کاری در ماه انتخابی (بعد از ۱۷:۳۰) *@
+                        <div class="col-md-4">
+                            <div class="p-2 border rounded text-center bg-white shadow-sm" style="border-left: 5px solid #ffc107 !important;">
+                                <span class="fw-bold text-muted small">🔥 جمع کل اضافه کاری: </span>
+                                <span class="badge bg-warning text-dark fs-6 fw-bold">@TotalOvertimeHours</span>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    @* جدول لیست جزئیات ترددهای ثبت شده مجهز به تفکیک وضعیت کلاس اختصاصی جدید *@
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped text-center table-sm m-0">
+                            <thead class="table-secondary">
                                 <tr>
-                                    <th>عکس</th>
-                                    <th>نام پرسنل</th>
-                                    <th>📱 شماره تماس</th>
-                                    <th>کارنامه تفکیکی</th>
-                                    <th>وضعیت / توقف</th>
-                                    <th>عملیات</th>
+                                    <th>تاریخ روز</th>
+                                    <th>ساعت تردد (ورود / خروج)</th>
+                                    <th>مجموع کارکرد</th>
+                                    <th>عملیات ساعت کاری</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @if (employees != null)
+                                @{
+                                    var empRecords = allAttendances.Where(a => a.EmployeeId == selectedEmployee.Id).ToList();
+                                }
+                                @if (!empRecords.Any())
                                 {
-                                    @foreach (var emp in employees)
+                                    <tr><td colspan="4" class="text-muted py-3">هیچ سابقه کارکردی ثبت نشده است.</td></tr>
+                                }
+                                else
+                                {
+                                    @foreach (var att in empRecords.Where(r => r.ClockInTime.HasValue).OrderByDescending(a => a.ClockInTime))
                                     {
-                                        var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
-                                        var lastRec = empRecords.LastOrDefault(a => a.ClockInTime >= DateTime.Today);
-
-                                        <tr>
+                                        <tr class="@(att.ClockOutTime == null ? "tr-active-attendance" : "")">
+                                            <td class="fw-bold">@att.ClockInTime!.Value.ToString("yyyy/MM/dd")</td>
                                             <td>
-                                                @if (!string.IsNullOrEmpty(emp.ImagePath))
-                                                {
-                                                    <img src="@emp.ImagePath" class="rounded-circle border" style="width: 35px; height: 35px; object-fit: cover;" />
-                                                }
-                                                else
-                                                {
-                                                    <span>👤</span>
-                                                }
+                                                ورود: @att.ClockInTime!.Value.ToString("HH:mm") |
+                                                خروج: @(att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "🔴 در حال تردد")
                                             </td>
-                                            <td><strong>@emp.FullName</strong></td>
-                                            <td class="text-primary fw-bold">@(string.IsNullOrEmpty(emp.Phone) ? "-" : emp.Phone)</td>
-                                            <td>
-                                                <!-- دکمه کارنامه تفکیکی در جدول کارمندان -->
-                                                <button type="button" @onclick="() => OpenReportModal(emp)" class="btn btn-info btn-sm fw-bold">
-                                                    📊 مشاهده کارنامه تفکیکی
-                                                </button>
-
+                                            <td class="@(att.ClockOutTime == null ? "text-warning fw-bold" : "text-success fw-bold")">
+                                                @GetSingleDuration(att)
                                             </td>
                                             <td>
-                                                @if (lastRec != null && lastRec.ClockOutTime == null)
-                                                {
-                                                    <button type="button" @onclick="() => StopAttendanceNow(lastRec.Id)" class="btn btn-danger btn-xs fw-bold">🛑 توقف تردد</button>
-                                                }
-                                                else
-                                                {
-                                                    <button type="button" @onclick="() => ForcePresent(emp.Id)" class="btn btn-outline-success btn-xs">🟢 حاضر کردن</button>
-                                                }
-                                            </td>
-                                            <td>
-                                                <button type="button" class="btn btn-outline-primary btn-xs fw-bold me-1" @onclick="() => StartEmpEdit(emp)">✏️ ویرایش</button>
-                                                <button type="button" class="btn btn-link text-danger p-0" @onclick="() => DeleteEmployee(emp.Id)">🗑️</button>
+                                                <div class="d-flex justify-content-center gap-2">
+                                                    @if (att.ClockOutTime == null)
+                                                    {
+                                                        <button type="button" disabled="@(!canEditPerm)" class="btn btn-danger btn-xs fw-bold px-2" @onclick="() => StopAttendanceNow(att.Id)">🛑 توقف تردد سریع</button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning btn-xs fw-bold text-dark px-2" @onclick="() => StartAttEdit(att)">✏️ ویرایش ساعت</button>
+                                                    }
+                                                    <button type="button" disabled="@(!canEditPerm)" class="btn btn-outline-danger btn-xs px-2" @onclick="() => TriggerDeleteAttendance(att.Id)" title="حذف">🗑️ حذف</button>
+                                                </div>
                                             </td>
                                         </tr>
                                     }
@@ -166,165 +256,84 @@
                 </div>
             </div>
         </div>
-        <!-- ۳. بخش پنجره بازشو (Modal) گزارشات تفکیکی -->
-        @if (isLoggedIn && showModal && selectedEmployee != null)
-        {
-            <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);" tabindex="-1">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header bg-dark text-white d-flex justify-content-between align-items-center">
-                            <h5 class="modal-title m-0">📊 مدیریت کارکرد و اصلاحات: @selectedEmployee.FullName</h5>
-                            <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
-                        </div>
-                        <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+    }
 
-                            <!-- 🔒 شرط امنیت گرافیکی: کادر ثبت دستی فقط برای ادمین‌های مجاز نمایش داده شود -->
-                            @if (isCurrentUserSuperAdmin || currentAdminPerms.CanEditEmployee)
+    <!-- 🚨 ۵. بخش نهایی: مودال تعاملی تاییدیه حذف قطعی اطلاعات پرسنل یا ساعت کاری -->
+    @if (showDeleteModal)
+    {
+        @* قفل کردن لایه تایید حذف روی کل صفحه و ممانعت از پرتاب شدن به زیر جدول *@
+        <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
+            <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 450px !important; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;">
+                <div class="bg-danger text-white p-3 fw-bold">⚠️ تاییدیه حذف قطعی اطلاعات</div>
+                <div class="p-3 text-right" style="direction: rtl;">
+                    <p class="fw-bold text-danger">@deleteTargetMessage</p>
+                    <p class="text-muted small m-0">این عملیات غیرقابل بازگشت است و دیتای انتخاب شده به طور کامل پاک خواهد شد.</p>
+                </div>
+                <div class="p-3 bg-light d-flex justify-content-end gap-2 border-top">
+                    <button type="button" class="btn btn-danger btn-sm px-3 fw-bold" @onclick="ExecuteConfirmedDelete">بله، حذف شود</button>
+                    <button type="button" class="btn btn-secondary btn-sm px-3" @onclick="CancelDeleteModal">انصراف</button>
+                </div>
+            </div>
+        </div>
+    }
+    @* 🔒 مودال تعاملی، واکنش‌گرا و مجهز به لایه بررسی دسترسی برای ثبت و ویرایش کارمند همراه با تصویر *@
+    @if (showEmpFormModal)
+    {
+        <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2000 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
+            <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;">
+
+                <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
+                    <h5 class="m-0" style="font-size: 15px;">@(isEmpEditMode ? "✏️ ویرایش اطلاعات کارمند" : "➕ تعریف کارمند جدید سیستم")</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseEmpFormModal"></button>
+                </div>
+
+                <div class="p-3 text-right" style="direction: rtl;">
+                    <form @onsubmit="SaveEmployeeData" @onsubmit:preventDefault>
+
+                        <div class="mb-2">
+                            <label class="form-label text-muted small mb-1">نام و نام خانوادگی:</label>
+                            <input type="text" @bind="newEmpName" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label text-muted small mb-1">کد ملی (۱۰ رقم):</label>
+                            <input type="number" @bind="newEmpCode" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label text-muted small mb-1">شماره تماس پرسنل:</label>
+                            <input type="text" maxlength="15" @bind="newEmpPhone" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm text-center" placeholder="09123456789" />
+                        </div>
+
+                        @* 📸 کادر بارگذاری و نمایش زنده عکس پرسنل *@
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">آپلود عکس پرسنلی کارمند:</label>
+                            <InputFile OnChange="HandleImageUpload" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" accept=".jpg,.jpeg,.png" />
+
+                            @if (!string.IsNullOrEmpty(previewImageUrl))
                             {
-                                <div class="card mb-4 bg-light border-primary shadow-sm">
-                                    <div class="card-header bg-secondary text-white fw-bold small py-2">📅 ثبت دستی تردد جدید (برای روزهای گذشته یا امروز)</div>
-                                    <div class="card-body py-3">
-                                        <div class="row g-2 align-items-end">
-                                            <div class="col-md-4">
-                                                <label class="form-label text-muted small mb-1">انتخاب تاریخ روز:</label>
-                                                <input type="date" @bind="manualDate" class="form-control form-control-sm" />
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label text-muted small mb-1">ساعت ورود:</label>
-                                                <input type="text" @bind="manualInTime" class="form-control form-control-sm text-center" placeholder="08:00" />
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label text-muted small mb-1">ساعت خروج:</label>
-                                                <input type="text" @bind="manualOutTime" class="form-control form-control-sm text-center" placeholder="17:00" />
-                                            </div>
-                                            <div class="col-md-2">
-                                                <button type="button" @onclick="AddManualAttendance" class="btn btn-success btn-sm w-100 fw-bold">💾 ثبت تردد</button>
-                                            </div>
-                                        </div>
-                                        @if (!string.IsNullOrEmpty(manualErrorMessage))
-                                        {
-                                            <div class="text-danger small mt-2 fw-bold">⚠️ @manualErrorMessage</div>
-                                        }
-                                    </div>
+                                <div class="text-center mt-2">
+                                    <img src="@previewImageUrl" class="rounded border shadow-sm" style="max-width: 90px; max-height: 90px; object-fit: cover;" />
                                 </div>
                             }
-                            @if (selectedDateForEdit == null)
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3 border-top pt-3">
+                            @if (isEmpEditMode)
                             {
-                                <!-- مرحله اول مودال: نمایش کل روزهای کارکرد پرسنل -->
-                                <table class="table table-bordered table-striped text-center table-sm">
-                                    <thead class="table-secondary">
-                                        <tr>
-                                            <th>تاریخ روز</th>
-                                            <th>تعداد تردد در این روز</th>
-                                            <th>مجموع کارکرد این روز</th>
-                                            <th>عملیات و اصلاحات روزانه</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @{
-                                            var empRecords = allAttendances.Where(a => a.EmployeeId == selectedEmployee.Id).ToList();
-                                            var groupedRecords = empRecords
-                                                .Where(r => r.ClockInTime != null)
-                                                .GroupBy(r => r.ClockInTime.Value.Date)
-                                                .OrderByDescending(g => g.Key)
-                                                .ToList();
-                                        }
-                                        @if (!groupedRecords.Any())
-                                        {
-                                            <tr><td colspan="4" class="text-muted">هیچ سابقه ترددی برای این فرد یافت نشد.</td></tr>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var group in groupedRecords)
-                                            {
-                                                var dayRecords = group.ToList();
-                                                <tr>
-                                                    <td class="fw-bold">@group.Key.ToString("yyyy/MM/dd")</td>
-                                                    <td><span class="badge bg-secondary">@dayRecords.Count تردد</span></td>
-                                                    <td class="text-success fw-bold">@CalculateDuration(dayRecords)</td>
-                                                    <td>
-                                                        <button type="button" class="btn btn-outline-primary btn-xs fw-bold" @onclick="() => SelectDateForEdit(group.Key)">⚙️ مدیریت و اصلاح ترددهای این روز</button>
-                                                    </td>
-                                                </tr>
-                                            }
-                                        }
-                                    </tbody>
-                                </table>
+                                <button type="submit" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-sm flex-grow-1 fw-bold">💾 ثبت تغییرات</button>
                             }
                             else
                             {
-                                <!-- مرحله دوم مودال: باز شدن ریز ترددهای روز انتخاب شده (جایی که متغیر rec معتبر است) -->
-                                <div class="mb-3 p-2 bg-light rounded d-flex justify-content-between align-items-center border">
-                                    <span class="fw-bold text-muted">🗓️ ریز ترددهای تاریخ: @selectedDateForEdit.Value.ToString("yyyy/MM/dd")</span>
-                                    <button type="button" class="btn btn-secondary btn-xs" @onclick="BackToDaysList">← بازگشت به لیست روزها</button>
-                                </div>
-
-                                <table class="table table-bordered text-center table-sm align-middle">
-                                    <thead class="table-info">
-                                        <tr>
-                                            <th>ساعت ورود</th>
-                                            <th>ساعت خروج</th>
-                                            <th>مدت زمان</th>
-                                            <th>حذف ردیف</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @{
-                                            var targetDayRecords = allAttendances
-                                                .Where(a => a.EmployeeId == selectedEmployee.Id && a.ClockInTime != null && a.ClockInTime.Value.Date == selectedDateForEdit.Value)
-                                                .ToList();
-                                        }
-                                        @foreach (var rec in targetDayRecords)
-                                        {
-                                            // محاسبه امن زمان همین ردیف به صورت مستقیم و بدون منفی شدن
-                                            var displayRowDuration = "۰ دقیقه";
-                                            if (rec.ClockInTime != null && rec.ClockOutTime != null)
-                                            {
-                                                var singleDur = rec.ClockOutTime.Value - rec.ClockInTime.Value;
-                                                if (singleDur.TotalSeconds > 0)
-                                                {
-                                                    int h = (int)singleDur.TotalHours;
-                                                    int m = singleDur.Minutes;
-                                                    displayRowDuration = h > 0 ? $"{h} ساعت و {m} دقیقه" : $"{m} دقیقه";
-                                                }
-                                            }
-                                            // اگر خارج نشده بود (ClockOutTime == null) به صورت خودکار همان "۰ دقیقه" نمایش داده می‌شود
-
-                                            <tr>
-                                                <td>
-                                                    <input type="time" class="form-control form-control-xs text-center"
-                                                           value="@rec.ClockInTime?.ToString("HH:mm")"
-                                                           @onchange="(e) => UpdateClockInTime(rec.Id, e.Value?.ToString())" />
-                                                </td>
-                                                <td>
-                                                    <input type="time" class="form-control form-control-xs text-center"
-                                                           value="@rec.ClockOutTime?.ToString("HH:mm")"
-                                                           @onchange="(e) => UpdateClockOutTime(rec.Id, e.Value?.ToString())" />
-                                                </td>
-                                                <td class="fw-bold text-dark">
-                                                    @displayRowDuration
-                                                </td>
-                                                <td>
-                                                    <button type="button" class="btn btn-outline-danger btn-xs" @onclick="() => DeleteSingleAttendance(rec.Id)">❌ حذف</button>
-                                                </td>
-                                            </tr>
-                                        }
-
-                                    </tbody>
-                                </table>
+                                <button type="submit" disabled="@(!canAddPerm)" class="btn btn-success btn-sm flex-grow-1 fw-bold">💾 ذخیره اطلاعات</button>
                             }
-
+                            <button type="button" @onclick="CloseEmpFormModal" class="btn btn-secondary btn-sm">انصراف</button>
                         </div>
 
-                        <div class="modal-footer bg-light d-flex justify-content-between align-middle">
-                            <div class="fw-bold text-primary fs-5 m-0">
-                                📊 مجموع کل کارکرد کارنامه پرسنل: @CalculateTotalWork(selectedEmployee.Id)
-                            </div>
-                            <button type="button" class="btn btn-secondary btn-sm" @onclick="CloseModal">@TxtCloseBtn</button>
-                        </div>
-                    </div>
+                    </form>
                 </div>
             </div>
-        }
+        </div>
     }
-</div>
+
+</div> @* پایان کل کانتینر اصلی صفحه *@
