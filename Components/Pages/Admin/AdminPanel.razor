@@ -25,48 +25,70 @@
         }
 
         @* ➕ بخش دکمه بالادستی تعریف کارمند جدید - کاملاً فشرده و ریسپانسیو *@
-        <div class="row m-0 mb-3 align-items-center" style="padding-left: 5px; padding-right: 5px;" @onclick="CloseAllMobileDropdowns">
-            <div class="col-8 p-0">
-                <h4 class="m-0 fw-bold" style="font-size: 16px; color: #333; white-space: nowrap;">📋 مدیریت پرسنل و کارکردها</h4>
+        <div class="row m-0 mb-2 align-items-center" style="padding-left: 5px; padding-right: 5px; margin-top: -8px !important;" @onclick="CloseAllMobileDropdowns">
+
+            @* عنوان صفحه: کوچک‌تر شدن فونت به 14px و چسبیدن به هدر بالای صفحه *@
+            <div class="col-md-5 col-12 p-0 mb-2 mb-md-0 text-right">
+                <h4 class="m-0 fw-bold" style="font-size: 14.5px; color: #212529; white-space: nowrap;">📋 مدیریت پرسنل و کارکردها</h4>
             </div>
-            <div class="col-4 p-0" style="text-align: left !important;">
-                @if (canAddPerm)
-                {
-                    <button type="button" class="btn btn-sm btn-success fw-bold" @onclick="OpenAddEmployeeModal" style="font-size: 11px; padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
-                        ➕ پرسنل جدید
-                    </button>
-                }
-                else
-                {
-                    <button type="button" disabled class="btn btn-sm btn-secondary fw-bold" title="شما مجوز ندارید" style="font-size: 11px; padding: 5px 10px; border-radius: 4px; white-space: nowrap;">
-                        🔒 پرسنل جدید
-                    </button>
-                }
+
+            @* کانتینر ابزارهای سرچ و دکمه افزودن: ۱۰۰٪ ریسپانسیو در موبایل و خطی در دسکتاپ *@
+            <div class="col-md-7 col-12 p-0 d-flex flex-row align-items-center justify-content-md-end gap-2" style="direction: rtl;">
+
+                @* کادر جستجو: فیکس شدن پهنا و تراز شکیل در موبایل و دسکتاپ *@
+                <div class="input-group input-group-sm shadow-sm flex-grow-1 flex-md-grow-0" style="max-width: 280px;">
+                    <span class="input-group-text bg-dark text-white" style="font-size: 11px; font-weight: bold; padding: 4px 8px;">🔍 جستجو:</span>
+                    <input type="text" class="form-control form-control-sm text-right"
+                           placeholder="نام پرسنل یا کد ملی..."
+                           @bind="SearchQuery" @bind:event="oninput" style="font-family: Tahoma; font-size: 11.5px; height: 30px;" />
+                </div>
+
+                @* دکمه افزودن پرسنل جدید *@
+                <div style="text-align: left !important;">
+                    @if (canAddPerm)
+                    {
+                        <button type="button" class="btn btn-sm btn-success fw-bold" @onclick="OpenAddEmployeeModal" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
+                            ➕ پرسنل جدید
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" disabled class="btn btn-sm btn-secondary fw-bold" title="شما مجوز ندارید" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
+                            🔒 پرسنل جدید
+                        </button>
+                    }
+                </div>
+
             </div>
         </div>
-        @* 🛠️ بخش جدول اصلی پرسنل سیستم - مجهز به غضروف گرافیکی و فواصل استاندارد دیواره *@
+
+        @* 🛠️ بخش جدول اصلی پرسنل سیستم *@
         <div class="row m-0" style="padding-left: 5px; padding-right: 5px;">
             <div class="col-md-12 mb-4 p-0">
                 <div class="card shadow-sm border-0" style="border-radius: 8px; overflow: visible;">
-                    <div class="table-responsive" style="border: none !important; overflow-x: auto;" @onclick="CloseAllMobileDropdowns" @onclick:stopPropagation>
-                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; border-collapse: separate;">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 65px; font-size: 12px; padding: 6px 2px;">📸 عکس</th>
-                                    <th style="text-align: right; padding-right: 10px; font-size: 12px;">نام پرسنل</th>
-                                    @* 🟢 اضافه شدن ستون کد ملی کارمند منحصراً برای حالت دسکتاپ و تبلت *@
-                                    <th class="d-none d-md-table-cell" style="width: 130px; font-size: 12px;">🪪 کد ملی (PersonnelCode)</th>
-                                    <th class="d-none d-md-table-cell" style="width: 120px; font-size: 12px;">📱 شماره تماس</th>
-                                    <th style="width: 110px; font-size: 12px;">کارنامه تفکیکی</th>
-                                    <th class="d-none d-md-table-cell" style="width: 130px; font-size: 12px;">وضعیت / تردد سریع</th>
-                                    <th class="d-none d-md-table-cell" style="width: 95px; font-size: 12px;">عملیات پرونده</th>
-                                    <th class="d-md-none" style="width: 100px; font-size: 12px; padding: 6px 2px;">⚡ عملیات</th>
+                    <div class="table-responsive" style="border: none !important; overflow-x: auto; position: relative;">
+                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; table-layout: fixed; border-collapse: separate;">
+
+                            @* 🎯 فیکس نهایی: بولد شدن متون هدر و اصلاح پهنای ستون‌ها برای باز شدن فضا جهت ستون نام *@
+                            <thead class="table-light text-dark" style="font-weight: bold !important;">
+                                <tr style="font-weight: bold !important;">
+                                    <th style="width: 50px; font-size: 11.5px; padding: 6px 2px; font-weight: bold !important;">📸 عکس</th>
+                                    @* 🎯 با حذف تعیین عرض فیزیکی از ستون نام، این بخش حداکثر فضای دسکتاپ را به خود اختصاص داده و بزرگ می‌شود *@
+                                    <th style="text-align: right; padding-right: 10px; font-size: 11.5px; font-weight: bold !important;">نام پرسنل</th>
+                                    @* 🟢 فشرده کردن عرض کدملی و شماره تماس در دسکتاپ برای مهار باگ ریز شدن نام کارمندان *@
+                                    <th class="d-none d-md-table-cell" style="width: 105px; font-size: 11.5px; font-weight: bold !important;">🪪 کد ملی</th>
+                                    <th class="d-none d-md-table-cell" style="width: 100px; font-size: 11.5px; font-weight: bold !important;">📱 شماره تماس</th>
+                                    <th style="width: 105px; font-size: 11.5px; font-weight: bold !important;">کارنامه تفکیکی</th>
+                                    <th class="d-none d-md-table-cell" style="width: 115px; font-size: 11.5px; font-weight: bold !important;">وضعیت / تردد سریع</th>
+                                    <th class="d-none d-md-table-cell" style="width: 85px; font-size: 11.5px; font-weight: bold !important;">عملیات پرونده</th>
+                                    <th class="d-md-none" style="width: 90px; font-size: 11.5px; padding: 6px 2px; font-weight: bold !important;">⚡ عملیات</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @if (employees != null && employees.Any())
                                 {
-                                    @foreach (var emp in employees)
+                                    @* تغییر نام لیست از employees به FilteredEmployees *@
+                                    foreach (var emp in FilteredEmployees)
                                     {
                                         var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
                                         var lastRec = empRecords.LastOrDefault(a => a.ClockInTime >= DateTime.Today);
@@ -93,10 +115,11 @@
                                                 <strong style="font-size: 12.5px;">@emp.FullName</strong>
                                             </td>
 
-                                            @* 🟢 رندر زنده مقدار ویژگی PersonnelCode در ستون جدید دسکتاپ *@
-                                            <td class="d-none d-md-table-cell text-secondary" style="font-size: 12.5px; font-family: monospace;">
+                                            @* 🟢 رندر زنده مقدار ویژگی PersonnelCode دسکتاپ *@
+                                            <td class="d-none d-md-table-cell text-dark" style="font-size: 13px; font-weight: bold; font-family: Tahoma, Arial !important;">
                                                 @(string.IsNullOrEmpty(emp.PersonnelCode) ? "-" : emp.PersonnelCode)
                                             </td>
+
 
                                             <td class="d-none d-md-table-cell text-primary fw-bold" style="font-size: 12.5px;">
                                                 @(string.IsNullOrEmpty(emp.Phone) ? "-" : emp.Phone)
@@ -157,64 +180,28 @@
                 </div>
             </div>
         </div>
-
-        @* 📊 کدهای پنجره بازشو (Modal) کارنامه تفکیکی و ثبت دستی ساعت کاری *@
+        @* 📊 ۴. بخش پنجره بازشو (Modal) کارنامه تفکیکی و گزارشات ماهانه پرسنل *@
         @if (showModal && selectedEmployee != null)
         {
-            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseAllMobileDropdowns">
-                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 850px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; max-height: 92vh !important;">
+            @* 🎯 فیکس نیازمندی: کلیک روی این لایه تیره پشت صحنه، مودال کارنامه را می‌بندد *@
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 10px !important;" @onclick="CloseAllMobileDropdowns">
+
+                @* جلوگیری از بسته شدن مودال هنگام کلیک روی خود کادر سفید *@
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 850px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; max-height: 95vh !important;" @onclick:stopPropagation>
 
                     <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
-                        <h5 class="m-0" style="font-size: 15px;">📊 کارنامه تفکیکی و مدیریت ساعت کاری: @selectedEmployee.FullName</h5>
+                        <h5 class="m-0" style="font-size: 14px; font-weight: bold;">📊 کارنامه تفکیکی و مدیریت ساعت کاری: @selectedEmployee.FullName</h5>
                         <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
                     </div>
 
-                    <div class="card-body p-3" style="overflow-y: auto; direction: rtl; text-align: right;">
-                        @* 🔒 کادر ثبت دستی و ویرایش دوکاره ردیف ساعت کاری پرسنل *@
-                        @if (canEditPerm)
-                        {
-                            <div class="card mb-3 bg-light border-primary shadow-sm">
-                                <div class="card-header bg-secondary text-white fw-bold small py-1.5">
-                                    @(isAttEditMode ? "✏️ ویرایش و اصلاح ردیف ساعت کاری انتخاب شده" : "📅 ثبت دستی ساعت تردد جدید (روزهای گذشته یا امروز)")
-                                </div>
-                                <div class="card-body py-2">
-                                    <div class="row g-2 align-items-end">
-                                        <div class="col-md-3">
-                                            <label class="form-label text-muted small mb-1">انتخاب تاریخ روز:</label>
-                                            <input type="date" @bind="manualDate" disabled="@isAttEditMode" class="form-control form-control-sm" />
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label text-muted small mb-1">ساعت ورود:</label>
-                                            <input type="text" @bind="manualInTime" class="form-control form-control-sm text-center" placeholder="07:00" />
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label text-muted small mb-1">ساعت خروج:</label>
-                                            <input type="text" @bind="manualOutTime" class="form-control form-control-sm text-center" placeholder="17:30" />
-                                        </div>
-                                        <div class="col-md-3">
-                                            @if (isAttEditMode)
-                                            {
-                                                <div class="d-flex gap-1">
-                                                    <button type="button" @onclick="AddManualAttendance" class="btn btn-warning btn-sm w-100 fw-bold text-dark">💾 اعمال تغییرات</button>
-                                                    <button type="button" @onclick="CancelAttEdit" class="btn btn-secondary btn-sm">انصراف</button>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <button type="button" @onclick="AddManualAttendance" class="btn btn-success btn-sm w-100 fw-bold">➕ ثبت ساعت</button>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        }
+                    <div class="card-body p-2 p-md-3" style="overflow-y: auto; direction: rtl; text-align: right;">
 
-                        @* 🧮 کادر هوشمند گزارش تفکیکی کارکرد موظف و اضافه کاری پرسنل *@
-                        <div class="row mb-3 g-2">
-                            <div class="col-md-4">
+                        @* 🧮 کادر هوشمند فیلتر ماهانه و گزارش تفکیکی کارکرد موظف و اضافه کاری پرسنل *@
+                        <div class="row mb-2 mb-md-3 g-2 align-items-center">
+                            <div class="col-md-4 col-12">
                                 <div class="input-group input-group-sm">
-                                    <label class="input-group-text bg-secondary text-white small">📅 انتخاب ماه کارکرد:</label>
-                                    <select class="form-select text-center fw-bold" value="@SelectedMonthFilter" @onchange="OnMonthSelectorChanged">
+                                    <label class="input-group-text bg-secondary text-white small" style="font-size: 11px;">📅 انتخاب ماه کارکرد:</label>
+                                    <select class="form-select text-center fw-bold" style="font-size: 11px; padding: 2px;" value="@SelectedMonthFilter" @onchange="OnMonthSelectorChanged">
                                         @if (AvailableMonths != null)
                                         {
                                             @foreach (var m in AvailableMonths)
@@ -226,30 +213,40 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
-                                <div class="p-2 border rounded text-center bg-white shadow-sm" style="border-left: 5px solid #0d6efd !important;">
-                                    <span class="fw-bold text-muted small">💼 جمع کارکرد موظف: </span>
-                                    <span class="badge bg-primary fs-6 fw-bold">@TotalRegularHours</span>
+                            <div class="col-md-4 col-6">
+                                <div class="p-1.5 border rounded text-center bg-white shadow-sm d-flex align-items-center justify-content-center gap-1" style="border-left: 4px solid #0d6efd !important;">
+                                    <span class="fw-bold text-muted" style="font-size: 10.5px;">موظف:</span>
+                                    <span class="badge bg-primary fw-bold" style="font-size: 11.5px;">@TotalRegularHours</span>
                                 </div>
                             </div>
 
-                            <div class="col-md-4">
-                                <div class="p-2 border rounded text-center bg-white shadow-sm" style="border-left: 5px solid #ffc107 !important;">
-                                    <span class="fw-bold text-muted small">🔥 جمع کل اضافه کاری: </span>
-                                    <span class="badge bg-warning text-dark fs-6 fw-bold">@TotalOvertimeHours</span>
+                            <div class="col-md-4 col-6">
+                                <div class="p-1.5 border rounded text-center bg-white shadow-sm d-flex align-items-center justify-content-center gap-1" style="border-left: 4px solid #ffc107 !important;">
+                                    <span class="fw-bold text-muted" style="font-size: 10.5px;">اضافه کار:</span>
+                                    <span class="badge bg-warning text-dark fw-bold" style="font-size: 11.5px;">@TotalOvertimeHours</span>
                                 </div>
                             </div>
                         </div>
 
-                        @* جدول لیست جزئیات ترددهای ثبت شده *@
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-striped text-center table-sm m-0">
-                                <thead class="table-secondary">
+                        @* 📅 ➕ فیکس نیازمندی اصلی: دکمه مینی‌مال جدید جهت باز کردن مودال ثبت دستی تفکیک شده *@
+                        @if (canEditPerm)
+                        {
+                            <div class="text-right mb-2 text-md-left" style="text-align: left !important;">
+                                <button type="button" class="btn btn-sm btn-outline-primary fw-bold px-3 btn-report-modal-add" @onclick="OpenManualAddModal" style="font-size: 11px; padding: 4px 10px; border-radius: 4px;">
+                                    📅 ثبت تردد دستی جدید
+                                </button>
+                            </div>
+                        }
+
+                        @* جدول لیست جزئیات ترددهای ثبت شده - مجهز به فونت و دکمه‌های مینی‌مال موبایل *@
+                        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+                            <table class="table table-bordered table-striped text-center table-sm m-0 report-sub-table">
+                                <thead class="table-secondary sticky-top">
                                     <tr>
-                                        <th>تاریخ روز</th>
-                                        <th>ساعت تردد (ورود / خروج)</th>
-                                        <th>مجموع کارکرد</th>
-                                        <th>عملیات ساعت کاری</th>
+                                        <th style="font-size: 11px; padding: 5px 2px;">تاریخ روز</th>
+                                        <th style="font-size: 11px; padding: 5px 2px;">ساعت تردد (ورود / خروج)</th>
+                                        <th style="font-size: 11px; padding: 5px 2px; width: 65px;">کارکرد</th>
+                                        <th style="font-size: 11px; padding: 5px 2px; width: 125px;">عملیات ساعت کاری</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -258,32 +255,33 @@
                                     }
                                     @if (!empRecords.Any())
                                     {
-                                        <tr><td colspan="4" class="text-muted py-3">هیچ سابقه کارکردی ثبت نشده است.</td></tr>
+                                        <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">هیچ سابقه کارکردی ثبت نشده است.</td></tr>
                                     }
                                     else
                                     {
                                         @foreach (var att in empRecords.Where(r => r.ClockInTime.HasValue).OrderByDescending(a => a.ClockInTime))
                                         {
                                             <tr>
-                                                <td class="fw-bold">@att.ClockInTime!.Value.ToString("yyyy/MM/dd")</td>
-                                                <td>
+                                                <td class="fw-bold text-dark" style="font-size: 11px;">@att.ClockInTime!.Value.ToString("yyyy/MM/dd")</td>
+                                                <td style="font-size: 11px; text-align: center; padding: 4px 2px; direction: rtl;">
                                                     ورود: @att.ClockInTime!.Value.ToString("HH:mm") |
-                                                    خروج: @(att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "🔴 در حال تردد")
+                                                    خروج: @(att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "🔴 تردد")
                                                 </td>
-                                                <td class="@(att.ClockOutTime == null ? "text-warning fw-bold" : "text-success fw-bold")">
+
+                                                <td class="@(att.ClockOutTime == null ? "text-warning fw-bold" : "text-success fw-bold")" style="font-size: 11px; padding: 4px 2px;">
                                                     @GetSingleDuration(att)
                                                 </td>
-                                                <td>
-                                                    <div class="d-flex justify-content-center gap-2">
+                                                <td style="padding: 4px 2px;">
+                                                    <div class="d-flex justify-content-center gap-1">
                                                         @if (att.ClockOutTime == null)
                                                         {
-                                                            <button type="button" disabled="@(!canEditPerm)" class="btn btn-danger btn-xs fw-bold px-2" @onclick="() => StopAttendanceNow(att.Id)">🛑 توقف تردد سریع</button>
+                                                            <button type="button" disabled="@(!canEditPerm)" class="btn btn-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StopAttendanceNow(att.Id)">🛑 توقف تردد سریع</button>
                                                         }
                                                         else
                                                         {
-                                                            <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning btn-xs fw-bold text-dark px-2" @onclick="() => StartAttEdit(att)">✏️ ویرایش ساعت</button>
+                                                            <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StartAttEdit(att)">✏️ ویرایش ساعت</button>
                                                         }
-                                                        <button type="button" disabled="@(!canEditPerm)" class="btn btn-outline-danger btn-xs px-2" @onclick="() => TriggerDeleteAttendance(att.Id)" title="حذف">🗑️ حذف</button>
+                                                        <button type="button" disabled="@(!canEditPerm)" class="btn btn-outline-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => TriggerDeleteAttendance(att.Id)">🗑️ حذف</button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -293,6 +291,51 @@
                             </table>
                         </div>
                     </div>
+                </div>
+            </div>
+        }
+
+        @* 📅 🔒 مودال جدید، تفکیک شده و ۱۰۰٪ کامل ثبت دستی و ویرایش ساعت کاری پرسنل *@
+        @if (showManualAddModal && selectedEmployee != null)
+        {
+            @* بک‌دراپ تیره مهار کلیک بیرون: کلیک روی این لایه فرم را می‌بندد *@
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseManualAddModal">
+
+                @* کادر سفید مودال: استاپ پروپاگیشن مانع از بسته شدن فرم هنگام تفکیک فیلدها می‌شود *@
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 420px !important; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;" @onclick:stopPropagation>
+
+                    <div class="bg-secondary text-white d-flex justify-content-between align-items-center p-3">
+                        <h6 class="m-0 fw-bold" style="font-size: 13.5px;">@(isAttEditMode ? "✏️ ویرایش ردیف ساعت کاری" : "📅 ثبت دستی ساعت تردد جدید")</h6>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseManualAddModal"></button>
+                    </div>
+
+                    <div class="p-3 text-right" style="direction: rtl;">
+                        <div class="mb-2.5">
+                            <label class="form-label text-muted small mb-1">انتخاب تاریخ روز:</label>
+                            <input type="date" @bind="manualDate" disabled="@isAttEditMode" class="form-control form-control-sm text-center" style="font-size: 12px;" />
+                        </div>
+                        <div class="mb-2.5">
+                            <label class="form-label text-muted small mb-1">ساعت ورود:</label>
+                            <input type="text" @bind="manualInTime" class="form-control form-control-sm text-center font-monospace" placeholder="07:00" style="font-size: 13px;" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">ساعت خروج:</label>
+                            <input type="text" @bind="manualOutTime" class="form-control form-control-sm text-center font-monospace" placeholder="17:30" style="font-size: 13px;" />
+                        </div>
+
+                        <div class="d-flex gap-2 mt-2 border-top pt-3">
+                            @if (isAttEditMode)
+                            {
+                                <button type="button" @onclick="AddManualAttendance" class="btn btn-warning text-dark btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">💾 اعمال تغییرات</button>
+                            }
+                            else
+                            {
+                                <button type="button" @onclick="AddManualAttendance" class="btn btn-success btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">➕ ثبت ساعت تردد</button>
+                            }
+                            <button type="button" @onclick="CloseManualAddModal" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">انصراف</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         }

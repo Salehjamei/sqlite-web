@@ -186,5 +186,28 @@ html body .navbar-system {
         tbody tr td div button.dropdown-item:hover {
             background-color: #f8f9fa !important;
         }
-}
 
+    @media (max-width: 767.98px) {
+        /* مینی‌مال کردن پdینگ سلول‌های کارنامه */
+        .report-sub-table th,
+        .report-sub-table td {
+            padding: 3px 1px !important;
+            font-size: 10.5px !important;
+        }
+
+        /* ریز و مینی‌مال کردن دکمه‌های ویرایش، توقف و حذف داخل کارنامه موبایل */
+        .report-sub-table .btn-report-inner {
+            padding: 2px 4px !important;
+            font-size: 9px !important;
+            font-weight: bold !important;
+            white-space: nowrap !important;
+        }
+
+        /* تراز وسط دکمه جدید افزودن در مودال */
+        .btn-report-modal-add {
+            width: 100% !important;
+            padding: 6px !important;
+            font-size: 11.5px !important;
+        }
+    }
+}

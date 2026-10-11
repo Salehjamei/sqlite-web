@@ -24,7 +24,7 @@ namespace sqlite_web.Components.Pages
         // 👑 پرچم‌های هوشمند بررسی سطوح دسترسی ادمین آنلاین
         protected bool canAddPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false);
         protected bool canEditPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false);
-        protected bool canDeletePerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanDeleteEmployee ?? false);
+        protected bool canDeletePerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanDeleteEmployee ?? false);       
 
         // 🔔 رشته متنی نگه‌داری پیام‌های زنده سیستم
         protected string SystemMessage { get; set; } = string.Empty;
@@ -44,6 +44,21 @@ namespace sqlite_web.Components.Pages
         // متغیرهای مدیریت پنجره‌های بازشو (Modal) و حذف
         protected bool showModal { get; set; } = false;
         protected bool showDeleteModal { get; set; } = false;
+        // 🟢 متغیر جدید جهت کنترل وضعیت باز یا بسته بودن مودال ثانویه ثبت دستی ساعت کاری
+        protected bool showManualAddModal { get; set; } = false;
+        // متدهای جدید کنترل وضعیت مودال ثبت دستی
+        protected void OpenManualAddModal()
+        {
+            CancelAttEdit();
+            showManualAddModal = true;
+        }
+
+        protected void CloseManualAddModal()
+        {
+            showManualAddModal = false;
+            CancelAttEdit();
+        }
+
         protected string deleteTargetMessage { get; set; } = string.Empty;
         private string deleteType { get; set; } = string.Empty;
         private int _targetDeleteId = 0;
@@ -52,8 +67,19 @@ namespace sqlite_web.Components.Pages
         protected DateTime manualDate { get; set; } = DateTime.Today;
         protected string manualInTime { get; set; } = "07:00";
         protected string manualOutTime { get; set; } = "17:30";
-
+        // 🔍 متغیر جدید ذخیره رشته عبارت جستجوی پرسنل
         protected List<Employee> employees { get; set; } = new();
+
+        // رشته متنی ذخیره عبارت جستجو
+        protected string SearchQuery { get; set; } = string.Empty;
+
+        // پروپرتی فیلتر کننده (نام آن باید FilteredEmployees باشد تا با لیست اصلی تداخل نکند)
+        protected List<Employee> FilteredEmployees => string.IsNullOrWhiteSpace(SearchQuery)
+            ? employees
+            : employees.Where(e => (e.FullName != null && e.FullName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                                   (e.PersonnelCode != null && e.PersonnelCode.Contains(SearchQuery))).ToList();
+
+
         protected List<Attendance> allAttendances { get; set; } = new();
         protected string SelectedMonthFilter { get; set; } = string.Empty;
         protected string TotalRegularHours { get; set; } = "00:00";
@@ -374,6 +400,7 @@ namespace sqlite_web.Components.Pages
                 }
 
                 await DbContext.SaveChangesAsync();
+                showManualAddModal = false; // بستن خودکار پاپ‌آپ پس از ذخیره موفق
                 await RefreshDataAsync();
                 CancelAttEdit(); // بازنشانی فیلدهای فرم ساعت به حالت پیش‌فرض (۰۷:۰۰ تا ۱۷:۳۰)
             }
@@ -416,6 +443,7 @@ namespace sqlite_web.Components.Pages
 
         protected void StartAttEdit(Attendance att)
         {
+            showManualAddModal = true; // باز شدن پاپ‌آپ فرم جهت ویرایش رکورد
             isAttEditMode = true;
             _editingAttendanceId = att.Id;
             manualDate = att.ClockInTime!.Value.Date;
