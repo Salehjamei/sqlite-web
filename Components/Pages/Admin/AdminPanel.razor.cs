@@ -10,23 +10,30 @@ using System.Threading.Tasks;
 
 namespace sqlite_web.Components.Pages
 {
-    // 👈 فیکس باگ کلیدی: افزودن ارث‌بری از ComponentBase جهت فعالسازی StateHasChanged و لایف‌سایکل کامپوننت
+    /// <summary>
+    /// کلاس جزئی مدیریت منطق پشت‌صحنه پنل پرسنل و کارکردها
+    /// </summary>
     public partial class AdminPanel : ComponentBase
     {
+        // 💾 تزریق کانتکست دیتابیس بومی پروژه برای ارتباط با SQLite
         [Inject] public AppDbContext DbContext { get; set; } = default!;
+
+        // 🛡️ تزریق سرویس پایش اصالت سشن و متغیرهای هویت آنلاین ادمین
         [Inject] public AdminStateService AdminState { get; set; } = default!;
 
-        // 🔘 پروپرتی‌های هوشمند سطوح دسترسی تفکیکی متصل به هسته سرویس مرکزی
+        // 👑 پرچم‌های هوشمند بررسی سطوح دسترسی ادمین آنلاین
         protected bool canAddPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false);
         protected bool canEditPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false);
         protected bool canDeletePerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanDeleteEmployee ?? false);
 
-        protected string TxtManageEmpTitle { get; set; } = "تعریف و مدیریت اطلاعات کل پرسنل";
+        // 🔔 رشته متنی نگه‌داری پیام‌های زنده سیستم
         protected string SystemMessage { get; set; } = string.Empty;
-        // فیلدها و متغیرهای جدید برای مدیریت ویرایش ساعت کاری و کارکرد ماهانه
+
+        // 📅 پرچم وضعیت سوییچ بین حالت ثبت جدید ساعت کاری یا ویرایش
         protected bool isAttEditMode { get; set; } = false;
         private int? _editingAttendanceId = null;
         protected string TotalMonthlyHours { get; set; } = "00:00 ساعت";
+
         // فیلدهای بایند شده به فرم ثبت و ویرایش کارمندان
         protected string newEmpName { get; set; } = string.Empty;
         protected string newEmpCode { get; set; } = string.Empty;
@@ -34,28 +41,55 @@ namespace sqlite_web.Components.Pages
         protected bool isEmpEditMode { get; set; } = false;
         private int? _editingEmployeeId = null;
 
-        // متغیرهای مدیریت پنجره‌های بازشو (Modal) و ترددها
+        // متغیرهای مدیریت پنجره‌های بازشو (Modal) و حذف
         protected bool showModal { get; set; } = false;
         protected bool showDeleteModal { get; set; } = false;
         protected string deleteTargetMessage { get; set; } = string.Empty;
-        private string deleteType { get; set; } = string.Empty; // مقادیر: "EMP" یا "ATT"
+        private string deleteType { get; set; } = string.Empty;
         private int _targetDeleteId = 0;
 
         protected Employee? selectedEmployee { get; set; }
-        // ساعت پیش‌فرض جدید سیستم از ۰۷:۰۰ صبح تا ۱۷:۳۰ عصر
         protected DateTime manualDate { get; set; } = DateTime.Today;
         protected string manualInTime { get; set; } = "07:00";
         protected string manualOutTime { get; set; } = "17:30";
 
         protected List<Employee> employees { get; set; } = new();
         protected List<Attendance> allAttendances { get; set; } = new();
-        // فیلترها و پروپرتی‌های تفکیک ساعت کاری و اضافه کاری
         protected string SelectedMonthFilter { get; set; } = string.Empty;
         protected string TotalRegularHours { get; set; } = "00:00";
         protected string TotalOvertimeHours { get; set; } = "00:00";
-        protected List<MonthOption> AvailableMonths { get; set; } = new();
 
-        // کلاس کمکی برای پر کردن سلکتور ماه‌ها
+        // 🎯 فیکس باگ: عمومی کردن لایه لیست جهت شناسایی مفسر فرانت رازور
+        public List<MonthOption> AvailableMonths { get; set; } = new();
+
+        // 🟢 پروپرتی کنترل شناسه منوی آبشاری فعال موبایل
+        protected int? ActiveMobileDropdownId { get; set; } = null;
+        /// <summary>
+        /// 🟢 متد باز و بسته کردن (تاتل) منوی آبشاری مستقل موبایل با حروف همگام
+        /// </summary>
+        protected void ToggleMobileMenuDropdown(int employeeId)
+        {
+            if (ActiveMobileDropdownId == employeeId)
+            {
+                ActiveMobileDropdownId = null;
+            }
+            else
+            {
+                ActiveMobileDropdownId = employeeId;
+            }
+        }
+
+        /// <summary>
+        /// 🟢 متد متمرکز پاکسازی و بستن منوهای آبشاری موبایل به محض لمس صفحه یا باز کردن مودال‌ها
+        /// </summary>
+        protected void CloseAllMobileDropdowns()
+        {
+            ActiveMobileDropdownId = null;
+        }
+
+        /// <summary>
+        /// کلاس بومی ساختاردهی و پر کردن سلکتور گزارشات تفکیکی ماه‌های سال
+        /// </summary>
         public class MonthOption
         {
             public string Value { get; set; } = string.Empty;
@@ -63,103 +97,110 @@ namespace sqlite_web.Components.Pages
         }
 
         /// <summary>
-        /// متد لایف‌سایکل اجرا شده پس از رندر فیزیکی صفحه در مرورگر کلاینت
+        /// متد لایف‌سایکل اجرا شده پس از اتمام رندر فیزیکی تگ‌های صفحه در مرورگر کلاینت
         /// </summary>
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
-                // اجرای گارد امنیتی بررسی اصالت توکن
+                // ۱. اجرای گارد امنیتی بررسی اصالت توکن و سشن ادمین
                 await AdminState.CheckAccessAndRedirectAsync();
 
+                // ۲. اگر ادمین آنلاین مجاز است، فرآیند واکشی اطلاعات آغاز شود
                 if (AdminState.IsAuthorized)
                 {
                     await RefreshDataAsync();
                 }
+
+                // ۳. اعلان به کامپوننت جهت تازه‌سازی فوری وضعیت فرانت صفحه
                 StateHasChanged();
             }
         }
 
         /// <summary>
-        /// واکشی و تازه‌سازی فیزیکی لیست کارمندان و کل ترددها از SQLite
-        /// </summary>
-        /// <summary>
-        /// 🔄 متد متمرکز تازه‌سازی اطلاعات دیتابیس و بازنویسی آنی کادر کارکرد ماهانه درون مودال
+        /// 🔄 متد متمرکز و آسنکرون تازه‌سازی آنی لیست کارمندان و کل ترددهای ثبت شده از دیتابیس SQLite
         /// </summary>
         private async Task RefreshDataAsync()
         {
             if (DbContext == null) return;
+
+            // واکشی کل رکوردها به صورت AsNoTracking جهت بالا رفتن سرعت لود و کاهش مصرف رم
             employees = await DbContext.Employees.AsNoTracking().ToListAsync() ?? new();
             allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync() ?? new();
 
+            // در صورتی که پنجره کارنامه تفکیکی کارمندی باز است، ساعات کارکرد او آنی بازشماری شود
             if (selectedEmployee != null)
             {
                 LoadAvailableMonths(selectedEmployee.Id);
-                CalculateFilteredHours(selectedEmployee.Id); // بازشماری خودکار آنی پس از ثبت دستی، حذف یا توقف تردد
+                CalculateFilteredHours(selectedEmployee.Id);
             }
+        }
+        // 🟢 متغیرهای مدیریت مودال فرم ثبت‌نام و ویرایش کارمندان
+        public bool showEmpFormModal { get; set; } = false;
+
+        // رشته متنی نگه‌داری آدرس استاندارد Base64 تصویر جهت نمایش زنده پیش‌نمایش در فرم
+        public string previewImageUrl { get; set; } = string.Empty;
+
+        /// <summary>
+        /// متد باز کردن مودال فرم افزودن پرسنل جدید و پاکسازی مقادیر کادرهای ورودی قبلی
+        /// </summary>
+        public void OpenAddEmployeeModal()
+        {
+            CloseAllMobileDropdowns(); // بستن منوهای آبشاری موبایل جهت جلوگیری از تداخل لایه‌ای
+            CancelEmpEdit(); // ریست کردن کامل متغیرهای بایند شده
+            showEmpFormModal = true; // نمایش فیزیکی مودال فرم
         }
 
         /// <summary>
-        /// مدیریت ذخیره اطلاعات یا ثبت تغییرات پرسنل همراه با اعتبارسنجی لایه دسترسی‌ها
+        /// متد بستن مودال فرم پرسنل و لغو کامل وضعیت ویرایش پرونده
         /// </summary>
-            // 🟢 متغیرهای جدید مدیریت مودال فرم کارمندان و عکس
-        protected bool showEmpFormModal { get; set; } = false;
-        protected string previewImageUrl { get; set; } = string.Empty;
-
-        protected void OpenAddEmployeeModal()
-        {
-            CancelEmpEdit();
-            showEmpFormModal = true;
-        }
-
-        protected void CloseEmpFormModal()
+        public void CloseEmpFormModal()
         {
             showEmpFormModal = false;
             CancelEmpEdit();
         }
 
         /// <summary>
-        /// متد آسنکرون تبدیل تصویر به فرمت استاندارد Base64 جهت ذخیره‌سازی در فیلد ImagePath دیتابیس
+        /// متد ارتقایافته و آسنکرون بارگذاری، فشرده‌سازی و تبدیل آنلاین تصویر پرسنل به فرمت Base64 بدون ارور هاب
         /// </summary>
-        /// <summary>
-        /// متد اصلاح شده تبدیل و فشرده‌سازی آنلاین تصویر جهت مهار خطای کرش هاب تعاملی
-        /// </summary>
-        /// <summary>
-        /// متد ارتقایافته بارگذاری تصویر پرسنل با کیفیت بالا و ابعاد استاندارد HD بدون خطر کرش سیستم
-        /// </summary>
-        protected async Task HandleImageUpload(InputFileChangeEventArgs e)
+        public async Task HandleImageUpload(InputFileChangeEventArgs e)
         {
             try
             {
                 var file = e.File;
                 if (file != null)
                 {
-                    // 🟢 افزایش ابعاد به 500x500 پیکسل جهت خروجی کاملاً شفاف و باکیفیت
-                    // تبدیل خودکار تمام فرمت‌ها به image/jpeg تایید شده برای پایداری بیشتر
+                    // 📸 فشرده‌سازی هوشمند به ابعاد ۵۰۰x۵۰۰ پیکسل با فرمت image/jpeg جهت تضمین عدم کرش سیستم حضور غیاب
                     var highQualFile = await file.RequestImageFileAsync("image/jpeg", 500, 500);
 
-                    // تخصیص آرایه بایت متناسب با حجم فایل جدید
+                    // ایجاد آرایه بایت متناسب با حجم فیزیکی فایل فشرده شده جدید
                     var buffer = new byte[highQualFile.Size];
 
-                    // باز کردن جریان استریم با بافر امن ۵ مگابایتی
+                    // باز کردن جریان ایمن خواندن فایل با سقف بافر ۵ مگابایتی
                     using (var stream = highQualFile.OpenReadStream(5120000))
                     {
-                        await stream.ReadAsync(buffer);
+                        int bytesRead = 0;
+                        while (bytesRead < buffer.Length)
+                        {
+                            int read = await stream.ReadAsync(buffer, bytesRead, buffer.Length - bytesRead);
+                            if (read == 0) break; // اتمام فایل
+                            bytesRead += read;
+                        }
                     }
 
-                    // تولید دیتا یوآرآی تصویر با رزولوشن ایده‌آل و کیفیت بالا
+                    // تولید دیتا یوآرآی استاندارد جهت ذخیره مستقیم در فیلد ImagePath بانک اطلاعاتی
                     previewImageUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(buffer)}";
-                    SystemMessage = "📸 تصویر با رزولوشن بالا و کیفیت عالی بارگذاری شد.";
+                    SystemMessage = "📸 تصویر پرسنلی با کیفیت بالا و ابعاد استاندارد بارگذاری شد.";
                 }
             }
             catch (Exception ex)
             {
-                SystemMessage = $"❌ خطا در لود تصویر باکیفیت: {ex.Message}";
+                SystemMessage = $"❌ خطا در پردازش و بارگذاری فایل تصویر: {ex.Message}";
             }
         }
-
-
-
+        /// <summary>
+        /// مدیریت عملیات ذخیره‌سازی اطلاعات کارمند جدید یا ثبت ویرایش مشخصات به همراه راست‌آزمایی لایه امنیتی دسترسی‌ها
+        /// </summary>
         protected async Task SaveEmployeeData()
         {
             if (string.IsNullOrWhiteSpace(newEmpName) || string.IsNullOrWhiteSpace(newEmpCode))
@@ -170,31 +211,37 @@ namespace sqlite_web.Components.Pages
 
             if (isEmpEditMode && _editingEmployeeId.HasValue)
             {
-                if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: مجوز ویرایش ندارید!"; return; }
+                // گارد امنیتی بررسی مجوز ویرایش مشخصات پرسنلی
+                if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: شما مجوز ویرایش اطلاعات پرسنل را ندارید!"; return; }
+
                 var emp = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _editingEmployeeId.Value);
                 if (emp != null)
                 {
                     emp.FullName = newEmpName;
                     emp.Phone = newEmpPhone;
                     emp.PersonnelCode = newEmpCode;
-                    emp.ImagePath = previewImageUrl; // 👈 اعمال عکس جدید در ویرایش پرسنل
+                    emp.ImagePath = previewImageUrl; // به‌روزرسانی نهایی آدرس عکس جدید یا قبلی در دیتابیس
                     DbContext.Employees.Update(emp);
-                    SystemMessage = "✅ مشخصات و تصویر پرسنل با موفقیت ویرایش شد.";
+                    SystemMessage = "✅ مشخصات و تصویر پرسنل با موفقیت ویرایش و اصلاح شد.";
                 }
             }
             else
             {
-                if (!canAddPerm) { SystemMessage = "❌ خطای امنیتی: مجوز ثبت کارمند جدید را ندارید!"; return; }
-                // 👈 ثبت کارمند جدید به همراه عکس فیزیکی در دیتابیس
+                // گارد امنیتی بررسی مجوز افزودن کارمند جدید به سیستم حضور و غیاب
+                if (!canAddPerm) { SystemMessage = "❌ خطای امنیتی: حساب کاربری شما فاقد مجوز ثبت کارمند جدید است!"; return; }
+
                 DbContext.Employees.Add(new Employee { FullName = newEmpName, Phone = newEmpPhone, PersonnelCode = newEmpCode, ImagePath = previewImageUrl });
-                SystemMessage = "✅ کارمند جدید با موفقیت به همراه تصویر ثبت شد.";
+                SystemMessage = "✅ مشخصات کارمند جدید با موفقیت به همراه تصویر در سیستم ثبت شد.";
             }
 
-            await DbContext.SaveChangesAsync();
-            await RefreshDataAsync();
-            CloseEmpFormModal();
+            await DbContext.SaveChangesAsync(); // اعمال فیزیکی کل تغییرات در SQLite
+            await RefreshDataAsync(); // تازه‌سازی آنی لایوت جدول اصلی
+            CloseEmpFormModal(); // بستن فرم پاپ‌آپ
         }
 
+        /// <summary>
+        /// متد سوییچ وضعیت فرم به حالت ویرایش پرونده کارمند و لود مشخصات قبلی او در کادرهای ورودی فرم
+        /// </summary>
         protected void StartEmpEdit(Employee emp)
         {
             isEmpEditMode = true;
@@ -202,10 +249,13 @@ namespace sqlite_web.Components.Pages
             newEmpName = emp.FullName;
             newEmpPhone = emp.Phone ?? string.Empty;
             newEmpCode = emp.PersonnelCode ?? string.Empty;
-            previewImageUrl = emp.ImagePath ?? string.Empty; // لود عکس قبلی پرسنل در فرم کادر پیش‌نمایش
-            showEmpFormModal = true; // باز شدن خودکار فرم مودال به محض کلیک روی مداد ویرایش جدول
+            previewImageUrl = emp.ImagePath ?? string.Empty; // نمایش عکس قبلی در کادر فرم ویرایش پرسنل
+            showEmpFormModal = true;
         }
 
+        /// <summary>
+        /// متد پاکسازی متغیرهای محلی و ریست کردن کادرهای فرم ثبت پرسنل
+        /// </summary>
         protected void CancelEmpEdit()
         {
             isEmpEditMode = false;
@@ -216,13 +266,12 @@ namespace sqlite_web.Components.Pages
             previewImageUrl = string.Empty;
         }
 
-
         /// <summary>
-        /// راه‌اندازی و باز کردن مودال تایید حذف کارمند (نیاز به دسترسی حذف)
+        /// راه‌اندازی و باز کردن مودال تایید نهایی حذف کارمند و بررسی سطح دسترسی canDeletePerm
         /// </summary>
         protected void TriggerDeleteEmployee(int id, string name)
         {
-            if (!canDeletePerm) { SystemMessage = "❌ خطای امنیتی: شما مجوز حذف پرسنل را ندارید!"; return; }
+            if (!canDeletePerm) { SystemMessage = "❌ خطای امنیتی: حساب کاربری شما مجوز حذف پرسنل را ندارد!"; return; }
             deleteType = "EMP";
             _targetDeleteId = id;
             deleteTargetMessage = $"آیا از حذف کامل پرونده پرسنلی «{name}» و کل تاریخچه ترددهای او مطمئن هستید؟";
@@ -230,19 +279,18 @@ namespace sqlite_web.Components.Pages
         }
 
         /// <summary>
-        /// راه‌اندازی و باز کردن مودال تایید حذف ساعت کاری خاص (نیاز به دسترسی ویرایش)
+        /// راه‌اندازی و باز کردن مودال تایید حذف ساعت کاری خاص بر اساس شناسه فیزیکی رکورد تردد
         /// </summary>
         protected void TriggerDeleteAttendance(int id)
         {
-            if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: برای حذف ساعت کاری به مجوز ویرایش نیاز دارید!"; return; }
+            if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: برای حذف ساعت کاری به سطح دسترسی ویرایش نیاز دارید!"; return; }
             deleteType = "ATT";
             _targetDeleteId = id;
             deleteTargetMessage = "آیا از حذف این ردیف ساعت کاری (ورود/خروج) انتخاب شده مطمئن هستید؟";
             showDeleteModal = true;
         }
-
         /// <summary>
-        /// اجرای عملیات نهایی حذف قطعی پس از تایید اپراتور در مودال تعاملی
+        /// اجرای عملیات نهایی حذف قطعی اطلاعات پرسنل یا ساعت کاری پس از تایید اپراتور در مودال تعاملی
         /// </summary>
         protected async Task ExecuteConfirmedDelete()
         {
@@ -252,52 +300,49 @@ namespace sqlite_web.Components.Pages
             {
                 var emp = await DbContext.Employees.FindAsync(_targetDeleteId);
                 if (emp != null) DbContext.Employees.Remove(emp);
-                SystemMessage = "🗑️ پرونده پرسنلی با موفقیت حذف شد.";
+                SystemMessage = "🗑️ پرونده پرسنلی و تاریخچه ترددهای کاربر با موفقیت حذف گردید.";
             }
             else if (deleteType == "ATT")
             {
                 var att = await DbContext.Attendances.FindAsync(_targetDeleteId);
                 if (att != null) DbContext.Attendances.Remove(att);
-                SystemMessage = "🗑️ ردیف ساعت کاری انتخاب شده با موفقیت حذف گردید.";
+                SystemMessage = "🗑️ ردیف ساعت کاری انتخاب شده با موفقیت از سیستم حذف شد.";
             }
 
             await DbContext.SaveChangesAsync();
-
-            // 🟢 این فراخوانی باعث می‌شود کادر سبز رنگ بعد از حذف ردیف فوراً آپدیت شود
-            await RefreshDataAsync();
+            await RefreshDataAsync(); // تازه‌سازی خودکار آنی جهت آپدیت کادر سبز رنگ دور ردیف‌ها
         }
 
-
         /// <summary>
-        /// حاضر کردن سریع کارمند از جدول (نیاز به دسترسی ویرایش ساعت کاری)
+        /// حاضر کردن سریع کارمند از درون جدول یا منوی موبایل (تزریق زنده DateTime.Now به فیلد ورود)
         /// </summary>
         protected async Task ForcePresent(int empId)
         {
-            if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: فاقد مجوز ثبت تردد سریع!"; return; }
+            if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: حساب شما فاقد مجوز ثبت تردد سریع است!"; return; }
             DbContext.Attendances.Add(new Attendance { EmployeeId = empId, ClockInTime = DateTime.Now });
             await DbContext.SaveChangesAsync();
-            SystemMessage = "🟢 وضعیت پرسنل به حاضر تغییر یافت.";
+            SystemMessage = "🟢 وضعیت پرسنل انتخاب شده با موفقیت به حاضر تغییر یافت.";
             await RefreshDataAsync();
         }
 
         /// <summary>
-        /// متوقف کردن سریع تردد کارمند از جدول (نیاز به دسترسی ویرایش ساعت کاری)
+        /// متمتوقف کردن سریع تردد کارمند از درون جدول یا منوی موبایل (تزریق زنده DateTime.Now به فیلد خروج)
         /// </summary>
         protected async Task StopAttendanceNow(int attId)
         {
-            if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: Fاقد مجوز ثبت تردد سریع!"; return; }
+            if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: حساب شما فاقد مجوز ثبت تردد سریع است!"; return; }
             var att = await DbContext.Attendances.FindAsync(attId);
             if (att != null)
             {
                 att.ClockOutTime = DateTime.Now;
-                SystemMessage = "🛑 تردد پرسنل متوقف شد.";
+                SystemMessage = "🛑 تردد پرسنل متوقف شد و ساعت خروج ثبت گردید.";
                 await DbContext.SaveChangesAsync();
                 await RefreshDataAsync();
             }
         }
 
         /// <summary>
-        /// ثبت دستی و آفلاین ساعت کاری روزهای گذشته (نیاز به دسترسی ویرایش ساعت کاری)
+        /// ثبت دستی یا ویرایش دوکاره ساعت کاری روزهای گذشته یا امروز بر اساس فرمت معتبر زمانی
         /// </summary>
         protected async Task AddManualAttendance()
         {
@@ -311,7 +356,7 @@ namespace sqlite_web.Components.Pages
 
                 if (isAttEditMode && _editingAttendanceId.HasValue)
                 {
-                    // حالت ویرایش ساعت کاری ثبت شده پرسنل
+                    // حالت ویرایش ردیف ساعت کاری ثبت شده
                     var att = await DbContext.Attendances.FindAsync(_editingAttendanceId.Value);
                     if (att != null)
                     {
@@ -323,61 +368,52 @@ namespace sqlite_web.Components.Pages
                 }
                 else
                 {
-                    // حالت ثبت جدید
-                    DbContext.Attendances.Add(new Attendance
-                    {
-                        EmployeeId = selectedEmployee.Id,
-                        ClockInTime = inTime,
-                        ClockOutTime = outTime
-                    });
-                    SystemMessage = "✅ ردیف ساعت کاری دستی جدید با موفقیت ثبت گردید.";
+                    // حالت ثبت ردیف تردد دستی جدید در دیتابیس
+                    DbContext.Attendances.Add(new Attendance { EmployeeId = selectedEmployee.Id, ClockInTime = inTime, ClockOutTime = outTime });
+                    SystemMessage = "✅ ردیف ساعت کاری دستی جدید با موفقیت در سیستم ثبت گردید.";
                 }
 
                 await DbContext.SaveChangesAsync();
                 await RefreshDataAsync();
-                CancelAttEdit();
+                CancelAttEdit(); // بازنشانی فیلدهای فرم ساعت به حالت پیش‌فرض (۰۷:۰۰ تا ۱۷:۳۰)
             }
             catch
             {
-                SystemMessage = "❌ فرمت زمان اشتباه است (مثال معتبر: 07:00 یا 17:30)";
+                SystemMessage = "❌ فرمت زمان وارد شده اشتباه است (مثال معتبر: 07:00 یا 17:30)";
             }
         }
 
         protected void CloseModal() { showModal = false; selectedEmployee = null; }
         protected void CancelDeleteModal() { showDeleteModal = false; }
         protected void ClearSystemMessage() => SystemMessage = string.Empty;
+
+        /// <summary>
+        /// محاسبه و تبدیل تفاضل ورود و خروج به رشته متنی فرمت شده استاندارد HH:mm جهت نمایش در جدول
+        /// </summary>
         protected string GetSingleDuration(Attendance att)
         {
             if (att.ClockInTime == null || att.ClockOutTime == null) return "در حال تردد";
             var diff = att.ClockOutTime.Value - att.ClockInTime.Value;
             return $"{diff.Hours:00}:{diff.Minutes:00}";
         }
+
         /// <summary>
-        /// 🧮 محاسبه هوشمند مجموع کل کارکرد پرسنل در ماه جاری
+        /// 🧮 محاسبه ناخالص مجموع کل کارکرد پرسنل در ماه جاری سیستم جهت پردازش آماری سریع
         /// </summary>
         private void CalculateMonthlyTotalHours(int employeeId)
         {
             var now = DateTime.Now;
             var currentMonthRecords = allAttendances
-                .Where(a => a.EmployeeId == employeeId
-                         && a.ClockInTime.HasValue
-                         && a.ClockOutTime.HasValue
-                         && a.ClockInTime.Value.Year == now.Year
-                         && a.ClockInTime.Value.Month == now.Month)
-                .ToList();
+                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue && a.ClockOutTime.HasValue && a.ClockInTime.Value.Year == now.Year && a.ClockInTime.Value.Month == now.Month).ToList();
 
             double totalMinutes = 0;
-            foreach (var rec in currentMonthRecords)
-            {
-                totalMinutes += (rec.ClockOutTime!.Value - rec.ClockInTime!.Value).TotalMinutes;
-            }
+            foreach (var rec in currentMonthRecords) totalMinutes += (rec.ClockOutTime!.Value - rec.ClockInTime!.Value).TotalMinutes;
 
             int hours = (int)(totalMinutes / 60);
             int minutes = (int)(totalMinutes % 60);
             TotalMonthlyHours = $"{hours:00}:{minutes:00} ساعت";
         }
 
-        // متدهای سوییچ وضعیت فرم به حالت ویرایش ساعت کاری ردیف
         protected void StartAttEdit(Attendance att)
         {
             isAttEditMode = true;
@@ -395,64 +431,96 @@ namespace sqlite_web.Components.Pages
             manualInTime = "07:00";
             manualOutTime = "17:30";
         }
+
         /// <summary>
-        /// استخراج تمام ماه‌هایی که این پرسنل در آن‌ها سابقه تردد ثبت شده دارد
+        /// استخراج تمام ماه‌هایی که این کارمند در آن‌ها سابقه تردد ثبت شده دارد جهت پر کردن داینامیک سلکتور فیلتر
         /// </summary>
         private void LoadAvailableMonths(int employeeId)
         {
             AvailableMonths.Clear();
             var now = DateTime.Now;
 
-            // ماه‌های دارای رکورد را پیدا کن
             var dates = allAttendances
                 .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue)
-                .Select(a => new { a.ClockInTime!.Value.Year, a.ClockInTime.Value.Month })
-                .Distinct()
-                .OrderByDescending(d => d.Year).ThenByDescending(d => d.Month)
-                .ToList();
+                .Select(a => new { a.ClockInTime!.Value.Year, a.ClockInTime.Value.Month }).Distinct().OrderByDescending(d => d.Year).ThenByDescending(d => d.Month).ToList();
 
             foreach (var d in dates)
             {
                 var dt = new DateTime(d.Year, d.Month, 1);
-                AvailableMonths.Add(new MonthOption
-                {
-                    Value = $"{d.Year}-{d.Month}",
-                    Text = dt.ToString("MMMM yyyy") // نمایش نام ماه و سال به صورت خوانا
-                });
+                AvailableMonths.Add(new MonthOption { Value = $"{d.Year}-{d.Month}", Text = dt.ToString("MMMM yyyy") });
             }
 
-            // اگر ماه جاری در لیست نبود، خودکار به عنوان گزینه پیش‌فرض اضافه شود
             var currentMonthValue = $"{now.Year}-{now.Month}";
-            if (!AvailableMonths.Any(m => m.Value == currentMonthValue))
+            if (!AvailableMonths.Any(m => m.Value == currentMonthValue)) AvailableMonths.Insert(0, new MonthOption { Value = currentMonthValue, Text = now.ToString("MMMM yyyy") });
+            if (string.IsNullOrEmpty(SelectedMonthFilter)) SelectedMonthFilter = currentMonthValue;
+        }
+
+        protected void OnMonthSelectorChanged(ChangeEventArgs e)
+        {
+            SelectedMonthFilter = e.Value?.ToString() ?? string.Empty;
+            if (selectedEmployee != null) CalculateFilteredHours(selectedEmployee.Id);
+        }
+
+        /// <summary>
+        /// 🟢 مفسر نهایی رویدادهای منوی انتخابی مستقل موبایل (با زدن گزینه‌ها منو بسته نمی‌شود و باز می‌ماند)
+        /// 
+        /// <summary>
+        /// 🟢 مفسر اصلاح‌شده رویدادهای منوی تفکیکی موبایل: بستن خودکار در ویرایش/حذف و باز ماندن در حضور/توقف
+        /// </summary>
+        protected async Task HandleMobileActionChanged(string actionType, Employee emp, int activeAttendanceId)
+        {
+            if (string.IsNullOrEmpty(actionType)) return;
+
+            switch (actionType)
             {
-                AvailableMonths.Insert(0, new MonthOption { Value = currentMonthValue, Text = now.ToString("MMMM yyyy") });
+                case "REPORT":
+                    OpenReportModal(emp);
+                    CloseAllMobileDropdowns(); // 👈 بسته شدن منو با زدن کارنامه تفکیکی
+                    break;
+
+                case "START_ATT":
+                    if (canEditPerm) await ForcePresent(emp.Id);
+                    // 🎯 توجه: متد CloseAllMobileDropdowns در اینجا فراخوانی نمی‌شود تا منوی حاضر کردن باز بماند
+                    break;
+
+                case "STOP_ATT":
+                    if (canEditPerm && activeAttendanceId > 0) await StopAttendanceNow(activeAttendanceId);
+                    // 🎯 توجه: متد CloseAllMobileDropdowns در اینجا فراخوانی نمی‌شود تا منوی توقف تردد باز بماند
+                    break;
+
+                case "EDIT_EMP":
+                    if (canEditPerm)
+                    {
+                        StartEmpEdit(emp);
+                        CloseAllMobileDropdowns(); // 👈 فیکس نیازمندی: منو فوراً با زدن دکمه ویرایش ناپدید می‌شود
+                    }
+                    break;
+
+                case "DELETE_EMP":
+                    if (canDeletePerm)
+                    {
+                        TriggerDeleteEmployee(emp.Id, emp.FullName);
+                        CloseAllMobileDropdowns(); // 👈 فیکس نیازمندی: منو فوراً با زدن دکمه حذف ناپدید می‌شود
+                    }
+                    break;
             }
 
-            // اگر فیلتر هنوز خالی است، روی ماه جاری تنظیم شود
-            if (string.IsNullOrEmpty(SelectedMonthFilter))
-            {
-                SelectedMonthFilter = currentMonthValue;
-            }
+            await InvokeAsync(StateHasChanged);
         }
+
         /// <summary>
-        /// 🧮 متد محاسبه تفکیکی ساعات موظف (۷ تا ۱۷:۳۰) و اضافه کاری (بعد از ۱۷:۳۰) بر اساس ماه انتخابی
+        /// 🧮 متد پیشرفته محاسبه دقیق ساعات موظف (۷:۰۰ تا ۱۷:۳۰) و مجموع اضافه کاری (بعد از ۱۷:۳۰)
         /// </summary>
         private void CalculateFilteredHours(int employeeId)
         {
             if (string.IsNullOrEmpty(SelectedMonthFilter)) return;
 
             var parts = SelectedMonthFilter.Split('-');
-            int targetYear = int.Parse(parts[0]);
-            int targetMonth = int.Parse(parts[1]);
+            int targetYear = int.Parse(parts[0]); // 🟢 فیکس ایندکس سال
+            int targetMonth = int.Parse(parts[1]); // 🟢 فیکس ایندکس ماه
 
-            // واکشی ترددهای تایید شده کارمند در ماه و سال فیلتر شده
             var monthlyRecords = allAttendances
-                .Where(a => a.EmployeeId == employeeId
-                         && a.ClockInTime.HasValue
-                         && a.ClockOutTime.HasValue
-                         && a.ClockInTime.Value.Year == targetYear
-                         && a.ClockInTime.Value.Month == targetMonth)
-                .ToList();
+                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue && a.ClockOutTime.HasValue && a.ClockInTime.Value.Year == targetYear && a.ClockInTime.Value.Month == targetMonth).ToList();
 
             double totalRegularMinutes = 0;
             double totalOvertimeMinutes = 0;
@@ -461,62 +529,33 @@ namespace sqlite_web.Components.Pages
             {
                 DateTime clockIn = rec.ClockInTime!.Value;
                 DateTime clockOut = rec.ClockOutTime!.Value;
-
-                // تعیین مرز دقیق پایان ساعت کاری موظف در روز تردد (ساعت ۱۷:۳۰ عصر)
-                DateTime overtimeThreshold = clockIn.Date.AddHours(17).AddMinutes(30);
+                DateTime overtimeThreshold = clockIn.Date.AddHours(17).AddMinutes(30); // مرز کاری ۱۷:۳۰ عصر
 
                 if (clockIn < overtimeThreshold)
                 {
-                    if (clockOut <= overtimeThreshold)
-                    {
-                        // کل تردد در بازه موظف بوده است
-                        totalRegularMinutes += (clockOut - clockIn).TotalMinutes;
-                    }
-                    else
-                    {
-                        // تردد مرز ۱۷:۳۰ را رد کرده است؛ بخش اول موظف، بخش دوم اضافه کاری
-                        totalRegularMinutes += (overtimeThreshold - clockIn).TotalMinutes;
-                        totalOvertimeMinutes += (clockOut - overtimeThreshold).TotalMinutes;
-                    }
+                    if (clockOut <= overtimeThreshold) totalRegularMinutes += (clockOut - clockIn).TotalMinutes;
+                    else { totalRegularMinutes += (overtimeThreshold - clockIn).TotalMinutes; totalOvertimeMinutes += (clockOut - overtimeThreshold).TotalMinutes; }
                 }
-                else
-                {
-                    // شروع و پایان تردد کلاً بعد از ۱۷:۳۰ عصر بوده است (تماماً اضافه کاری)
-                    totalOvertimeMinutes += (clockOut - clockIn).TotalMinutes;
-                }
+                else totalOvertimeMinutes += (clockOut - clockIn).TotalMinutes;
             }
 
-            // تبدیل دقایق موظف به فرمت HH:mm
             int regHours = (int)(totalRegularMinutes / 60);
             int regMins = (int)(totalRegularMinutes % 60);
             TotalRegularHours = $"{regHours:00}:{regMins:00}";
 
-            // تبدیل دقایق اضافه کاری به فرمت HH:mm
             int overHours = (int)(totalOvertimeMinutes / 60);
             int overMins = (int)(totalOvertimeMinutes % 60);
             TotalOvertimeHours = $"{overHours:00}:{overMins:00}";
         }
-        // تغییر فیلتر ماه توسط اپراتور و بازشماری زنده
-        protected void OnMonthSelectorChanged(ChangeEventArgs e)
-        {
-            SelectedMonthFilter = e.Value?.ToString() ?? string.Empty;
-            if (selectedEmployee != null)
-            {
-                CalculateFilteredHours(selectedEmployee.Id);
-            }
-        }
 
-        // ارتقای متد باز کردن مودال کارنامه
+        // 🟢 تراز قطعی امضای متد با لایه فرانت رازور جهت صفر شدن ارور CS0103
         protected void OpenReportModal(Employee emp)
         {
             selectedEmployee = emp;
             showModal = true;
-            LoadAvailableMonths(emp.Id); // ۱. لود ماه‌های دارای سابقه تردد
-            CalculateFilteredHours(emp.Id); // ۲. محاسبه ساعت کاری ماه انتخابی
+            LoadAvailableMonths(emp.Id);
+            CalculateFilteredHours(emp.Id);
         }
-
-        // ارتقای متد ریفرش دیتابیس پنل
-      
 
     }
 }

@@ -4,14 +4,14 @@
 
 html body .top-row,
 html body .navbar-system {
-    background-color: #212529 !important; /* رنگ مشکی عمیق و یکدست */
+    background-color: #212529 !important; /* رنگ مشکی عمیق و یکدست هدر */
     border-bottom: 1px solid #343a40 !important;
-    height: 4.5rem !important; /* ارتفاع ثابت فقط برای دسکتاپ */
+    height: 3.2rem !important;
     display: flex !important;
     flex-direction: row !important;
     justify-content: space-between !important;
     align-items: center !important;
-    padding: 10px 24px !important;
+    padding: 4px 24px !important;
     color: white !important;
     font-family: Tahoma, Arial !important;
     box-sizing: border-box !important;
@@ -66,21 +66,22 @@ html body .navbar-system {
 }
 
 /* =========================================================================
-   💎 دکمه‌های مدرن، فلت و شیک هدر (Modern Flat UI Buttons)
+   💎 دکمه‌های مدرن، ۱۰۰٪ فلت و بدون حاشیه هدر (Borderless Flat UI)
    ========================================================================= */
 .top-row ::deep .btn-modern,
 .btn-modern {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 6px 14px !important;
-    font-size: 12.5px !important;
+    padding: 5px 12px !important;
+    font-size: 12px !important;
     font-weight: bold !important;
-    border: none !important;
     cursor: pointer !important;
     border-radius: 6px !important;
     white-space: nowrap !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: none !important;
+    border: none !important;
+    outline: none !important;
     transition: all 0.2s ease-in-out !important;
 }
 
@@ -110,119 +111,80 @@ html body .navbar-system {
 }
 
 .btn-modern:hover {
-    opacity: 0.95 !important;
+    opacity: 0.90 !important;
     transform: translateY(-1px) !important;
 }
 
 .btn-modern.active-custom {
     border: 2px solid #28a745 !important;
-    box-shadow: 0 0 10px rgba(40, 167, 69, 0.6) !important;
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.5) !important;
 }
 
-/* =========================================================================
-   📟 مدیا کوئری اختصاصی حالت تبلت (769px تا 1024px)
-   ========================================================================= */
-@media (min-width: 769px) and (max-width: 1024px) {
-    .top-row {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        height: 3.4rem !important;
+.modal-animation-fade {
+    animation: modalFadeIn 0.2s ease-out !important;
+}
+
+@keyframes modalFadeIn {
+    from {
+        transform: scale(0.92);
+        opacity: 0;
     }
 
-    .navbar-brand-title {
-        font-size: 13px !important;
-    }
-
-    .user-welcome {
-        font-size: 11.5px !important;
-    }
-
-    .header-actions-container {
-        gap: 6px !important;
-    }
-
-    .top-row ::deep .btn-modern, .btn-modern {
-        padding: 5px 10px !important;
-        font-size: 11.5px !important;
+    to {
+        transform: scale(1);
+        opacity: 1;
     }
 }
 
 /* =========================================================================
-   📱 🏛️ ساختار جدید و قدرتمند دو ستونه موبایل (با شکستن تداخل خط ۱۹۵)
+   📱 استایل سلکتور تعاملی و مهار باگ منوی عملیات هوشمند جدول در موبایل
    ========================================================================= */
-@media (max-width: 768px) {
-    .mobile-only {
-        display: inline-block !important;
-    }
-
-    .desktop-only {
-        display: none !important;
-    }
-
-    /* لغو ارتفاع دسکتاپ برای باز شدن فضا در زمان باز شدن منوی کشویی */
-    html body .top-row,
-    html body .navbar-system {
-        flex-direction: column !important;
-        height: auto !important;
-        align-items: stretch !important;
-        padding: 12px 15px !important;
+@media (max-width: 767.98px) {
+    /* ۱. مهار باگ بریدگی منو: آزاد کردن کانتینر جدول از اسکرول‌های پنهان مخرب */
+    .table-responsive {
+        overflow: visible !important; /* 🟢 اجازه عبور و شناور شدن منو روی مرزهای جدول */
         position: relative !important;
     }
 
-    .navbar-main {
-        width: 100% !important;
-        flex-direction: row-reverse !important;
-        justify-content: space-between !important;
-        align-items: center !important;
+    .admin-system .admin-emp-table .emp-avatar {
+        width: 34px !important;
+        height: 34px !important;
     }
 
-    .menu-toggle-btn {
-        display: block !important;
-        background: none !important;
+    .admin-system .admin-emp-table .emp-name-text {
+        font-size: 13px !important;
+    }
+
+    /* ۲. فیکس هندسی منوی پاپ‌آپ داخل جدول: میخکوب شدن لایه معلق روی کل جدول */
+    html body .navbar-system .header-actions-container .nav-grid-mobile,
+    tbody tr td div[style*="position: absolute"] {
+        position: absolute !important;
+        top: auto !important;
+        bottom: auto !important;
+        left: 10px !important; /* قفل شدن مماس با لبه چپ ردیف */
+        background-color: #ffffff !important;
+        border: 1px solid #ced4da !important;
+        border-radius: 6px !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important; /* سایه عمیق جهت ایجاد حس معلق بودن روی متن صفحه */
+        z-index: 999999 !important; /* 🟢 اولویت مطلق بالاتر از متن ردیف‌های بعدی و تصاویر */
+        min-width: 150px !important;
+        padding: 6px 0 !important;
+    }
+
+    /* ۳. تراز کردن متون دکمه‌های داخل منوی پاپ‌آپ کوچک جدول */
+    tbody tr td div button.dropdown-item {
+        text-align: right !important;
+        direction: rtl !important;
+        font-size: 12px !important;
+        padding: 8px 12px !important;
+        width: 100% !important;
+        background: transparent !important;
         border: none !important;
-        color: white !important;
-        font-size: 24px !important;
-    }
-
-    .user-welcome-text.mobile-only {
-        color: #ffc107 !important;
-        background: none !important;
-        padding: 0 !important;
-    }
-
-    .header-actions-container {
-        display: none !important;
-        width: 100% !important;
-        margin-top: 12px !important;
-        padding-top: 12px !important;
-        border-top: 1px solid #343a40 !important;
-    }
-
-        .header-actions-container.open {
-            display: block !important;
-        }
-
-    /* 🎯 🏛️ درهم‌کوبیدن تداخل خط ۱۹۵: با مالتی‌کلاس کردن ریشه، اولویت گرید دو ستونه را بالاتر می‌بریم */
-    html body .navbar-system .header-actions-container .nav-management-group {
-        display: grid !important; /* 👈 تبدیل به گرید برای خنثی کردن فدرال افقی/عمودی */
-        grid-template-columns: repeat(2, 1fr) !important; /* 👈 چیدمان دقیق دو ستونه موازی */
-        gap: 10px !important;
-        width: 100% !important;
-        margin-top: 0 !important;
-        margin-bottom: 10px !important;
-    }
-
-    /* کادر دکمه خروج در زیر دو ستون */
-    html body .navbar-system .header-actions-container .logout-left-zone {
         display: block !important;
-        width: 100% !important;
-        margin-top: 0 !important;
     }
 
-    .top-row ::deep .btn-modern,
-    .btn-modern {
-        width: 100% !important;
-        padding: 10px 5px !important;
-        box-sizing: border-box !important;
-    }
+        tbody tr td div button.dropdown-item:hover {
+            background-color: #f8f9fa !important;
+        }
 }
+
