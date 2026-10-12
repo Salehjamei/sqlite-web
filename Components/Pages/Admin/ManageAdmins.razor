@@ -1,241 +1,292 @@
-﻿@* =========================================================================
-   👑 لایه ۱: دایرکتیوها، فضاهای نام و تزریق وابستگی‌های صفحه
-   ========================================================================= *@
-
-@* آدرس مسیر اختصاصی این صفحه در مرورگر *@
-@page "/admin/manage-admins"
-
-@* فعال‌سازی حالت رندر زنده و دوطرفه کامپوننت بر روی مرورگر *@
+﻿@page "/admin/manage-admins"
 @rendermode InteractiveServer
+@namespace sqlite_web.Components.Pages.Admin
+@using sqlite_web.Services
+@using sqlite_web.Components.Modules
+@using sqlite_web.Components.Models.Admin
 
-@* =========================================================================
-   🖥️ لایه ۲: تگ والد اصلی و شروط گارد امنیتی ورود ادمین ارشد
-   ========================================================================= *@
+<div class="container mt-2 modal-animation-fade" dir="rtl" style="text-align: right; font-family: Tahoma; max-width: 100%; padding-left: 10px; padding-right: 10px;" @onclick="CloseAllMobileDropdowns">
 
-@* ⚡ کادر باز تگ والد اصلی کل چیدمان صفحه با فونت تاهوما و راست‌چین *@
-<div class="container mt-4" dir="rtl" style="text-align: right; font-family: Tahoma;">
-    @* =========================================================================
-   ➡️ بخش دوم: ستون فرم ثبت و ویرایش دسترسی‌های مدیر جدید (Form Column)
-   توضیحات کد: این لایه کادرهای متنی و سوئیچ‌های تفویض تیک دسترسی را رندر می‌کند.
-   ========================================================================= *@
+    @if (AdminState.IsChecked && !AdminState.isCurrentUserSuperAdmin)
+    {
+        <div class="alert alert-danger text-center fw-bold p-3 my-3 shadow-sm mx-1" role="alert" style="font-size: 13px;">
+            🛑 خطای دسترسی: حساب کاربری شما فاقد مجوزهای ارشد جهت مدیریت سطوح دسترسی مدیران است!
+        </div>
+    }
+    else if (AdminState.IsChecked && AdminState.isCurrentUserSuperAdmin)
+    {
+        @* 🔔 فیکس باگ آلرت: دایو پیغام سیستم کاملاً ریسپانسیو و متناسب با تبلت، موبایل و ویندوز تراز شد *@
+        @if (!string.IsNullOrEmpty(AdminState.FeedbackMessage))
+        {
+            <div class="row m-0 mb-3 px-1">
+                <div class="col-12 p-0">
+                    <div class="alert @(AdminState.FeedbackMessage.Contains("❌") ? "alert-danger" : "alert-success") alert-dismissible fade show text-center fw-bold shadow-sm m-0" role="alert" style="font-size: calc(11px + 0.2vw); padding: 10px 35px 10px 10px; border-radius: 6px; width: 100%;">
+                        @AdminState.FeedbackMessage
+                        <button type="button" class="btn-close" style="padding: 13px 10px;" @onclick="() => AdminState.FeedbackMessage = string.Empty"></button>
+                    </div>
+                </div>
+            </div>
+        }
 
-    @* 🟢 تگ باز دایو سطر اصلی (Row) جهت چیدمان افقی المان‌های صفحه مدیریت *@
-    <div class="row px-2">
+        @* ➕ ردیف ابزارها: تغییر ابعاد داینامیک عنوان صفحه و چسبیدن به سقف هدر *@
+        <div class="row m-0 mb-3 align-items-center g-2" style="padding-left: 4px; padding-right: 4px; margin-top: -6px !important;">
 
-        @* 🟢 تگ باز دایو ستون فرم سایدبار سمت راست با عرض ۴ از ۱۲ قالب بوت‌استرپ *@
-        <div class="col-md-4">
+            @* 👑 فیکس نیازمندی دوم: متن هدر صفحه با سایز داینامیک بر اساس ابعاد دستگاه (موبایل کوچکتر، دسکتاپ بزرگتر) *@
+            <div class="col-md-5 col-12 p-0 text-right">
+                <h4 class="m-0 fw-bold header-responsive-title" style="color: #212529; white-space: nowrap; font-size: calc(12px + 0.3vw); line-height: 1.5;">📋 مدیریت سطوح دسترسی و مدیران</h4>
+            </div>
 
-            @* 🟢 تگ باز کارت گرافیکی فرم ثبت مشخصات ادمین ارشد یا معمولی *@
-            <div class="card shadow-sm border-0 mb-4">
-
-                @* تغییر رنگ پویا و هوشمند عنوان هدر فرم بر اساس پرچم وضعیت (ثبت جدید یا ویرایش) *@
-                <div class="card-header @(AdminState.IsEditMode ? "bg-warning text-dark" : "bg-dark text-white") fw-bold">
-                    @(AdminState.IsEditMode ? "✏️ ویرایش کامل مشخصات مدیر" : "➕ ثبت مدیر سیستم جدید")
+            <div class="col-md-7 col-12 p-0 d-flex flex-row align-items-center justify-content-md-end gap-2" style="direction: rtl;">
+                @* کادر جستجوی آنی نام کاربری مدیران سرور *@
+                <div class="input-group input-group-sm shadow-sm flex-grow-1 flex-md-grow-0" style="max-width: 260px;">
+                    <span class="input-group-text bg-dark text-white" style="font-size: 11px; font-weight: bold; padding: 4px 6px;">🔍 جستجو:</span>
+                    <input type="text" class="form-control form-control-sm text-right"
+                           placeholder="جستجوی نام کاربری..."
+                           @bind="SearchQuery" @bind:event="oninput" style="font-family: Tahoma; font-size: 11px; height: 31px;" />
                 </div>
 
-                @* 🟢 تگ باز لایه داخلی و بدنه اصلی کارت فرم *@
-                <div class="card-body">
+                @* دکمه باز کردن مودال فرم ثبت مدیر جدید *@
+                <div style="text-align: left !important;">
+                    <button type="button" class="btn btn-sm btn-success fw-bold" @onclick="OpenAddAdminModal" @onclick:stopPropagation style="font-size: 11px; padding: 5px 10px; border-radius: 4px; white-space: nowrap; height: 31px;">
+                        ➕ مدیر جدید
+                    </button>
+                </div>
+            </div>
+        </div>
 
-                    @* 🟢 تگ باز فرم بومی بلایزر متصل به متد عملیاتی دیتابیس درون سرویس مرکزی ادمین *@
-                    <form @onsubmit="AdminState.SaveAdminAsync" @onsubmit:preventDefault>
-
-                        @* کادر متنی ورودی نام کاربری ادمین *@
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">نام کاربری ادمین:</label>
-                            @* بایند دوطرفه متن به متغیر FormAdminUsername درون سرویس و غیرفعال شدن خودکار کادر در حالت ویرایش *@
-                            <input type="text" @bind="AdminState.FormAdminUsername" class="form-control form-control-sm" placeholder="نام کاربری..." disabled="@AdminState.IsEditMode" />
-                        </div>
-
-                        @* کادر متنی ورودی رمز عبور ادمین *@
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">رمز عبور ادمین:</label>
-                            @* بایند دوطرفه متن کلمه عبور به متغیر FormAdminPassword درون سرویس *@
-                            <input type="password" @bind="AdminState.FormAdminPassword" class="form-control form-control-sm" placeholder="رمز عبور..." />
-                        </div>
-
-                        @* سوئیچ تیک اهتزاز یا اعطای دسترسی سوپر ادمین ارشد به کاربر *@
-                        <div class="form-check form-switch mb-3">
-                            @* ibind دوطرفه پرچم چک‌باکس به متغیر بولین FormIsSuperAdmin درون سرویس ادمین *@
-                            <input class="form-check-input" type="checkbox" id="isSuperAdminCheck" @bind="AdminState.FormIsSuperAdmin" />
-                            <label class="form-check-label fw-bold text-danger small" for="isSuperAdminCheck">👑 اعطای دسترسی سوپر ادمین (مدیریت مدیران)</label>
-                        </div>
-
-                        <hr />
-                        <span class="text-muted small fw-bold mb-2 d-block">📌 تعیین سطوح دسترسی پرسنلی:</span>
-
-                        @* تیک تفویض اختیار مجوز ثبت کارمند جدید در سیستم حضور و غیاب *@
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="canAddCheck" @bind="AdminState.FormCanAdd" />
-                            <label class="form-check-label small" for="canAddCheck">توانایی افزودن پرسنل جدید</label>
-                        </div>
-
-                        @* تیک تفویض اختیار مجوز ویرایش مشخصات پرسنل در سیستم حضور و غیاب *@
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="canEditCheck" @bind="AdminState.FormCanEdit" />
-                            <label class="form-check-label small" for="canEditCheck">توانایی ویرایش مشخصات پرسنل</label>
-                        </div>
-
-                        @* تیک تفویض اختیار مجوز حذف کامل فیزیکی کارمند از دیتابیس *@
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="canDeleteCheck" @bind="AdminState.FormCanDelete" />
-                            <label class="form-check-label small" for="canDeleteCheck">توانایی حذف پرسنل و رکوردها</label>
-                        </div>
-
-                        @* نمایش کادر هوشمند فیدبک و پیام‌های خطای بازگشتی از دیتابیس SQLite سرویس *@
-                        @if (!string.IsNullOrEmpty(AdminState.FeedbackMessage))
-                        {
-                            <div class="alert alert-info text-center small py-2 fw-bold">@AdminState.FeedbackMessage</div>
-                        }
-
-                        @* کادر دکمه‌های ثبت نهایی یا انصراف عملیات فرم *@
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn @(AdminState.IsEditMode ? "btn-warning text-dark" : "btn-success") btn-sm flex-grow-1 fw-bold">💾 ذخیره اطلاعات ادمین</button>
-                            @if (AdminState.IsEditMode)
-                            {
-                                @* زدن دکمه انصراف، متد شستشوی فرم را درون خودِ سرویس متمرکز صدا می‌زند *@
-                                <button type="button" @onclick="AdminState.CancelEdit" class="btn btn-secondary btn-sm">انصراف</button>
-                            }
-                        </div>
-
-                    </form> @* 🔴 تگ بسته فرم سابمیت *@
-                </div> @* 🔴 تگ بسته لایه داخلی کارت فرم *@
-            </div> @* 🔴 تگ بسته کارت گرافیکی فرم *@
-
-        </div> @* 🔴 تگ بسته دایو ستون فرم سایدبار سمت راست *@
-
-        @* =========================================================================
-   ⬅️ بخش سوم: جدول نمایش و پایش آنلاین سشن مدیران سیستم (Table Column)
-   توضیحات کد: اطلاعات مستقیماً از لیست پویای واکشی شده دیتابیس (AdminList) سرویس خوانده می‌شود.
-   ========================================================================= *@
-
-        @* 🟢 تگ باز دایو ستون جدول با عرض ۸ از ۱۲ قالب بوت‌استرپ برای اشغال مابقی فضا *@
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-danger text-white fw-bold">📋 لیست کل مدیران و مجوزهای فعال سرور</div>
-
-                @* 🟢 تگ باز کادر لایه داخلی جدول *@
-                <div class="card-body p-0">
-
-                    @* 🟢 تگ باز المان فیزیکی جدول سیستم تردد پرسنل *@
-                    <table class="table table-bordered table-striped text-center align-middle m-0 table-sm small">
-
-                        @* 🟢 تگ باز بخش سربرگ اصلی ستون‌های جدول *@
-                        <thead class="table-light">
-                            <tr>
-                                <th>نام کاربری</th>
-                                <th>نوع مدیر</th>
-                                <th>کلید توکن</th>
-                                <th>انقضای سشن</th>
-                                <th>وضعیت / فریز</th>
-                                <th>عملیات امنیتی</th>
-                            </tr>
-                        </thead> @* 🔴 تگ بسته بخش سربرگ جدول *@
-
-                        @* 🟢 تگ باز بدنه رکوردهای واکشی شده جدول ادمین‌ها *@
-                        <tbody>
-                            @* پایش لیست سراسری ادمین‌های لود شده در ویژگی AdminList سرویس مرکزی ادمین *@
-                            @if (AdminState.AdminList != null)
-                            {
-                                @foreach (var admin in AdminState.AdminList)
+        @* 🛠️ بخش جدول اصلی لیست مدیران و مجوزهای فعال سرور *@
+        <div class="row m-0" style="padding-left: 4px; padding-right: 4px;">
+            <div class="col-md-12 mb-4 p-0">
+                <div class="card shadow-sm border-0" style="border-radius: 8px; overflow: visible;">
+                    <div class="table-responsive" style="border: none !important; overflow-x: auto; position: relative;">
+                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; border-collapse: separate;">
+                            <thead class="table-light text-dark">
+                                <tr class="fw-bold" style="font-weight: bold !important;">
+                                    <th style="text-align: right; padding-right: 10px; font-size: 11.5px; font-weight: bold !important; min-width: 95px;">نام کاربری مدیر</th>
+                                    <th style="width: 100px; font-size: 11.5px; font-weight: bold !important;">نوع دسترسی</th>
+                                    <th class="d-none d-md-table-cell" style="width: 115px; font-size: 11.5px; font-weight: bold !important;">🔒 وضعیت حساب</th>
+                                    <th class="d-none d-md-table-cell" style="width: 125px; font-size: 11.5px; font-weight: bold !important;">🔑 توکن زنده عملیاتی</th>
+                                    @* 🟢 اضافه شدن هدر ستون جدید تاریخ انقضای توکن مخصوص دسکتاپ و تبلت *@
+                                    <th class="d-none d-md-table-cell" style="width: 130px; font-size: 11.5px; font-weight: bold !important;">⏳ انقضای توکن</th>
+                                    <th style="width: 90px; font-size: 11.5px; font-weight: bold !important;">وضعیت سشن</th>
+                                    <th class="d-none d-md-table-cell" style="width: 95px; font-size: 11.5px; font-weight: bold !important;">عملیات پرونده</th>
+                                    <th class="d-md-none" style="width: 90px; font-size: 11.5px; padding: 6px 2px; font-weight: bold !important;">⚡ عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (FilteredAdmins != null && FilteredAdmins.Any())
                                 {
-                                    @* 🟢 تگ باز ردیف اختصاصی هر ادمین در دیتابیس SQLite *@
-                                    <tr>
-                                        <td><strong>@admin.Username</strong></td>
-                                        <td>
-                                            @* رندر پویا نشان نوع ادمین سیستم بر پایه فیلد دیتابیس *@
-                                            @if (admin.IsSuperAdmin)
-                                            {
-                                                <span class="badge bg-danger">سوپر ادمین ارشد</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-secondary">مدیر محدود</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @* پایش و کات کردن ۸ کاراکتر اول کلید GUID سشن فعال مرورگر جهت زیبایی بصری جدول *@
-                                            @if (!string.IsNullOrEmpty(admin.CurrentToken))
-                                            {
-                                                <span class="text-muted font-monospace" style="font-size: 10px;">@admin.CurrentToken.Substring(0, 8)...</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-danger small">آفلاین / بدون توکن</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @* بارگذاری تاریخ انقضای هفت روزه توکن فعال ادمین *@
-                                            @if (admin.TokenExpireTime.HasValue)
-                                            {
-                                                <span class="small text-dark">@admin.TokenExpireTime.Value.ToString("yyyy/MM/dd HH:mm")</span>
-                                            }
-                                            else
-                                            {
-                                                <span>-</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @* پایش هوشمند ۴ وضعیت رنگی سشن زنده ادمین بر اساس ستون‌های دیتابیس سرور *@
-                                            @if (admin.IsFrozen)
-                                            {
-                                                <span class="badge bg-warning text-dark">❄️ فریز شده</span>
-                                            }
-                                            else if (admin.IsTokenStopped)
-                                            {
-                                                <span class="badge bg-dark">🛑 توکن متوقف</span>
-                                            }
-                                            else if (!string.IsNullOrEmpty(admin.CurrentToken))
-                                            {
-                                                <span class="badge bg-success">🟢 آنلاین و فعال</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-light text-muted">⚪ بدون سشن</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            @* 🟢 تگ باز کادر چیدمان دکمه‌های مدیریتی ادمین‌ها *@
-                                            <div class="d-flex gap-1 justify-content-center">
+                                    @foreach (var admin in FilteredAdmins)
+                                    {
+                                        bool isOnline = AdminState.CurrentOnlineAdmin?.Id == admin.Id;
+                                        bool hasActiveToken = !admin.IsTokenStopped && !string.IsNullOrEmpty(admin.CurrentToken);
 
-                                                @* الف) دکمه بارگذاری در فرم جهت ویرایش دسترسی‌ها *@
-                                                <button type="button" @onclick="() => AdminState.StartEdit(admin)" class="btn btn-outline-primary btn-xs fw-bold">✏️</button>
-
-                                                @* ب) سوئیچ دکمه فریز کردن یا فعال‌سازی مجدد سشن سرور از سرویس *@
-                                                @if (admin.IsFrozen)
+                                        <tr>
+                                            <td style="text-align: right; padding-right: 10px; font-size: 12px; white-space: nowrap;">
+                                                <strong style="font-size: 12px; color: #212529;">@admin.Username</strong>
+                                            </td>
+                                            <td>
+                                                @if (admin.IsSuperAdmin)
                                                 {
-                                                    <button type="button" @onclick="() => AdminState.ToggleFreezeAdminAsync(admin.Id, false)" class="btn btn-success btn-xs fw-bold">🔥</button>
+                                                    <span class="badge bg-danger px-1.5" style="font-size: 10px;">سوپر ادمین</span>
                                                 }
                                                 else
                                                 {
-                                                    <button type="button" @onclick="() => AdminState.ToggleFreezeAdminAsync(admin.Id, true)" class="btn btn-warning btn-xs fw-bold">❄️</button>
+                                                    <span class="badge bg-secondary px-1.5" style="font-size: 10px;">مدیر محدود</span>
                                                 }
+                                            </td>
 
-                                                @* ج) دکمه ابطال و توقف دستی کلید توکن سرور *@
-                                                @if (!string.IsNullOrEmpty(admin.CurrentToken) && !admin.IsTokenStopped)
+                                            @* دکمه وضعیت حساب دسکتاپ *@
+                                            <td class="d-none d-md-table-cell">
+                                                @if (admin.Username.ToLower() != "admintop" && !isOnline)
                                                 {
-                                                    <button type="button" @onclick="() => AdminState.StopAdminTokenAsync(admin.Id)" class="btn btn-dark btn-xs fw-bold">🛑</button>
+                                                    @if (admin.IsFrozen)
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-danger fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleToggleFreeze(admin.Id, false)">❄️ مسدود</button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-outline-success fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleToggleFreeze(admin.Id, true)">🟢 فعال</button>
+                                                    }
                                                 }
+                                                else
+                                                {
+                                                    <span class="text-muted small">-</span>
+                                                }
+                                            </td>
 
-                                                @* د) دکمه حذف فیزیکی رکورد مدیر از جدول سیستم SQLite *@
-                                                <button type="button" @onclick="() => AdminState.DeleteAdminAsync(admin.Id)" class="btn btn-outline-danger btn-xs fw-bold">🗑️</button>
+                                            @* دکمه توکن زنده دسکتاپ *@
+                                            <td class="d-none d-md-table-cell">
+                                                @if (isOnline)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-dark text-warning fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => AdminState.LogoutAsync()">🚪 خروج و ابطال</button>
+                                                }
+                                                else if (hasActiveToken)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-warning text-dark fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleStopToken(admin.Id)">💥 قطع توکن</button>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-light text-muted small border w-100 py-1" style="font-size: 10px;">@(admin.IsTokenStopped ? "🚫 ابطال شده" : "فاقد سشن")</span>
+                                                }
+                                            </td>
 
-                                            </div> @* 🔴 تگ بسته کادر چیدمان دکمه‌ها *@
-                                        </td>
-                                    </tr> @* 🔴 تگ بسته ردیف اختصاصی ادمین *@
+                                            @*  green 🟢 ستون جدید رندر زمان انقضای توکن متصل به پروپرتی TokenExpireTime *@
+                                            <td class="d-none d-md-table-cell text-secondary" style="font-size: 11.5px; font-family: Tahoma, Arial;">
+                                                @if (hasActiveToken && admin.TokenExpireTime.HasValue)
+                                                {
+                                                    <span>@admin.TokenExpireTime.Value.ToString("yyyy/MM/dd HH:mm")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted" style="font-size: 11px;">-</span>
+                                                }
+                                            </td>
+
+                                            <td>
+                                                @if (isOnline)
+                                                {
+                                                    <span class="badge bg-success px-1.5" style="font-size: 10px; box-shadow: 0 0 6px #28a745;">🟢 آنلاین</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-dark text-white px-1.5" style="font-size: 10px; opacity: 0.65;">⚫ آفلاین</span>
+                                                }
+                                            </td>
+
+                                            <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
+                                                <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => TriggerStartEdit(admin)" title="ویرایش">✏️</button>
+                                                <button type="button" class="btn btn-sm text-danger p-0" disabled="@(admin.Username.ToLower() == "admintop" || isOnline)" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)" title="حذف">🗑️</button>
+                                            </td>
+
+                                            @* منوی عملیات موبایل *@
+                                            <td class="d-md-none" style="padding: 4px 2px; position: relative;">
+                                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10px; padding: 2px 5px;" @onclick="() => ToggleMobileMenuDropdown(admin.Id)" @onclick:stopPropagation>⚙️ عملیات</button>
+                                                @if (ActiveMobileDropdownId == admin.Id)
+                                                {
+                                                    <div style="position: absolute; top: 100%; left: 0; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999999 !important; min-width: 165px; padding: 4px 0; text-align: right;" @onclick:stopPropagation>
+
+                                                        <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerStartEdit(admin)">✏️ ویرایش مجوزها</button>
+
+                                                        <div class="dropdown-divider m-1"></div>
+
+                                                        @if (isOnline)
+                                                        {
+                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => AdminState.LogoutAsync()">🚪 خروج و ابطال سشن</button>
+                                                        }
+                                                        else if (admin.Username.ToLower() != "admintop")
+                                                        {
+                                                            @if (hasActiveToken)
+                                                            {
+                                                                <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleStopToken(admin.Id)">💥 قطع توکن عملیاتی</button>
+                                                            }
+
+                                                            @if (admin.IsFrozen)
+                                                            {
+                                                                <button type="button" class="dropdown-item text-success fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleToggleFreeze(admin.Id, false)">☀ فعال‌سازی حساب</button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleToggleFreeze(admin.Id, true)">❄️ مسدود و فریز ادمین</button>
+                                                            }
+
+                                                            <div class="dropdown-divider m-1"></div>
+                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)">🗑️ حذف کامل اکانت</button>
+                                                        }
+                                                    </div>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
                                 }
-                            }
-                        </tbody> @* 🔴 تگ بسته بدنه اصلی رکوردهای جدول *@
+                                else
+                                {
+                                    <tr><td colspan="8" class="text-muted py-3" style="font-size: 12.5px;">هیچ رکوردی در جدول مدیران سرور وجود ندارد.</td></tr>
+                                }
+                            </tbody>
+                        </table>
 
-                    </table> @* 🔴 تگ بسته المان جدول *@
-                </div> @* 🔴 تگ بسته کادر لایه داخلی جدول *@
+
+                    </div>
+                </div>
             </div>
-        </div> @* 🔴 تگ بسته دایو ستون جدول سشن‌ها *@
-        @* =========================================================================
-           🏁 بخش چهارم: مسدود کردن متقاطع تگ‌های والد ریشه اصلی صفحه (Root Closures)
-            توضیحات کد: این سه تگ پایانی، به ترتیب سطر اصلی (Row)، بلاک شرطی else و دایو کانتینر اصلی را می‌بندند.
-           ========================================================================= *@
+        </div>
+        @* 🔒 ۳. مودال تعاملی و ماژولار فرم ثبت و ویرایش مجوزها متصل به پروپرتی‌های رسمی سرویس شما *@
+        @if (showFormModal)
+        {
+            @* بک‌دراپ تیره مهار کلیک بیرون: لمس این فضا مودال فرم را غیب می‌کند *@
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2000 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseFormModal">
 
-    </div> @* 🔴 تگ بسته دایو سطر اصلی لایوت (row) که در بخش دوم باز شده بود *@
-    @* 🔴 آکاد بسته بلاک شرطی else امنیتی که در بخش اول باز شده بود *@
+                @* بدنه سفید مودال: استاپ پروپاگیشن مانع از بسته شدن ناخواسته فرم هنگام تکمیل فیلدها می‌شود *@
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation>
 
-</div> @* 🔴 تگ بسته دایو والد اصلی کل کانتینر صفحه (container) که در بخش اول باز شده بود *@
+                    <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
+                        <h5 class="m-0" style="font-size: 14.5px; font-weight: bold;">@(AdminState.IsEditMode ? "✏️ ویرایش کامل مشخصات و مجوزهای مدیر" : "➕ ثبت و تعریف مدیر سیستم جدید")</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseFormModal"></button>
+                    </div>
+
+                    <div class="p-3 text-right" style="direction: rtl; text-align: right;">
+                        <form @onsubmit="HandleSaveAdmin" @onsubmit:preventDefault>
+
+                            <div class="mb-2.5">
+                                <label class="form-label text-muted small mb-1">نام کاربری ادمین:</label>
+                                <input type="text" @bind="AdminState.FormAdminUsername" class="form-control form-control-sm" style="font-size: 13px; font-family: Tahoma;" />
+                            </div>
+
+                            <div class="mb-2.5">
+                                <label class="form-label text-muted small mb-1">رمز عبور ادمین @(AdminState.IsEditMode ? "(جهت حفظ قبلی خالی بگذارید)" : ""):</label>
+                                <input type="password" @bind="AdminState.FormAdminPassword" class="form-control form-control-sm font-monospace" style="font-size: 13px;" placeholder="••••••••" />
+                            </div>
+
+                            @* 👑 زون سوییچ سوپر ادمین متصل به سرویس مرکزی *@
+                            <div class="form-check form-switch mb-3 mt-3 border-top pt-2">
+                                <input class="form-check-input" type="checkbox" id="flexSwitchSuper" @bind="AdminState.FormIsSuperAdmin" />
+                                <label class="form-check-label fw-bold text-danger small pr-2" for="flexSwitchSuper">👑 اعطای دسترسی سوپر ادمین (مدیریت مدیران)</label>
+                            </div>
+
+                            @* 🔒 بخش تفکیکی تعیین سطوح دسترسی کارمندان متصل به متغیرهای FormCanAdd و... در سرویس *@
+                            @if (!AdminState.FormIsSuperAdmin)
+                            {
+                                <div class="p-2.5 border rounded bg-light" style="border-right: 4px solid #17a2b8 !important;">
+                                    <h6 class="fw-bold mb-2 text-info" style="font-size: 12px;">📌 تعیین سطوح دسترسی پرسنلی:</h6>
+
+                                    <div class="form-check mb-1.5">
+                                        <input class="form-check-input" type="checkbox" id="chkAddEmp" @bind="AdminState.FormCanAdd" />
+                                        <label class="form-check-label small pr-1" for="chkAddEmp">توانایی افزودن پرسنل جدید</label>
+                                    </div>
+                                    <div class="form-check mb-1.5">
+                                        <input class="form-check-input" type="checkbox" id="chkEditEmp" @bind="AdminState.FormCanEdit" />
+                                        <label class="form-check-label small pr-1" for="chkEditEmp">توانایی ویرایش مشخصات و تردد پرسنل</label>
+                                    </div>
+                                    <div class="form-check mb-0">
+                                        <input class="form-check-input" type="checkbox" id="chkDelEmp" @bind="AdminState.FormCanDelete" />
+                                        <label class="form-check-label small pr-1" for="chkDelEmp">توانایی حذف کامل پرسنل و رکوردها</label>
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="d-flex gap-2 mt-3 border-top pt-3">
+                                <button type="submit" class="btn @(AdminState.IsEditMode ? "btn-warning text-dark" : "btn-success") btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">
+                                    💾 ذخیره اطلاعات مدیر
+                                </button>
+                                <button type="button" @onclick="CloseFormModal" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">انصراف</button>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* 📅 🔒 فراخوانی هوشمند ماژول تفکیک‌شده و مستقل DeleteModal مجهز به نام پویا *@
+        <DeleteModal Show="@showDeleteModal"
+                     Title="تاییدیه حذف قطعی اطلاعات مدیر سیستم"
+                     TargetName="@(AdminState.AdminList?.FirstOrDefault(a => a.Id == targetDeleteAdminId)?.Username ?? "مدیر انتخاب شده")"
+                     Message="@deleteTargetMessage"
+                     SubMessage="توجه: با تایید نهایی حذف، کلیه دسترسی‌ها، مجوزها و سشن‌های فعال این ادمین فوراً ابطال و پاک خواهد شد."
+                     OnConfirm="ExecuteConfirmedAdminDelete"
+                     OnCancel="CancelDeleteModal" />
+
+    }
+    @* 🔒 پایان بلاک سوپر ادمین *@
+</div> @* پایان کانتینر ریشه کامپوننت *@

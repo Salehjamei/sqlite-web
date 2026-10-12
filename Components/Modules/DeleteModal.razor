@@ -1,0 +1,30 @@
+﻿@namespace sqlite_web.Components.Modules
+
+@if (Show)
+{
+    <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="HandleCancelClick">
+        <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 450px !important; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;" @onclick:stopPropagation>
+
+            <div class="bg-danger text-white p-3 fw-bold" style="font-size: 14px; text-align: right; direction: rtl;">
+                ⚠️ @Title
+            </div>
+
+            <div class="p-3 text-right" style="direction: rtl; text-align: right; font-family: Tahoma;">
+                @* 🟢 نمایش هوشمند و تفکیک شده نام ادمین یا کارمند هدف با کادر تیره و بولد *@
+                @if (!string.IsNullOrEmpty(TargetName))
+                {
+                    <div class="alert alert-warning text-center p-2 mb-2 fw-bold text-dark" style="font-size: 13.5px; border-radius: 6px;">
+                        🎯 آیتم انتخابی: @TargetName
+                    </div>
+                }
+                <p class="fw-bold text-danger" style="font-size: 12.5px; margin-bottom: 6px;">@Message</p>
+                <p class="text-muted small m-0" style="line-height: 1.6;">@SubMessage</p>
+            </div>
+
+            <div class="p-3 bg-light d-flex justify-content-end gap-2 border-top" style="direction: ltr;">
+                <button type="button" class="btn btn-danger btn-sm px-3 fw-bold" style="font-size: 12px;" @onclick="HandleConfirmClick">بله، حذف شود</button>
+                <button type="button" class="btn btn-secondary btn-sm px-3" style="font-size: 12px;" @onclick="HandleCancelClick">انصراف</button>
+            </div>
+        </div>
+    </div>
+}

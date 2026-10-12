@@ -160,7 +160,7 @@ namespace sqlite_web.Services
                 string newToken = Guid.NewGuid().ToString("N");
                 admin.CurrentToken = newToken;
                 admin.IsTokenStopped = false; // بازنشانی پرچم متوقف شده
-                admin.TokenExpireTime = DateTime.Now.AddDays(7); // سشن تا ۷ روز معتبر است
+                admin.TokenExpireTime = DateTime.Now.AddDays(31); // سشن تا ۷ روز معتبر است
 
                 _dbContext.Admins.Update(admin);
                 await _dbContext.SaveChangesAsync();
