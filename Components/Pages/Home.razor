@@ -1,107 +1,213 @@
 ﻿@page "/"
 @rendermode InteractiveServer
 
-<div class="container mt-5" dir="rtl" style="text-align: right; font-family: Tahoma;">
-    <!-- جدول لیست کارمندان و وضعیت تردد سریع -->
-    <div class="card mb-4 shadow-sm">
-        <div class="card-header bg-primary text-white fw-bold">📋 لیست پرسنل و ثبت تردد</div>
+<div class="container home-container" dir="rtl" style="text-align: right; font-family: Tahoma;">
+    <div class="card mb-3 shadow-sm">
+        <div class="card-header bg-primary text-white fw-bold d-flex align-items-center justify-content-between">
+            <span class="page-title">📋 لیست پرسنل و ثبت تردد</span>
+
+            @if (isAnyAdminLoggedIn)
+            {
+                <div class="d-flex align-items-center">
+                    <div class="input-group input-group-sm search-box" style="min-width:220px;">
+                        <input class="form-control form-control-sm" placeholder="جستجوی نام یا کد پرسنلی..." @bind="searchQuery" @bind:event="oninput" />
+                        <button class="btn btn-outline-light" type="button" @onclick="ClearSearch" title="پاک کردن">✖</button>
+                    </div>
+                </div>
+            }
+        </div>
+
         @if (!isAnyAdminLoggedIn)
         {
-            <div class="alert alert-warning text-center mt-5 p-4 shadow border-warning">
-                <h4 class="fw-bold text-dark">🔒 سیستم ثبت تردد غیرفعال است</h4>
-                <p class="m-0 mt-2 text-muted">این دستگاه مجاز به ثبت تردد نیست. لطفا از ادمین مجموعه بخواهید ابتدا سیستم را فعال کند.</p>
-                <div class="mt-3">
-                    <a href="/admin" class="btn btn-sm btn-dark fw-bold px-4">🔑 ورود ادمین جهت فعال‌سازی کیوسک</a>
+            <div class="alert alert-warning text-center mt-3 p-3 shadow border-warning">
+                <h5 class="fw-bold text-dark">🔒 سیستم ثبت تردد غیرفعال است</h5>
+                <p class="m-0 mt-1 text-muted small">این دستگاه مجاز به ثبت تردد نیست. لطفا از ادمین مجموعه بخواهید ابتدا سیستم را فعال کند.</p>
+                <div class="mt-2">
+                    <a href="/admin" class="btn btn-sm btn-dark fw-bold px-3">🔑 ورود ادمین</a>
                 </div>
             </div>
         }
         else
         {
-            <!-- ... جدول نمایش پرسنل  ... --><table class="table table-bordered table-striped text-center align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th style="width: 10%;">عکس</th>
-                    <th>نام کارمند</th>
-                    <th>کد ملی</th>
-                    <th>وضعیت فعلی</th>
-                    <th>عملیات تردد سریع</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (employees == null || !employees.Any())
+            <!-- Desktop: table (large screens) -->
+            <div class="table-responsive d-none d-lg-block">
+                <table class="table table-bordered table-striped text-center align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 10%;">عکس</th>
+                            <th>نام کارمند</th>
+                            <th>وضعیت فعلی</th>
+                            <th>عملیات تردد سریع</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (DisplayEmployees == null || !DisplayEmployees.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="text-muted">هیچ پرسنلی مطابق جستجو یافت نشد.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var emp in DisplayEmployees)
+                            {
+                                var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
+                                var lastRecord = empRecords.LastOrDefault();
+                                var isPresent = !(lastRecord == null || lastRecord.ClockOutTime != null);
+
+                                <tr>
+                                    <td class="align-middle">
+                                        <div class="avatar-wrapper" style="width:45px;height:45px;">
+                                            @if (!string.IsNullOrEmpty(emp.ImagePath))
+                                            {
+                                                <img src="@emp.ImagePath" class="avatar-img border border-2 shadow-sm" />
+                                            }
+                                            else
+                                            {
+                                                <div class="avatar-img bg-secondary text-white d-flex align-items-center justify-content-center">👤</div>
+                                            }
+                                            <span class="status-dot" style="background:@(isPresent ? "#28a745" : "#dc3545");"></span>
+                                        </div>
+                                    </td>
+                                    <td class="align-middle fw-bold fs-6">@emp.FullName</td>
+                                    <td class="align-middle">
+                                        @if (!isPresent)
+                                        {
+                                            <span class="badge bg-danger p-1 px-2 rounded-pill small">خارج / غایب</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success p-1 px-2 rounded-pill small">حاضر</span>
+                                        }
+                                    </td>
+                                    <td class="align-middle">
+                                        @if (!isPresent)
+                                        {
+                                            <button type="button" @onclick="() => ClockIn(emp.Id)" class="btn btn-success btn-sm px-3 rounded-pill">ورود</button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" @onclick="() => ClockOut(lastRecord.Id)" class="btn btn-danger btn-sm px-3 rounded-pill">خروج</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tablet: two-column card grid -->
+            <div class="d-none d-md-block d-lg-none">
+                <div class="row g-2 p-2">
+                    @if (DisplayEmployees == null || !DisplayEmployees.Any())
+                    {
+                        <div class="col-12 text-muted small">هیچ پرسنلی مطابق جستجو یافت نشد.</div>
+                    }
+                    else
+                    {
+                        @foreach (var emp in DisplayEmployees)
+                        {
+                            var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
+                            var lastRecord = empRecords.LastOrDefault();
+                            var isPresent = !(lastRecord == null || lastRecord.ClockOutTime != null);
+
+                            <div class="col-md-6">
+                                <div class="card h-100 shadow-sm small">
+                                    <div class="card-body d-flex gap-2 align-items-center py-2 px-3">
+                                        <div style="width:56px; position:relative;">
+                                            @if (!string.IsNullOrEmpty(emp.ImagePath))
+                                            {
+                                                <img src="@emp.ImagePath" class="avatar-img-md" />
+                                            }
+                                            else
+                                            {
+                                                <div class="avatar-img-md bg-secondary text-white d-flex align-items-center justify-content-center">👤</div>
+                                            }
+                                            <span class="status-dot" style="background:@(isPresent ? "#28a745" : "#dc3545"); left: -4px;"></span>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold">@emp.FullName</div>
+                                        </div>
+                                        <div class="text-end">
+                                            @if (!isPresent)
+                                            {
+                                                <button class="btn btn-success btn-sm" @onclick="() => ClockIn(emp.Id)">ورود</button>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-danger btn-sm" @onclick="() => ClockOut(lastRecord.Id)">خروج</button>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <!-- Mobile: stacked cards -->
+            <div class="d-block d-md-none p-1">
+                @if (DisplayEmployees == null || !DisplayEmployees.Any())
                 {
-                    <tr>
-                        <td colspan="5" class="text-muted">هنوز هیچ پرسنلی در سیستم تعریف نشده است.</td>
-                    </tr>
+                    <div class="text-muted small">هیچ پرسنلی مطابق جستجو یافت نشد.</div>
                 }
                 else
                 {
-                    @foreach (var emp in employees)
+                    @foreach (var emp in DisplayEmployees)
                     {
                         var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
                         var lastRecord = empRecords.LastOrDefault();
+                        var isPresent = !(lastRecord == null || lastRecord.ClockOutTime != null);
 
-                        <tr>
-                            <!-- ۱. ستون عکس پرسنل -->
-                            <td class="align-middle">
-                                @if (!string.IsNullOrEmpty(emp.ImagePath))
-                                {
-                                    <img src="@emp.ImagePath" class="rounded-circle border border-2 shadow-sm" style="width: 45px; height: 45px; object-fit: cover;" />
-                                }
-                                else
-                                {
-                                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center border border-2 shadow-sm" style="width: 45px; height: 45px; font-size: 18px; margin: 0 auto;">
-                                        👤
-                                    </div>
-                                }
-                            </td>
-
-                            <!-- ۲. ستون نام کارمند (خالص و بدون تکرار کد ملی) -->
-                            <td class="align-middle fw-bold fs-6">
-                                @emp.FullName
-                            </td>
-
-                            <!-- ۳. ستون کد ملی (دقیقاً زیر هدر کد ملی) -->
-                            <td class="align-middle text-secondary font-monospace">
-                                @emp.PersonnelCode
-                            </td>
-
-                            <!-- ۴. ستون وضعیت فعلی -->
-                            <td class="align-middle">
-                                @if (lastRecord == null || lastRecord.ClockOutTime != null)
-                                {
-                                    <span class="badge bg-danger p-2 px-3 shadow-sm rounded-pill">خارج شده / غایب</span>
-                                }
-                                else
-                                {
-                                    <span class="badge bg-success p-2 px-3 shadow-sm rounded-pill">حاضر در شرکت</span>
-                                }
-                            </td>
-
-                            <!-- ۵. ستون عملیات سریع -->
-                            <td class="align-middle">
-                                @if (lastRecord == null || lastRecord.ClockOutTime != null)
-                                {
-                                    <button type="button" @onclick="() => ClockIn(emp.Id)" class="btn btn-success btn-sm px-4 rounded-pill shadow-sm fw-bold">🟢 ثبت ورود</button>
-                                }
-                                else
-                                {
-                                    <button type="button" @onclick="() => ClockOut(lastRecord.Id)" class="btn btn-danger btn-sm px-4 rounded-pill shadow-sm fw-bold">🔴 ثبت خروج</button>
-                                }
-                            </td>
-                        </tr>
+                        <div class="card mb-2 shadow-sm">
+                            <div class="card-body d-flex align-items-center gap-2 py-2 px-3">
+                                <div style="width:48px; position:relative;">
+                                    @if (!string.IsNullOrEmpty(emp.ImagePath))
+                                    {
+                                        <img src="@emp.ImagePath" class="avatar-img-sm" />
+                                    }
+                                    else
+                                    {
+                                        <div class="avatar-img-sm bg-secondary text-white d-flex align-items-center justify-content-center">👤</div>
+                                    }
+                                    <span class="status-dot" style="background:@(isPresent ? "#28a745" : "#dc3545"); left: -4px;"></span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold small">@emp.FullName</div>
+                                </div>
+                                <div class="text-end">
+                                    @if (!isPresent)
+                                    {
+                                        <button class="btn btn-success btn-sm" @onclick="() => ClockIn(emp.Id)">ورود</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-danger btn-sm" @onclick="() => ClockOut(lastRecord.Id)">خروج</button>
+                                    }
+                                </div>
+                            </div>
+                        </div>
                     }
                 }
-            </tbody>
-        </table>
+            </div>
+        }
+    </div>
 
-    }
-
-        
-</div>
-
-@if (!string.IsNullOrEmpty(message))
-{
-    <div class="alert alert-info text-center mt-3">@message</div>
-}
+    <div class="toast-container position-fixed end-0 p-2" role="status" aria-live="polite" aria-atomic="true">
+        @if (showToast)
+        {
+            <div class="toast show">
+                <div class="toast-header">
+                    <strong class="me-auto">اطلاع‌رسانی</strong>
+                    <small class="text-muted">اکنون</small>
+                    <button type="button" class="btn-close ms-2 mb-1" @onclick="() => showToast = false" aria-label="بستن"></button>
+                </div>
+                <div class="toast-body small">
+                    @toastMessage
+                </div>
+            </div>
+        }
+    </div>
 </div>

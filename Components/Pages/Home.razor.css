@@ -1,0 +1,111 @@
+/* استایل‌های کامپوننت Home (scoped) */
+
+/* Home component scoped styles - tightened spacing and responsive tweaks */
+
+.home-container {
+  /* reduce top spacing from default */
+  margin-top: 0.6rem;
+}
+
+/* reduce overall card gap */
+.card.mb-3 {
+  margin-bottom: 0.6rem;
+}
+
+/* smaller page title for tight layouts */
+.page-title {
+  font-size: 1rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* make the search box a bit more compact on small screens */
+.search-box .form-control {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* card-body tighter paddings */
+.card-body {
+  padding: 0.5rem 0.75rem;
+}
+
+/* smaller badges/buttons */
+.badge.small {
+  font-size: 0.75rem;
+}
+
+/* دایره وضعیت */
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.05);
+  position: absolute;
+  bottom: -2px;
+  left: -2px; /* مناسب جهت راست‌به‌چپ */
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-img {
+  width: 45px;
+  height: 45px;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+
+.avatar-img-sm {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+
+.avatar-img-md {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+
+.card-body .btn {
+  min-width: 60px;
+}
+
+/* اگر می‌خواهی کد ملی در DOM بماند ولی پنهان باشد (قابل جستجو ولی نامرئی) */
+.visually-hidden {
+  position: absolute !important;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+  margin: -1px;
+}
+
+/* Toast container: offset down so it appears under fixed header/navbar.
+   Adjust --app-header-height در صورت نیاز (مثلاً از root یا layout) */
+.toast-container {
+  top: calc(var(--app-header-height, 56px) + 0.5rem);
+  right: 1rem;
+  z-index: 1200; /* بالاتر از هدر در صورت نیاز */
+}
+
+/* mobile-specific tighter spacing */
+@media (max-width: 575.98px) {
+  .home-container { margin-top: 0.4rem; }
+  .card-body { padding: 0.45rem 0.6rem; }
+  .page-title { font-size: 0.95rem; }
+  .search-box { min-width: 180px !important; }
+}
