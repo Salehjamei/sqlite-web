@@ -33,7 +33,13 @@ namespace sqlite_web.Components.Pages
         protected bool isAttEditMode { get; set; } = false;
         private int? _editingAttendanceId = null;
         protected string TotalMonthlyHours { get; set; } = "00:00 ساعت";
+        // 🛠️ متغیرهای جدید جهت مهار مودال پویا تنظیمات ساعات موظفی و تعطیلات سرور
+        protected bool showSettingsModal { get; set; } = false;
+        protected string settingsStartTime { get; set; } = "07:00";
+        protected string settingsEndTime { get; set; } = "17:30";
 
+        // 📅 لیست روزهای هفته انتخاب شده برای تعطیلات
+        protected List<string> selectedOffDays { get; set; } = new();
         // فیلدهای بایند شده به فرم ثبت و ویرایش کارمندان
         protected string newEmpName { get; set; } = string.Empty;
         protected string newEmpCode { get; set; } = string.Empty;
@@ -74,10 +80,12 @@ namespace sqlite_web.Components.Pages
         protected string SearchQuery { get; set; } = string.Empty;
 
         // پروپرتی فیلتر کننده (نام آن باید FilteredEmployees باشد تا با لیست اصلی تداخل نکند)
+        // 🟢 فیکس نهایی واکشی: تراز کامل حروف با متغیر بومی دیتابیس شما (employees با e کوچک)
         protected List<Employee> FilteredEmployees => string.IsNullOrWhiteSpace(SearchQuery)
-            ? employees
-            : employees.Where(e => (e.FullName != null && e.FullName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)) ||
-                                   (e.PersonnelCode != null && e.PersonnelCode.Contains(SearchQuery))).ToList();
+            ? (employees ?? new())
+            : (employees ?? new()).Where(e => (e.FullName != null && e.FullName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                                              (e.PersonnelCode != null && e.PersonnelCode.Contains(SearchQuery))).ToList();
+
 
 
         protected List<Attendance> allAttendances { get; set; } = new();
@@ -123,25 +131,44 @@ namespace sqlite_web.Components.Pages
         }
 
         /// <summary>
-        /// متد لایف‌سایکل اجرا شده پس از اتمام رندر فیزیکی تگ‌های صفحه در مرورگر کلاینت
+        /// 🟢 گام اول: مقداردهی اولیه و واکشی ۱۰۰٪ داده‌ها قبل از رندر شدن جدول جهت نمایش قطعی لیست پرسنل
+        /// </summary>
+        protected override async Task OnInitializedAsync()
+        {
+            try
+            {
+                // ۱. اجرای گارد امنیتی و بررسی اصالت سشن ادمین آنلاین
+                await AdminState.CheckAccessAndRedirectAsync();
+
+                // ۲. اگر ادمین تایید صلاحیت شده است، دیتای قوانین کاری و کارمندان همگام‌سازی شود
+                if (AdminState.IsAuthorized)
+                {
+                    // بارگذاری مشخصات تنظیمات ساعات موظفی از SQLite
+                    await AdminState.LoadWorkSettingsAsync();
+
+                    // واکشی لیست فیزیکی کارمندان و رکوردهای تردد امروز
+                    await RefreshDataAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ خطا در متد OnInitializedAsync پنل ادمین: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 🟢 گام دوم: متد رندر تعاملی جهت باز کردن خودکار قفل کلیک رویدادها و بیدار کردن مودال‌ها
         /// </summary>
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
-                // ۱. اجرای گارد امنیتی بررسی اصالت توکن و سشن ادمین
-                await AdminState.CheckAccessAndRedirectAsync();
-
-                // ۲. اگر ادمین آنلاین مجاز است، فرآیند واکشی اطلاعات آغاز شود
-                if (AdminState.IsAuthorized)
-                {
-                    await RefreshDataAsync();
-                }
-
-                // ۳. اعلان به کامپوننت جهت تازه‌سازی فوری وضعیت فرانت صفحه
-                StateHasChanged();
+                // اجبار کامپوننت به تازه‌سازی نهایی و فعال کردن رویدادهای دکمه‌ها در مرورگر
+                await InvokeAsync(StateHasChanged);
             }
         }
+
+
 
         /// <summary>
         /// 🔄 متد متمرکز و آسنکرون تازه‌سازی آنی لیست کارمندان و کل ترددهای ثبت شده از دیتابیس SQLite
@@ -225,20 +252,49 @@ namespace sqlite_web.Components.Pages
             }
         }
         /// <summary>
-        /// مدیریت عملیات ذخیره‌سازی اطلاعات کارمند جدید یا ثبت ویرایش مشخصات به همراه راست‌آزمایی لایه امنیتی دسترسی‌ها
+        /// مدیریت عملیات ذخیره‌سازی اطلاعات کارمند جدید یا ثبت ویرایش مشخصات به همراه راست‌آزمایی لایه امنیتی دسترسی‌ها و گارد طول کاراکتر بک‌آند
         /// </summary>
         protected async Task SaveEmployeeData()
         {
+            // 🛡️ ۱. گارد بررسی فیلدهای اجباری
             if (string.IsNullOrWhiteSpace(newEmpName) || string.IsNullOrWhiteSpace(newEmpCode))
             {
                 SystemMessage = "❌ نام کارمند و کد پرسنلی الزامی است!";
                 return;
             }
 
+            // 🛡️ ۲. لایه امنیتی بک‌آند: مهار تقلب در فرانت و کنترل فیزیکی طول کاراکترها در سرور
+
+            // بررسی سقف ۴۰ کاراکتر برای نام و نام خانوادگی
+            if (newEmpName.Length > 40)
+            {
+                SystemMessage = "❌ خطای امنیتی سرور: نام و نام خانوادگی نمی‌تواند بیشتر از ۴۰ کاراکتر باشد!";
+                return;
+            }
+
+            // بررسی قالب دقیق ۱۰ رقمی برای کد ملی (کد پرسنلی)
+            if (newEmpCode.Length != 10)
+            {
+                SystemMessage = "❌ خطای امنیتی سرور: کد ملی وارد شده باید دقیقاً ۱۰ رقم باشد!";
+                return;
+            }
+
+            // بررسی سقف ۱۵ کاراکتر برای شماره تماس در صورت وارد شدن
+            if (!string.IsNullOrWhiteSpace(newEmpPhone) && newEmpPhone.Length > 15)
+            {
+                SystemMessage = "❌ خطای امنیتی سرور: شماره تماس نمی‌تواند بیشتر از ۱۵ رقم باشد!";
+                return;
+            }
+
+            // 🛡️ ۳. بررسی مجوزها و اعمال فیزیکی دیتابیس بر اساس وضعیت ثبت یا ویرایش
             if (isEmpEditMode && _editingEmployeeId.HasValue)
             {
                 // گارد امنیتی بررسی مجوز ویرایش مشخصات پرسنلی
-                if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: شما مجوز ویرایش اطلاعات پرسنل را ندارید!"; return; }
+                if (!canEditPerm && !AdminState.isCurrentUserSuperAdmin)
+                {
+                    SystemMessage = "❌ خطای امنیتی: شما مجوز ویرایش اطلاعات پرسنل را ندارید!";
+                    return;
+                }
 
                 var emp = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _editingEmployeeId.Value);
                 if (emp != null)
@@ -247,16 +303,28 @@ namespace sqlite_web.Components.Pages
                     emp.Phone = newEmpPhone;
                     emp.PersonnelCode = newEmpCode;
                     emp.ImagePath = previewImageUrl; // به‌روزرسانی نهایی آدرس عکس جدید یا قبلی در دیتابیس
+
                     DbContext.Employees.Update(emp);
                     SystemMessage = "✅ مشخصات و تصویر پرسنل با موفقیت ویرایش و اصلاح شد.";
                 }
             }
             else
             {
-                // گارد امنیتی بررسی مجوز افزودن کارمند جدید به سیستم حضور و غیاب
-                if (!canAddPerm) { SystemMessage = "❌ خطای امنیتی: حساب کاربری شما فاقد مجوز ثبت کارمند جدید است!"; return; }
+                // Gارد امنیتی بررسی مجوز افزودن کارمند جدید به سیستم حضور و غیاب
+                if (!canAddPerm && !AdminState.isCurrentUserSuperAdmin)
+                {
+                    SystemMessage = "❌ خطای امنیتی: حساب کاربری شما فاقد مجوز ثبت کارمند جدید است!";
+                    return;
+                }
 
-                DbContext.Employees.Add(new Employee { FullName = newEmpName, Phone = newEmpPhone, PersonnelCode = newEmpCode, ImagePath = previewImageUrl });
+                DbContext.Employees.Add(new Employee
+                {
+                    FullName = newEmpName,
+                    Phone = newEmpPhone,
+                    PersonnelCode = newEmpCode,
+                    ImagePath = previewImageUrl
+                });
+
                 SystemMessage = "✅ مشخصات کارمند جدید با موفقیت به همراه تصویر در سیستم ثبت شد.";
             }
 
@@ -264,6 +332,7 @@ namespace sqlite_web.Components.Pages
             await RefreshDataAsync(); // تازه‌سازی آنی لایوت جدول اصلی
             CloseEmpFormModal(); // بستن فرم پاپ‌آپ
         }
+
 
         /// <summary>
         /// متد سوییچ وضعیت فرم به حالت ویرایش پرونده کارمند و لود مشخصات قبلی او در کادرهای ورودی فرم
@@ -349,24 +418,7 @@ namespace sqlite_web.Components.Pages
             await DbContext.SaveChangesAsync();
             SystemMessage = "🟢 وضعیت پرسنل انتخاب شده با موفقیت به حاضر تغییر یافت.";
             await RefreshDataAsync();
-        }
-
-        /// <summary>
-        /// متمتوقف کردن سریع تردد کارمند از درون جدول یا منوی موبایل (تزریق زنده DateTime.Now به فیلد خروج)
-        /// </summary>
-        protected async Task StopAttendanceNow(int attId)
-        {
-            if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: حساب شما فاقد مجوز ثبت تردد سریع است!"; return; }
-            var att = await DbContext.Attendances.FindAsync(attId);
-            if (att != null)
-            {
-                att.ClockOutTime = DateTime.Now;
-                SystemMessage = "🛑 تردد پرسنل متوقف شد و ساعت خروج ثبت گردید.";
-                await DbContext.SaveChangesAsync();
-                await RefreshDataAsync();
-            }
-        }
-
+        }    
         /// <summary>
         /// ثبت دستی یا ویرایش دوکاره ساعت کاری روزهای گذشته یا امروز بر اساس فرمت معتبر زمانی
         /// </summary>
@@ -443,13 +495,17 @@ namespace sqlite_web.Components.Pages
 
         protected void StartAttEdit(Attendance att)
         {
-            showManualAddModal = true; // باز شدن پاپ‌آپ فرم جهت ویرایش رکورد
             isAttEditMode = true;
             _editingAttendanceId = att.Id;
-            manualDate = att.ClockInTime!.Value.Date;
-            manualInTime = att.ClockInTime.Value.ToString("HH:mm");
-            manualOutTime = att.ClockOutTime!.Value.ToString("HH:mm");
+            manualDate = att.ClockInTime ?? DateTime.Today; // تاریخ ورود مبنا قرار می‌گیرد
+
+            // 🟢 فیکس باگ ویرایش: استخراج فرمت دقیق ساعت و دقیقه ورود و خروج بدون نشت تاریخ
+            manualInTime = att.ClockInTime.HasValue ? att.ClockInTime.Value.ToString("HH:mm") : "07:00";
+            manualOutTime = att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "17:30";
+
+            showManualAddModal = true;
         }
+
 
         protected void CancelAttEdit()
         {
@@ -535,36 +591,68 @@ namespace sqlite_web.Components.Pages
 
             await InvokeAsync(StateHasChanged);
         }
-
         /// <summary>
-        /// 🧮 متد پیشرفته محاسبه دقیق ساعات موظف (۷:۰۰ تا ۱۷:۳۰) و مجموع اضافه کاری (بعد از ۱۷:۳۰)
+        /// 🧮 موتور هوشمند محاسبه کارکرد بر اساس تنظیمات پویا دیتابیس و تفکیک کامل روزهای تعطیل هفته
         /// </summary>
         private void CalculateFilteredHours(int employeeId)
         {
             if (string.IsNullOrEmpty(SelectedMonthFilter)) return;
 
             var parts = SelectedMonthFilter.Split('-');
-            int targetYear = int.Parse(parts[0]); // 🟢 فیکس ایندکس سال
-            int targetMonth = int.Parse(parts[1]); // 🟢 فیکس ایندکس ماه
+            int targetYear = int.Parse(parts[0]);
+            int targetMonth = int.Parse(parts[1]);
 
             var monthlyRecords = allAttendances
-                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue && a.ClockOutTime.HasValue && a.ClockInTime.Value.Year == targetYear && a.ClockInTime.Value.Month == targetMonth).ToList();
+                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue && a.ClockOutTime.HasValue
+                       && a.ClockInTime.Value.Year == targetYear && a.ClockInTime.Value.Month == targetMonth).ToList();
 
             double totalRegularMinutes = 0;
             double totalOvertimeMinutes = 0;
 
+            // واکشی پارامترهای زنده از تنظیمات سرور
+            var settings = AdminState.CurrentSettings;
+            TimeSpan regStart = TimeSpan.Parse(settings.RegularStartTime); // 07:00
+            TimeSpan regEnd = TimeSpan.Parse(settings.RegularEndTime);     // 17:30
+            var offDaysList = settings.OffDaysOfWeek.Split(',').ToList();
+
             foreach (var rec in monthlyRecords)
             {
                 DateTime clockIn = rec.ClockInTime!.Value;
-                DateTime clockOut = rec.ClockOutTime!.Value;
-                DateTime overtimeThreshold = clockIn.Date.AddHours(17).AddMinutes(30); // مرز کاری ۱۷:۳۰ عصر
+                DateTime clockOut = rec.ClockOutTime!.Value; // 🟢 حفظ کامل ساختار تاریخ و ساعت خروج
 
-                if (clockIn < overtimeThreshold)
+                // 🎯 شرط اول: اگر روز تردد جزو روزهای تعطیل هفته (مثلا شنبه یا یکشنبه) باشد، کل کارکرد اضافه کاری است
+                if (offDaysList.Contains(clockIn.DayOfWeek.ToString()))
                 {
-                    if (clockOut <= overtimeThreshold) totalRegularMinutes += (clockOut - clockIn).TotalMinutes;
-                    else { totalRegularMinutes += (overtimeThreshold - clockIn).TotalMinutes; totalOvertimeMinutes += (clockOut - overtimeThreshold).TotalMinutes; }
+                    totalOvertimeMinutes += (clockOut - clockIn).TotalMinutes;
+                    continue;
                 }
-                else totalOvertimeMinutes += (clockOut - clockIn).TotalMinutes;
+
+                // 🎯 شرط دوم: تفکیک بازه موظفی و اضافه کاری در روزهای عادی هفته
+                DateTime regularStartThreshold = clockIn.Date.Add(regStart);
+                DateTime regularEndThreshold = clockIn.Date.Add(regEnd);
+
+                // محاسبه زمان قبل از ساعت موظفی (اضافه کاری صبح)
+                if (clockIn < regularStartThreshold)
+                {
+                    var endOfEarlyOvertime = clockOut < regularStartThreshold ? clockOut : regularStartThreshold;
+                    totalOvertimeMinutes += (endOfEarlyOvertime - clockIn).TotalMinutes;
+                }
+
+                // محاسبه زمان داخل بازه موظفی (ساعات کارکرد عادی)
+                DateTime effectiveIn = clockIn < regularStartThreshold ? regularStartThreshold : clockIn;
+                DateTime effectiveOut = clockOut > regularEndThreshold ? regularEndThreshold : clockOut;
+
+                if (effectiveIn < effectiveOut)
+                {
+                    totalRegularMinutes += (effectiveOut - effectiveIn).TotalMinutes;
+                }
+
+                // محاسبه زمان بعد از ساعت موظفی (اضافه کاری عصر و شب با حفظ تاریخ خروج)
+                if (clockOut > regularEndThreshold)
+                {
+                    DateTime effectiveOvertimeStart = clockIn > regularEndThreshold ? clockIn : regularEndThreshold;
+                    totalOvertimeMinutes += (clockOut - effectiveOvertimeStart).TotalMinutes;
+                }
             }
 
             int regHours = (int)(totalRegularMinutes / 60);
@@ -575,8 +663,141 @@ namespace sqlite_web.Components.Pages
             int overMins = (int)(totalOvertimeMinutes % 60);
             TotalOvertimeHours = $"{overHours:00}:{overMins:00}";
         }
+        /// <summary>
+        /// 🟢 متد ثبت ورود سریع پرسنل از طریق پنل ادمین در دیتابیس SQLite
+        /// </summary>
+        protected async Task StartAttendanceNow(int employeeId)
+        {
+            try
+            {
+                // ایجاد یک رکورد تردد جدید با ساعت و تاریخ فعلی سرور
+                var newAttendance = new Attendance
+                {
+                    EmployeeId = employeeId,
+                    ClockInTime = DateTime.Now,
+                    ClockOutTime = null
+                };
 
-        // 🟢 تراز قطعی امضای متد با لایه فرانت رازور جهت صفر شدن ارور CS0103
+                DbContext.Attendances.Add(newAttendance);
+                await DbContext.SaveChangesAsync(); // ذخیره فیزیکی در دیتابیس
+
+                await RefreshDataAsync(); // تازه‌سازی آنی لیست پرسنل و وضعیت جدول
+                AdminState.FeedbackMessage = "🟢 وضعیت ورود کارمند با موفقیت و به صورت زنده ثبت شد.";
+            }
+            catch (Exception ex)
+            {
+                AdminState.FeedbackMessage = $"❌ خطا در ثبت ورود: {ex.Message}";
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+        /// <summary>
+        /// 🛑 متد ثبت خروج سریع پرسنل و مهار تاریخ روز خروج در دیتابیس SQLite
+        /// </summary>
+        protected async Task StopAttendanceNow(int attendanceId)
+        {
+            try
+            {
+                // واکشی رکورد تردد باز کارمند جهت بستن ساعت خروج
+                var attendance = await DbContext.Attendances.FindAsync(attendanceId);
+                if (attendance != null)
+                {
+                    // 🟢 فیکس اصولی باگ: ثبت کامل تاریخ روز به همراه ساعت و دقیقه خروج فعلی
+                    attendance.ClockOutTime = DateTime.Now;
+
+                    DbContext.Attendances.Update(attendance);
+                    await DbContext.SaveChangesAsync();
+
+                    await RefreshDataAsync(); // رفرش خودکار وضعیت فرانت صفحه
+                    AdminState.FeedbackMessage = "🛑 وضعیت خروج کارمند با موفقیت و با حفظ کامل تاریخ ثبت شد.";
+                }
+            }
+            catch (Exception ex)
+            {
+                AdminState.FeedbackMessage = $"❌ خطا در ثبت خروج: {ex.Message}";
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+
+        /// <summary>
+        /// 🗑️ متد حذف فیزیکی پرونده کارمند و ابطال تمام رکوردهای تردد او از SQLite
+        /// </summary>
+        protected async Task TriggerDelete(int employeeId, string fullName)
+        {
+            try
+            {
+                // ۱. واکشی کارمند از جدول کارمندان
+                var employee = await DbContext.Employees.FindAsync(employeeId);
+                if (employee != null)
+                {
+                    // ۲. حذف موازی تمام رکوردهای تردد ثبت شده برای این کارمند جهت حفظ یکپارچگی (Cascade Delete)
+                    var empAttendances = DbContext.Attendances.Where(a => a.EmployeeId == employeeId);
+                    DbContext.Attendances.RemoveRange(empAttendances);
+
+                    // ۳. حذف فیزیکی خود پرونده کارمند
+                    DbContext.Employees.Remove(employee);
+                    await DbContext.SaveChangesAsync();
+
+                    await RefreshDataAsync(); // تازه‌سازی فوری جدول ادمین‌پنل
+                    AdminState.FeedbackMessage = $"🗑️ پرونده پرسنلی «{fullName}» به همراه کلیه سوابق تردد او با موفقیت حذف گردید.";
+                }
+            }
+            catch (Exception ex)
+            {
+                AdminState.FeedbackMessage = $"❌ خطا در حذف پرونده: {ex.Message}";
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+
+        /// <summary>
+        /// متد باز کردن پاپ‌آپ تنظیمات سرور و بارگذاری مقادیر زنده از دیتابیس SQLite
+        /// </summary>
+        protected void OpenSettingsModal()
+        {
+            if (!canEditPerm || !AdminState.isCurrentUserSuperAdmin) return;
+
+            CloseAllMobileDropdowns();
+
+            // واکشی مشخصات زنده از لایه سرویس متمرکز شما
+            var current = AdminState.CurrentSettings;
+            settingsStartTime = current.RegularStartTime;
+            settingsEndTime = current.RegularEndTime;
+
+            // تبدیل رشته کاما دار دیتابیس به لیست سی‌شارپ جهت فعال‌سازی چک‌باکس‌ها
+            selectedOffDays = current.OffDaysOfWeek.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+
+            showSettingsModal = true;
+        }
+
+        /// <summary>
+        /// متد ذخیره نهایی پارامترهای جدید محاسباتی در سرور و بستن مودال
+        /// </summary>
+        protected async Task SaveSettingsData()
+        {
+            bool success = await AdminState.SaveWorkSettingsAsync(settingsStartTime, settingsEndTime, selectedOffDays);
+            if (success)
+            {
+                showSettingsModal = false;
+                // آپدیت آنی بنر فیدبک سرویس جهت نمایش آلرت سبز موفقیت در بالای پنل
+                AdminState.FeedbackMessage = "✅ قوانین محاسباتی ساعات موظفی و روزهای تعطیل هفته با موفقیت در سرور به‌روزرسانی شد.";
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+
+        // متد مدیریت روشن/خاموش کردن چک‌باکس روزهای هفته
+        protected void ToggleOffDaySelection(string dayName, object? checkedValue)
+        {
+            bool isChecked = checkedValue is bool b && b;
+            if (isChecked)
+            {
+                if (!selectedOffDays.Contains(dayName)) selectedOffDays.Add(dayName);
+            }
+            else
+            {
+                if (selectedOffDays.Contains(dayName)) selectedOffDays.Remove(dayName);
+            }
+        }
+
+        // 🟢 تراز قطعی امضای متد با لایه فرانت رازور
         protected void OpenReportModal(Employee emp)
         {
             selectedEmployee = emp;

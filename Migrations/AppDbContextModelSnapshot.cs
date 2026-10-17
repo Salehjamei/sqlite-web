@@ -64,6 +64,29 @@ namespace sqlite_web.Migrations
                     b.ToTable("Admins");
                 });
 
+            modelBuilder.Entity("sqlite_web.Components.Models.Admin.WorkSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OffDaysOfWeek")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RegularEndTime")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RegularStartTime")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("WorkSettings");
+                });
+
             modelBuilder.Entity("sqlite_web.Components.Models.Attendance", b =>
                 {
                     b.Property<int>("Id")

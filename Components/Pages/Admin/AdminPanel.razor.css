@@ -211,3 +211,26 @@ html body .navbar-system {
         }
     }
 }
+/* =========================================================================
+   🔝 ارتقای Z-Index بنر پیغام‌های سیستم جهت قرارگیری روی تمامی مودال‌ها
+   ========================================================================= */
+.alert-dismissible {
+    position: relative !important;
+    /* اختصاص بالاترین رتبه لایه‌ای برای عبور از پس‌زمینه تیره و بدنه مودال‌ها */
+    z-index: 999999 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px 35px 10px 12px !important;
+    margin: 0 auto 12px auto !important;
+    word-break: break-word !important;
+    /* ایجاد یک سایه ملایم جهت تفکیک بصری کامل روی مودال‌های سفید رنگ */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* بهینه‌سازی کانتینر آلرت در صورت استفاده در گرید سیستم شما */
+.row .alert {
+    position: relative !important;
+    z-index: 999999 !important;
+}
+

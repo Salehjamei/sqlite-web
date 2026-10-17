@@ -14,5 +14,6 @@ namespace sqlite_web
         public DbSet<Employee> Employees { get; set; }// جدول جدید کارمندان
         public DbSet<Attendance> Attendances { get; set; } //کلاس ورودو خروج
         public DbSet<AdminUser> Admins { get; set; }
+        public DbSet<WorkSettings> WorkSettings { get; set; }
     }    
 }

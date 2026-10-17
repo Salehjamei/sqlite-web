@@ -39,25 +39,37 @@
                 <div class="input-group input-group-sm shadow-sm flex-grow-1 flex-md-grow-0" style="max-width: 280px;">
                     <span class="input-group-text bg-dark text-white" style="font-size: 11px; font-weight: bold; padding: 4px 8px;">🔍 جستجو:</span>
                     <input type="text" class="form-control form-control-sm text-right"
-                           placeholder="نام پرسنل یا کد ملی..."
+                           placeholder="نام یا کد ملی..."
                            @bind="SearchQuery" @bind:event="oninput" style="font-family: Tahoma; font-size: 11.5px; height: 30px;" />
                 </div>
 
                 @* دکمه افزودن پرسنل جدید *@
-                <div style="text-align: left !important;">
-                    @if (canAddPerm)
+                @* کانتینر دکمه‌های ابزارها: سوپر ادمین به هر دو دکمه دسترسی کامل دارد *@
+                <div class="d-flex gap-2 text-left" style="text-align: left !important;">
+
+                    @* 🛠️ دکمه چرخ‌دنده تنظیمات محاسباتی ساعات کاری (منحصراً برای سوپر ادمین) *@
+                    @if (AdminState.isCurrentUserSuperAdmin)
                     {
-                        <button type="button" class="btn btn-sm btn-success fw-bold" @onclick="OpenAddEmployeeModal" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
+                        <button type="button" class="btn btn-sm btn-dark fw-bold shadow-sm" @onclick="OpenSettingsModal" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
+                            ⚙️ تنظیمات کاری
+                        </button>
+                    }
+
+                    @* ➕ اصلاح منطق: دکمه پرسنل جدید برای سوپر ادمین یا افراد دارای مجوز فعال است *@
+                    @if (AdminState.isCurrentUserSuperAdmin || canAddPerm)
+                    {
+                        <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm" @onclick="OpenAddEmployeeModal" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
                             ➕ پرسنل جدید
                         </button>
                     }
                     else
                     {
-                        <button type="button" disabled class="btn btn-sm btn-secondary fw-bold" title="شما مجوز ندارید" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
+                        <button type="button" disabled class="btn btn-sm btn-secondary fw-bold shadow-sm" title="شما مجوز ندارید" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
                             🔒 پرسنل جدید
                         </button>
                     }
                 </div>
+
 
             </div>
         </div>
@@ -67,102 +79,104 @@
             <div class="col-md-12 mb-4 p-0">
                 <div class="card shadow-sm border-0" style="border-radius: 8px; overflow: visible;">
                     <div class="table-responsive" style="border: none !important; overflow-x: auto; position: relative;">
-                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; table-layout: fixed; border-collapse: separate;">
-
-                            @* 🎯 فیکس نهایی: بولد شدن متون هدر و اصلاح پهنای ستون‌ها برای باز شدن فضا جهت ستون نام *@
-                            <thead class="table-light text-dark" style="font-weight: bold !important;">
-                                <tr style="font-weight: bold !important;">
-                                    <th style="width: 50px; font-size: 11.5px; padding: 6px 2px; font-weight: bold !important;">📸 عکس</th>
-                                    @* 🎯 با حذف تعیین عرض فیزیکی از ستون نام، این بخش حداکثر فضای دسکتاپ را به خود اختصاص داده و بزرگ می‌شود *@
-                                    <th style="text-align: right; padding-right: 10px; font-size: 11.5px; font-weight: bold !important;">نام پرسنل</th>
-                                    @* 🟢 فشرده کردن عرض کدملی و شماره تماس در دسکتاپ برای مهار باگ ریز شدن نام کارمندان *@
-                                    <th class="d-none d-md-table-cell" style="width: 105px; font-size: 11.5px; font-weight: bold !important;">🪪 کد ملی</th>
-                                    <th class="d-none d-md-table-cell" style="width: 100px; font-size: 11.5px; font-weight: bold !important;">📱 شماره تماس</th>
-                                    <th style="width: 105px; font-size: 11.5px; font-weight: bold !important;">کارنامه تفکیکی</th>
-                                    <th class="d-none d-md-table-cell" style="width: 115px; font-size: 11.5px; font-weight: bold !important;">وضعیت / تردد سریع</th>
-                                    <th class="d-none d-md-table-cell" style="width: 85px; font-size: 11.5px; font-weight: bold !important;">عملیات پرونده</th>
-                                    <th class="d-md-none" style="width: 90px; font-size: 11.5px; padding: 6px 2px; font-weight: bold !important;">⚡ عملیات</th>
+                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; border-collapse: separate; background-color: #ffffff;">
+                            <thead class="table-light text-dark">
+                                <tr class="fw-bold" style="font-weight: bold !important; background-color: #f8f9fa;">
+                                    <th style="width: 55px; font-size: 12px; padding: 8px 2px; font-weight: bold !important;">عکس</th>
+                                    @* 🟢 فیکس ساختار: تخصیص عرض ۲۵ درصدی به ستون نام جهت باز شدن فضا برای کدملی و شماره تماس *@
+                                    <th style="text-align: right; padding-right: 12px; font-size: 12px; font-weight: bold !important; width: 25%;">نام و نام خانوادگی</th>
+                                    <th class="d-none d-md-table-cell" style="width: 110px; font-size: 12px; font-weight: bold !important;">کد ملی</th>
+                                    <th class="d-none d-md-table-cell" style="width: 120px; font-size: 12px; font-weight: bold !important;">شماره تماس</th>
+                                    <th style="width: 105px; font-size: 12px; font-weight: bold !important;">کارنامه تفکیکی</th>
+                                    <th class="d-none d-md-table-cell" style="width: 125px; font-size: 12px; font-weight: bold !important;">وضعیت / تردد سریع</th>
+                                    <th class="d-none d-md-table-cell" style="width: 95px; font-size: 12px; font-weight: bold !important;">عملیات پرونده</th>
+                                    <th class="d-md-none" style="width: 85px; font-size: 12px; padding: 8px 2px; font-weight: bold !important;">عملیات</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @if (employees != null && employees.Any())
+                                @if (FilteredEmployees != null && FilteredEmployees.Any())
                                 {
-                                    @* تغییر نام لیست از employees به FilteredEmployees *@
-                                    foreach (var emp in FilteredEmployees)
+                                    @foreach (var emp in FilteredEmployees)
                                     {
-                                        var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
-                                        var lastRec = empRecords.LastOrDefault(a => a.ClockInTime >= DateTime.Today);
+                                        var todayRecords = allAttendances.Where(a => a.EmployeeId == emp.Id && a.ClockInTime >= DateTime.Today).ToList();
+                                        var lastRec = todayRecords.LastOrDefault();
                                         bool isPresent = lastRec != null && lastRec.ClockOutTime == null;
 
-                                        <tr style="@(isPresent ? "box-shadow: inset 0 0 0 2px #28a745 !important; background-color: rgba(40, 167, 69, 0.04) !important;" : "")">
-                                            <td style="padding: 4px 2px; position: relative;">
+                                        <tr>
+                                            <td style="padding: 4px 2px; text-align: center;">
                                                 @if (!string.IsNullOrEmpty(emp.ImagePath))
                                                 {
-                                                    <img src="@emp.ImagePath" class="rounded-circle border shadow-sm" style="width: 32px; height: 32px; object-fit: cover;" />
+                                                    <img src="@emp.ImagePath" class="rounded-circle border shadow-sm" style="width: 30px; height: 32px; object-fit: cover;" />
                                                 }
                                                 else
                                                 {
-                                                    <div class="rounded-circle border bg-light d-inline-flex align-items-center justify-content-center text-muted fw-bold" style="width: 32px; height: 32px; font-size: 13px;">👤</div>
-                                                }
-
-                                                @if (isPresent)
-                                                {
-                                                    <span style="position: absolute; bottom: 3px; left: 3px; width: 10px; height: 10px; background-color: #28a745; border: 2px solid white; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #28a745;"></span>
+                                                    <div class="rounded-circle border bg-light d-inline-flex align-items-center justify-content-center text-muted fw-bold" style="width: 30px; height: 32px; font-size: 12px;">👤</div>
                                                 }
                                             </td>
-                                            @* 🎯 با حذف عرض پیکسلی از این ستون، نام پرسنل کش می‌آید و تمام فضای خالی دسکتاپ را پر می‌کند *@
-                                            <td style="text-align: right; padding-right: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                                <strong style="font-size: 12.5px;">@emp.FullName</strong>
+
+                                            <td style="text-align: right; padding-right: 12px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                <strong style="color: #212529;">
+                                                    @(emp.FullName?.Length > 40 ? emp.FullName.Substring(0, 37) + "..." : emp.FullName)
+                                                </strong>
                                             </td>
 
-                                            @* 🟢 رندر زنده مقدار ویژگی PersonnelCode دسکتاپ *@
-                                            <td class="d-none d-md-table-cell text-dark" style="font-size: 13px; font-weight: bold; font-family: Tahoma, Arial !important;">
-                                                @(string.IsNullOrEmpty(emp.PersonnelCode) ? "-" : emp.PersonnelCode)
+                                            <td class="d-none d-md-table-cell text-dark" style="font-size: 12.5px; font-weight: bold; font-family: Tahoma, Arial !important;">
+                                                @{
+                                                    var pCode = emp.PersonnelCode ?? "-";
+                                                    var cleanCode = pCode.Length > 10 ? pCode.Substring(0, 10) : pCode;
+                                                }
+                                                @cleanCode
                                             </td>
 
-
-                                            <td class="d-none d-md-table-cell text-primary fw-bold" style="font-size: 12.5px;">
-                                                @(string.IsNullOrEmpty(emp.Phone) ? "-" : emp.Phone)
+                                            <td class="d-none d-md-table-cell text-muted" style="font-size: 12px; font-family: Tahoma, Arial !important;">
+                                                @{
+                                                    var phone = emp.Phone ?? "-";
+                                                    var cleanPhone = phone.Length > 15 ? phone.Substring(0, 15) : phone;
+                                                }
+                                                @cleanPhone
                                             </td>
 
                                             <td style="padding: 4px 2px;">
-                                                <button type="button" @onclick="() => { CloseAllMobileDropdowns(); OpenReportModal(emp); }" class="btn btn-info btn-xs fw-bold text-white px-2" style="font-size: 10.5px; padding: 2px 5px; border-radius: 4px;">📊 کارنامه</button>
+                                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold px-2" style="font-size: 11px; padding: 3px 6px;" @onclick="() => OpenReportModal(emp)">
+                                                    کارنامه
+                                                </button>
                                             </td>
 
                                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
                                                 @if (isPresent)
                                                 {
-                                                    <button type="button" disabled="@(!canEditPerm)" @onclick="() => StopAttendanceNow(lastRec!.Id)" class="btn btn-danger btn-xs fw-bold px-2" style="font-size: 10.5px; padding: 2px 5px; border-radius: 4px;">🛑 توقف تردد</button>
+                                                    <button type="button" class="btn btn-danger btn-sm fw-bold py-1 w-100" style="font-size: 11px; max-width: 110px; border-radius: 4px;" @onclick="() => StopAttendanceNow(lastRec!.Id)">ثبت خروج</button>
                                                 }
                                                 else
                                                 {
-                                                    <button type="button" disabled="@(!canEditPerm)" @onclick="() => ForcePresent(emp.Id)" class="btn btn-outline-success btn-xs fw-bold px-2" style="font-size: 10.5px; padding: 2px 5px; border-radius: 4px;">🟢 حاضر کردن</button>
+                                                    <button type="button" class="btn btn-success btn-sm fw-bold py-1 w-100" style="font-size: 11px; max-width: 110px; border-radius: 4px;" @onclick="() => StartAttendanceNow(emp.Id)">ثبت ورود</button>
                                                 }
                                             </td>
+
+                                            @* ✏️ ۷. اتصال دکمه دسکتاپ به متد تصحیح‌شده بارگذاری مشخصات کارمند جهت ویرایش *@
                                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
-                                                <button type="button" disabled="@(!canEditPerm)" class="btn btn-sm text-warning p-0 me-2" @onclick="() => StartEmpEdit(emp)" title="ویرایش" style="font-size: 13px;">✏️</button>
-                                                <button type="button" disabled="@(!canDeletePerm)" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)" title="حذف" style="font-size: 13px;">🗑️</button>
+                                                <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => StartEmpEdit(emp)" title="ویرایش">✏️</button>
+                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDelete(emp.Id, emp.FullName)" title="حذف">🗑️</button>
                                             </td>
 
                                             <td class="d-md-none" style="padding: 4px 2px; position: relative;">
-                                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10.5px; padding: 2px 6px;" @onclick="() => ToggleMobileMenuDropdown(emp.Id)" @onclick:stopPropagation>
-                                                    ⚙️ عملیات
-                                                </button>
-
+                                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10.5px; padding: 2px 6px;" @onclick="() => ToggleMobileMenuDropdown(emp.Id)" @onclick:stopPropagation>عملیات</button>
                                                 @if (ActiveMobileDropdownId == emp.Id)
                                                 {
-                                                    <div style="position: absolute; top: 100%; left: 0; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999999 !important; min-width: 145px; padding: 4px 0; text-align: right;" @onclick:stopPropagation>
+                                                    <div style="position: absolute; top: 100%; left: 0; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999999 !important; min-width: 150px; padding: 4px 0; text-align: right;" @onclick:stopPropagation>
+                                                        @* ✏️ اتصال گزینه موبایل به متد تصحیح‌شده بارگذاری مشخصات کارمند جهت ویرایش *@
+                                                        <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => StartEmpEdit(emp)">ویرایش مشخصات</button>
+
                                                         @if (isPresent)
                                                         {
-                                                            <button type="button" disabled="@(!canEditPerm)" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick='() => HandleMobileActionChanged("STOP_ATT", emp, lastRec!.Id)'>🛑 توقف تردد</button>
+                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => StopAttendanceNow(lastRec!.Id)">ثبت خروج پرسنل</button>
                                                         }
                                                         else
                                                         {
-                                                            <button type="button" disabled="@(!canEditPerm)" class="dropdown-item text-success fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick='() => HandleMobileActionChanged("START_ATT", emp, 0)'>🟢 حاضر کردن</button>
+                                                            <button type="button" class="dropdown-item text-success fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => StartAttendanceNow(emp.Id)">ثبت ورود سریع</button>
                                                         }
                                                         <div class="dropdown-divider m-1"></div>
-                                                        <button type="button" disabled="@(!canEditPerm)" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick='() => HandleMobileActionChanged("EDIT_EMP", emp, 0)'>✏️ ویرایش پرونده</button>
-                                                        <button type="button" disabled="@(!canDeletePerm)" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick='() => HandleMobileActionChanged("DELETE_EMP", emp, 0)'>🗑️ حذف کارمند</button>
+                                                        <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDelete(emp.Id, emp.FullName)">حذف پرونده</button>
                                                     </div>
                                                 }
                                             </td>
@@ -175,6 +189,7 @@
                                 }
                             </tbody>
                         </table>
+
                     </div>
 
                 </div>
@@ -357,7 +372,6 @@
                 </div>
             </div>
         }
-
         @* 🔒 مودال تعاملی برای ثبت و ویرایش کارمند همراه با تصویر *@
         @if (showEmpFormModal)
         {
@@ -374,22 +388,22 @@
 
                             <div class="mb-2">
                                 <label class="form-label text-muted small mb-1">نام و نام خانوادگی:</label>
-                                <input type="text" @bind="newEmpName" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" />
+                                <input type="text" maxlength="40" @bind="newEmpName" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" />
                             </div>
 
                             <div class="mb-2">
                                 <label class="form-label text-muted small mb-1">کد ملی (۱۰ رقم):</label>
-                                <input type="number" @bind="newEmpCode" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" />
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="10" @bind="newEmpCode" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" />
                             </div>
 
                             <div class="mb-2">
-                                <label class="form-label text-muted small mb-1">شماره تماس پرسنل:</label>
-                                <input type="text" maxlength="15" @bind="newEmpPhone" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm text-center" placeholder="09123456789" />
+                                <label class="form-label text-muted small mb-1">شماره تماس:</label>
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="15" @bind="newEmpPhone" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm text-center" placeholder="0912-000-0000" />
                             </div>
 
                             @* 📸 کادر بارگذاری و پیش‌نمایش زنده عکس پرسنل *@
                             <div class="mb-3">
-                                <label class="form-label text-muted small mb-1">آپلود عکس پرسنلی کارمند:</label>
+                                <label class="form-label text-muted small mb-1">آپلود عکس:</label>
                                 <InputFile OnChange="HandleImageUpload" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" accept=".jpg,.jpeg,.png" />
 
                                 @if (!string.IsNullOrEmpty(previewImageUrl))
@@ -410,6 +424,92 @@
                                     <button type="submit" disabled="@(!canAddPerm)" class="btn btn-success btn-sm flex-grow-1 fw-bold">💾 ذخیره اطلاعات</button>
                                 }
                                 <button type="button" @onclick="CloseEmpFormModal" class="btn btn-secondary btn-sm">انصراف</button>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+        @* 🛠️ ۲. مودال تعاملی، لایه‌ای و تفکیک شده تنظیمات قوانین کاری و محاسبات سرور *@
+        @if (showSettingsModal)
+        {
+            @* بک‌دراپ تیره مهار کلیک بیرون: لمس این فضا مودال تنظیمات را فوراً غیب می‌کند *@
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2005 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="() => showSettingsModal = false">
+
+                @* بدنه سفید مودال: استاپ پروپاگیشن مانع از بسته شدن ناخواسته فرم هنگام انتخاب گزینه‌ها می‌شود *@
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 440px !important; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation>
+
+                    <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
+                        <h5 class="m-0" style="font-size: 14px; font-weight: bold;">⚙️ تنظیمات قوانین کاری و محاسبات سرور</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="() => showSettingsModal = false"></button>
+                    </div>
+
+                    <div class="p-3 text-right" style="direction: rtl; text-align: right; font-family: Tahoma;">
+                        <form @onsubmit="SaveSettingsData" @onsubmit:preventDefault>
+
+                            @* بخش اول: تعیین دقیق بازه فیزیکی ساعات موظفی پرسنل *@
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label text-muted small mb-1">⏱️ شروع ساعت موظفی:</label>
+                                    <input type="text" @bind="settingsStartTime" class="form-control form-control-sm text-center font-monospace" placeholder="07:00" style="font-size: 13px;" />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label text-muted small mb-1">⏱️ پایان ساعت موظفی:</label>
+                                    <input type="text" @bind="settingsEndTime" class="form-control form-control-sm text-center font-monospace" placeholder="17:30" style="font-size: 13px;" />
+                                </div>
+                            </div>
+
+                            <div class="border-top pt-2 mb-2">
+                                <h6 class="fw-bold text-dark mb-2" style="font-size: 12px;">📅 تعیین روزهای تعطیل هفته (۱۰۰٪ اضافه کاری):</h6>
+                            </div>
+                            @* بخش ب: چک‌باکس‌های ۷ روز هفته جهت تعیین روزهای تعطیل سیستم *@
+                            <div class="p-2.5 border rounded bg-light mb-3">
+                                <div class="row g-2">
+
+                                    <div class="col-6">
+                                        <div class="form-check mb-1">
+                                            <input class="form-check-input" type="checkbox" id="offSat" checked="@selectedOffDays.Contains("Saturday")" @onchange='(e) => ToggleOffDaySelection("Saturday", e.Value)' />
+                                            <label class="form-check-label small pr-1" for="offSat">شنبه (Saturday)</label>
+                                        </div>
+                                        <div class="form-check mb-1">
+                                            <input class="form-check-input" type="checkbox" id="offSun" checked="@selectedOffDays.Contains("Sunday")" @onchange='(e) => ToggleOffDaySelection("Sunday", e.Value)' />
+                                            <label class="form-check-label small pr-1" for="offSun">یکشنبه (Sunday)</label>
+                                        </div>
+                                        <div class="form-check mb-1">
+                                            <input class="form-check-input" type="checkbox" id="offMon" checked="@selectedOffDays.Contains("Monday")" @onchange='(e) => ToggleOffDaySelection("Monday", e.Value)' />
+                                            <label class="form-check-label small pr-1" for="offMon">دوشنبه (Monday)</label>
+                                        </div>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input" type="checkbox" id="offTue" checked="@selectedOffDays.Contains("Tuesday")" @onchange='(e) => ToggleOffDaySelection("Tuesday", e.Value)' />
+                                            <label class="form-check-label small pr-1" for="offTue">سه‌شنبه (Tuesday)</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-6">
+                                        <div class="form-check mb-1">
+                                            <input class="form-check-input" type="checkbox" id="offWed" checked="@selectedOffDays.Contains("Wednesday")" @onchange='(e) => ToggleOffDaySelection("Wednesday", e.Value)' />
+                                            <label class="form-check-label small pr-1" for="offWed">چهارشنبه (Wednesday)</label>
+                                        </div>
+                                        <div class="form-check mb-1">
+                                            <input class="form-check-input" type="checkbox" id="offThu" checked="@selectedOffDays.Contains("Thursday")" @onchange='(e) => ToggleOffDaySelection("Thursday", e.Value)' />
+                                            <label class="form-check-label small pr-1" for="offThu">پنج‌شنبه (Thursday)</label>
+                                        </div>
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input" type="checkbox" id="offFri" checked="@selectedOffDays.Contains("Friday")" @onchange='(e) => ToggleOffDaySelection("Friday", e.Value)' />
+                                            <label class="form-check-label small pr-1" for="offFri">جمعه (Friday)</label>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            @* دکمه‌های فرم عملیاتی ذخیره در سرور دیتابیس *@
+                            <div class="d-flex gap-2 mt-2 border-top pt-3">
+                                <button type="submit" class="btn btn-dark text-warning btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">
+                                    💾 ذخیره تنظیمات در سرور
+                                </button>
+                                <button type="button" @onclick="() => showSettingsModal = false" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">انصراف</button>
                             </div>
 
                         </form>

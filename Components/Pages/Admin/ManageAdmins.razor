@@ -15,18 +15,20 @@
     }
     else if (AdminState.IsChecked && AdminState.isCurrentUserSuperAdmin)
     {
-        @* 🔔 فیکس باگ آلرت: دایو پیغام سیستم کاملاً ریسپانسیو و متناسب با تبلت، موبایل و ویندوز تراز شد *@
+        @* 🔔 دایو پیغام سیستم کاملاً ریسپانسیو و متناسب با تبلت، موبایل و ویندوز تراز *@
+        @* 🔔 بنر هوشمند پیغام‌های سیستم مجهز به مفسر لایو کدهای رنگی HTML *@
         @if (!string.IsNullOrEmpty(AdminState.FeedbackMessage))
         {
             <div class="row m-0 mb-3 px-1">
                 <div class="col-12 p-0">
                     <div class="alert @(AdminState.FeedbackMessage.Contains("❌") ? "alert-danger" : "alert-success") alert-dismissible fade show text-center fw-bold shadow-sm m-0" role="alert" style="font-size: calc(11px + 0.2vw); padding: 10px 35px 10px 10px; border-radius: 6px; width: 100%;">
-                        @AdminState.FeedbackMessage
+                        @((MarkupString)AdminState.FeedbackMessage)
                         <button type="button" class="btn-close" style="padding: 13px 10px;" @onclick="() => AdminState.FeedbackMessage = string.Empty"></button>
                     </div>
                 </div>
             </div>
         }
+
 
         @* ➕ ردیف ابزارها: تغییر ابعاد داینامیک عنوان صفحه و چسبیدن به سقف هدر *@
         <div class="row m-0 mb-3 align-items-center g-2" style="padding-left: 4px; padding-right: 4px; margin-top: -6px !important;">
@@ -59,18 +61,18 @@
             <div class="col-md-12 mb-4 p-0">
                 <div class="card shadow-sm border-0" style="border-radius: 8px; overflow: visible;">
                     <div class="table-responsive" style="border: none !important; overflow-x: auto; position: relative;">
-                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; border-collapse: separate;">
+                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; border-collapse: separate; background-color: #ffffff;">
                             <thead class="table-light text-dark">
-                                <tr class="fw-bold" style="font-weight: bold !important;">
-                                    <th style="text-align: right; padding-right: 10px; font-size: 11.5px; font-weight: bold !important; min-width: 95px;">نام کاربری مدیر</th>
-                                    <th style="width: 100px; font-size: 11.5px; font-weight: bold !important;">نوع دسترسی</th>
-                                    <th class="d-none d-md-table-cell" style="width: 115px; font-size: 11.5px; font-weight: bold !important;">🔒 وضعیت حساب</th>
-                                    <th class="d-none d-md-table-cell" style="width: 125px; font-size: 11.5px; font-weight: bold !important;">🔑 توکن زنده عملیاتی</th>
-                                    @* 🟢 اضافه شدن هدر ستون جدید تاریخ انقضای توکن مخصوص دسکتاپ و تبلت *@
-                                    <th class="d-none d-md-table-cell" style="width: 130px; font-size: 11.5px; font-weight: bold !important;">⏳ انقضای توکن</th>
-                                    <th style="width: 90px; font-size: 11.5px; font-weight: bold !important;">وضعیت سشن</th>
-                                    <th class="d-none d-md-table-cell" style="width: 95px; font-size: 11.5px; font-weight: bold !important;">عملیات پرونده</th>
-                                    <th class="d-md-none" style="width: 90px; font-size: 11.5px; padding: 6px 2px; font-weight: bold !important;">⚡ عملیات</th>
+                                <tr class="fw-bold" style="font-weight: bold !important; background-color: #f8f9fa;">
+                                    @* 🟢 تراز هندسی دقیق: اختصاص ۲۵٪ عرض جدول به ستون نام کاربری جهت یکسان‌سازی با پنل پرسنل *@
+                                    <th style="text-align: right; padding-right: 12px; font-size: 12px; font-weight: bold !important; width: 25%;">نام کاربری مدیر</th>
+                                    <th style="width: 100px; font-size: 12px; font-weight: bold !important;">نوع دسترسی</th>
+                                    <th class="d-none d-md-table-cell" style="width: 115px; font-size: 12px; font-weight: bold !important;">وضعیت حساب</th>
+                                    <th class="d-none d-md-table-cell" style="width: 125px; font-size: 12px; font-weight: bold !important;">توکن زنده عملیاتی</th>
+                                    <th class="d-none d-md-table-cell" style="width: 130px; font-size: 12px; font-weight: bold !important;">انقضای توکن</th>
+                                    <th style="width: 90px; font-size: 12px; font-weight: bold !important;">وضعیت سشن</th>
+                                    <th class="d-none d-md-table-cell" style="width: 95px; font-size: 12px; font-weight: bold !important;">عملیات پرونده</th>
+                                    <th class="d-md-none" style="width: 90px; font-size: 12px; padding: 6px 2px; font-weight: bold !important;">عملیات</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -82,8 +84,11 @@
                                         bool hasActiveToken = !admin.IsTokenStopped && !string.IsNullOrEmpty(admin.CurrentToken);
 
                                         <tr>
-                                            <td style="text-align: right; padding-right: 10px; font-size: 12px; white-space: nowrap;">
-                                                <strong style="font-size: 12px; color: #212529;">@admin.Username</strong>
+                                            @* ستون نام کاربری: مهار سقف کاراکتر جهت جلوگیری از شکستگی نامتعارف *@
+                                            <td style="text-align: right; padding-right: 12px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                <strong style="color: #212529;">
+                                                    @(admin.Username?.Length > 40 ? admin.Username.Substring(0, 37) + "..." : admin.Username)
+                                                </strong>
                                             </td>
                                             <td>
                                                 @if (admin.IsSuperAdmin)
@@ -96,17 +101,17 @@
                                                 }
                                             </td>
 
-                                            @* دکمه وضعیت حساب دسکتاپ *@
+                                            @* وضعیت حساب دسکتاپ *@
                                             <td class="d-none d-md-table-cell">
                                                 @if (admin.Username.ToLower() != "admintop" && !isOnline)
                                                 {
                                                     @if (admin.IsFrozen)
                                                     {
-                                                        <button type="button" class="btn btn-sm btn-danger fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleToggleFreeze(admin.Id, false)">❄️ مسدود</button>
+                                                        <button type="button" class="btn btn-sm btn-danger fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleToggleFreeze(admin.Id, false)">مسدود</button>
                                                     }
                                                     else
                                                     {
-                                                        <button type="button" class="btn btn-sm btn-outline-success fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleToggleFreeze(admin.Id, true)">🟢 فعال</button>
+                                                        <button type="button" class="btn btn-sm btn-outline-success fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleToggleFreeze(admin.Id, true)">فعال</button>
                                                     }
                                                 }
                                                 else
@@ -115,24 +120,24 @@
                                                 }
                                             </td>
 
-                                            @* دکمه توکن زنده دسکتاپ *@
+                                            @* توکن زنده دسکتاپ *@
                                             <td class="d-none d-md-table-cell">
                                                 @if (isOnline)
                                                 {
-                                                    <button type="button" class="btn btn-sm btn-dark text-warning fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => AdminState.LogoutAsync()">🚪 خروج و ابطال</button>
+                                                    <button type="button" class="btn btn-sm btn-dark text-warning fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => AdminState.LogoutAsync()">خروج و ابطال</button>
                                                 }
                                                 else if (hasActiveToken)
                                                 {
-                                                    <button type="button" class="btn btn-sm btn-warning text-dark fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleStopToken(admin.Id)">💥 قطع توکن</button>
+                                                    <button type="button" class="btn btn-sm btn-warning text-dark fw-bold w-100" style="font-size: 10.5px; padding: 2px 4px; border-radius: 4px;" @onclick="() => HandleStopToken(admin.Id)">قطع توکن</button>
                                                 }
                                                 else
                                                 {
-                                                    <span class="badge bg-light text-muted small border w-100 py-1" style="font-size: 10px;">@(admin.IsTokenStopped ? "🚫 ابطال شده" : "فاقد سشن")</span>
+                                                    <span class="badge bg-light text-muted small border w-100 py-1" style="font-size: 10px;">@(admin.IsTokenStopped ? "ابطال شده" : "فاقد سشن")</span>
                                                 }
                                             </td>
 
-                                            @*  green 🟢 ستون جدید رندر زمان انقضای توکن متصل به پروپرتی TokenExpireTime *@
-                                            <td class="d-none d-md-table-cell text-secondary" style="font-size: 11.5px; font-family: Tahoma, Arial;">
+                                            @* ستون زمان انقضای توکن *@
+                                            <td class="d-none d-md-table-cell text-secondary" style="font-size: 11.5px; font-family: Tahoma, Arial !important;">
                                                 @if (hasActiveToken && admin.TokenExpireTime.HasValue)
                                                 {
                                                     <span>@admin.TokenExpireTime.Value.ToString("yyyy/MM/dd HH:mm")</span>
@@ -159,39 +164,39 @@
                                                 <button type="button" class="btn btn-sm text-danger p-0" disabled="@(admin.Username.ToLower() == "admintop" || isOnline)" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)" title="حذف">🗑️</button>
                                             </td>
 
-                                            @* منوی عملیات موبایل *@
+                                            @* منوی عملیات موبایل بدون ایموجی مزاحم *@
                                             <td class="d-md-none" style="padding: 4px 2px; position: relative;">
-                                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10px; padding: 2px 5px;" @onclick="() => ToggleMobileMenuDropdown(admin.Id)" @onclick:stopPropagation>⚙️ عملیات</button>
+                                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10px; padding: 2px 5px;" @onclick="() => ToggleMobileMenuDropdown(admin.Id)" @onclick:stopPropagation>عملیات</button>
                                                 @if (ActiveMobileDropdownId == admin.Id)
                                                 {
                                                     <div style="position: absolute; top: 100%; left: 0; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999999 !important; min-width: 165px; padding: 4px 0; text-align: right;" @onclick:stopPropagation>
 
-                                                        <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerStartEdit(admin)">✏️ ویرایش مجوزها</button>
+                                                        <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerStartEdit(admin)">ویرایش مجوزها</button>
 
                                                         <div class="dropdown-divider m-1"></div>
 
                                                         @if (isOnline)
                                                         {
-                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => AdminState.LogoutAsync()">🚪 خروج و ابطال سشن</button>
+                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => AdminState.LogoutAsync()">خروج و ابطال سشن</button>
                                                         }
                                                         else if (admin.Username.ToLower() != "admintop")
                                                         {
                                                             @if (hasActiveToken)
                                                             {
-                                                                <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleStopToken(admin.Id)">💥 قطع توکن عملیاتی</button>
+                                                                <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleStopToken(admin.Id)">قطع توکن عملیاتی</button>
                                                             }
 
                                                             @if (admin.IsFrozen)
                                                             {
-                                                                <button type="button" class="dropdown-item text-success fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleToggleFreeze(admin.Id, false)">☀ فعال‌سازی حساب</button>
+                                                                <button type="button" class="dropdown-item text-success fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleToggleFreeze(admin.Id, false)">فعال‌سازی حساب</button>
                                                             }
                                                             else
                                                             {
-                                                                <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleToggleFreeze(admin.Id, true)">❄️ مسدود و فریز ادمین</button>
+                                                                <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => HandleToggleFreeze(admin.Id, true)">مسدود و فریز ادمین</button>
                                                             }
 
                                                             <div class="dropdown-divider m-1"></div>
-                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)">🗑️ حذف کامل اکانت</button>
+                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)">حذف کامل اکانت</button>
                                                         }
                                                     </div>
                                                 }
@@ -205,7 +210,6 @@
                                 }
                             </tbody>
                         </table>
-
 
                     </div>
                 </div>

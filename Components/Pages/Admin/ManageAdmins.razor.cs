@@ -34,8 +34,14 @@ namespace sqlite_web.Components.Pages.Admin
         protected string deleteTargetMessage { get; set; } = string.Empty;
         protected int targetDeleteAdminId = 0;
 
+        /// <summary>
+        /// متد آسنکرون مقداردهی اولیه کامپوننت مدیریت ادمین‌ها
+        /// </summary>
         protected override async Task OnInitializedAsync()
         {
+            // 🟢 فیکس قطعی باگ: پاکسازی پیغام‌های مرده صفحات قبل در «اولین ثانیه ورود» به صفحه
+            AdminState.FeedbackMessage = string.Empty;
+
             // ۱. اتصال و گوش دادن به رویداد تغییرات سشن در سرویس
             AdminState.OnChange += OnAdminStateChanged;
 
@@ -45,6 +51,7 @@ namespace sqlite_web.Components.Pages.Admin
             // ۳. فراخوانی متد رسمی بومی سرویس شما جهت واکشی اطلاعات از SQLite
             await AdminState.LoadAdminsDataAsync();
         }
+
 
         private void OnAdminStateChanged()
         {
@@ -83,84 +90,112 @@ namespace sqlite_web.Components.Pages.Admin
             showDeleteModal = false;
             targetDeleteAdminId = 0;
         }
-
         /// <summary>
-        /// 🟢 فرستادن اطلاعات فیلتر شده به متد رسمی ذخیره‌سازی سرور
+        /// فرستادن اطلاعات فیلتر شده به متد رسمی ذخیره‌سازی سرور و فعال‌سازی آلرت پویا با رنگ قرمز نام مدیر
         /// </summary>
         protected async Task HandleSaveAdmin()
         {
             if (string.IsNullOrWhiteSpace(AdminState.FormAdminUsername)) return;
 
-            // ۱. اجرای خودکار متد آسنکرون ذخیره/ویرایش دیتابیس بومی سرویس شما
+            string targetAdminName = AdminState.FormAdminUsername;
+            bool isModeEdit = AdminState.IsEditMode;
+
             await AdminState.SaveAdminAsync();
 
-            showFormModal = false; // بستن مودال پس از ذخیره موفق
+            // 🔴 تزریق استایل رنگ قرمز به نام ادمین جهت تفکیک بصری کامل
+            string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
+
+            AdminState.FeedbackMessage = isModeEdit
+                ? $"مشخصات و مجوزهای حساب کاربری مدیر سیستم با نام {coloredName} با موفقیت اصلاح شد."
+                : $"حساب کاربری مدیر جدید سیستم با نام {coloredName} با موفقیت در سرور تعریف و ثبت گردید.";
+
+            showFormModal = false;
             CloseAllMobileDropdowns();
+            await InvokeAsync(StateHasChanged);
         }
-         /// <summary>
-        /// 🟢 فعال‌سازی آلرت برای عملیات فریز و مسدودسازی ادمین‌ها
+
+        /// <summary>
+        /// فعال‌سازی آلرت برای عملیات فریز همراه با نمایش نام قرمز رنگ مدیر هدف
         /// </summary>
         protected async Task HandleToggleFreeze(int id, bool freezeStatus)
         {
             CloseAllMobileDropdowns();
-            
-            // ۱. فراخوانی متد رسمی لایه سرویس شما
+
+            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == id)?.Username ?? "مدیر سیستم";
+
             await AdminState.ToggleFreezeAdminAsync(id, freezeStatus);
-            
-            // ۲. تزریق مستقیم پیام به فیلد فیدبک جهت بیدار شدن فوری دایو آلرت
-            AdminState.FeedbackMessage = freezeStatus 
-                ? "❄️ حساب کاربری مدیر انتخاب شده با موفقیت مسدود (فریز) و سشن او ابطال شد." 
-                : "✅ حساب کاربری مدیر با موفقیت فعال گردید.";
-                
+
+            string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
+
+            AdminState.FeedbackMessage = freezeStatus
+                ? $"حساب کاربری مدیر سیستم با نام {coloredName} با موفقیت مسدود فریز شد و سشن‌های او ابطال گردید."
+                : $"حساب کاربری مدیر سیستم با نام {coloredName} با موفقیت فعال و رفع مسدودیت شد.";
+
             await InvokeAsync(StateHasChanged);
         }
 
         /// <summary>
-        /// 🟢 فعال‌سازی آلرت برای عملیات ابطال و قطع فوری توکن زنده عملیاتی
+        /// فعال‌سازی آلرت برای عملیات ابطال توکن همراه با نمایش نام قرمز رنگ مدیر هدف
         /// </summary>
         protected async Task HandleStopToken(int id)
         {
             CloseAllMobileDropdowns();
-            
-            // ۱. فراخوانی متد رسمی لایه سرویس شما
+
+            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == id)?.Username ?? "مدیر سیستم";
+
             await AdminState.StopAdminTokenAsync(id);
-            
-            // ۲. تزریق مستقیم پیام هشدار به فیلد فیدبک جهت بیدار شدن فوری دایو آلرت
-            AdminState.FeedbackMessage = "💥 توکن زنده عملیاتی مدیر ابطال و کاربر فوراً از سیستم اخراج شد.";
-            
+
+            string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
+
+            AdminState.FeedbackMessage = $"توکن زنده عملیاتی مدیر سیستم با نام {coloredName} ابطال شد و کاربر فوراً از برنامه اخراج گردید.";
+
             await InvokeAsync(StateHasChanged);
         }
+
         /// <summary>
-        /// 🟢 فعال‌سازی حالت ویرایش و بارگذاری مشخصات در فیلدهای بومی سرویس شما
+        /// فعال‌سازی حالت ویرایش و بارگذاری مشخصات در فیلدهای بومی سرویس شما
         /// </summary>
         protected void TriggerStartEdit(AdminUser admin)
         {
             AdminState.StartEdit(admin); // لود داده‌ها در فیلدهای FormAdminUsername و... سرویس شما
             CloseAllMobileDropdowns();
-            showFormModal = true; // نمایش پاپ‌آپ ویرایش
+            showFormModal = true; // نمایش پاپ‌آ‌پ ویرایش
         }
 
+        /// <summary>
+        /// آماده‌سازی زیرساخت حذف و مهار نام ادمین برای پاپ‌آپ مودال تاییدیه حذف
+        /// </summary>
         protected void TriggerDeleteAdmin(int id, string name)
         {
             if (AdminState.CurrentOnlineAdmin?.Id == id) return;
 
             targetDeleteAdminId = id;
-            deleteTargetMessage = $"آیا از حذف کامل حساب کاربری مدیر سیستم با نام «{name}» مطمئن هستید؟";
+            deleteTargetMessage = $"آیا از حذف کامل حساب کاربری مدیر سیستم با نام {name} مطمئن هستید(؟";
             CloseAllMobileDropdowns();
             showDeleteModal = true;
         }
 
         /// <summary>
-        /// 🟢 اجرای متد رسمی حذف فیزیکی ادمین از روی دیتابیس بومی سرویس شما
+        /// اجرای متد رسمی حذف فیزیکی ادمین و صدور آلرت زنده با نام قرمز رنگ
         /// </summary>
         protected async Task ExecuteConfirmedAdminDelete()
         {
             showDeleteModal = false;
 
-            // فراخوانی متد حذف فیزیکی بومی سرویس شما
+            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == targetDeleteAdminId)?.Username ?? "مدیر سیستم";
+
             await AdminState.DeleteAdminAsync(targetDeleteAdminId);
 
+            string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
+
+            AdminState.FeedbackMessage = $"حساب کاربری مدیر سیستم با نام {coloredName} به همراه کلیه سوابق و مجوزهای او با موفقیت حذف گردید.";
+
             targetDeleteAdminId = 0;
+            await InvokeAsync(StateHasChanged);
         }
+
+
+
+
     }
 }

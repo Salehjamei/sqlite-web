@@ -42,7 +42,8 @@ namespace sqlite_web.Services
         public bool FormCanAdd { get; set; } = false;
         public bool FormCanEdit { get; set; } = false;
         public bool FormCanDelete { get; set; } = false;
-
+        // 🌟 فیلد ذخیره زنده تنظیمات کاری واکشی شده از سرور
+        public WorkSettings CurrentSettings { get; set; } = new();
         private int? _editingAdminId = null;
 
         public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime, NavigationManager navigationManager)
@@ -362,7 +363,60 @@ namespace sqlite_web.Services
         {
             CurrentOnlineAdmin = null;
             IsAuthorized = false;
+        }        
+        /// <summary>
+        /// متد آسنکرون بارگذاری یا ساخت پیش‌فرض تنظیمات کاری از بانک اطلاعاتی SQLite
+        /// </summary>
+        public async Task LoadWorkSettingsAsync()
+        {
+            if (_dbContext == null) return;
+
+            var settings = await _dbContext.Set<WorkSettings>().FirstOrDefaultAsync();
+            if (settings == null)
+            {
+                // ایجاد رکورد پیش‌فرض در اولین اجرای سیستم
+                settings = new WorkSettings
+                {
+                    RegularStartTime = "07:00",
+                    RegularEndTime = "17:30",
+                    OffDaysOfWeek = "Saturday,Sunday"
+                };
+                _dbContext.Set<WorkSettings>().Add(settings);
+                await _dbContext.SaveChangesAsync();
+            }
+            CurrentSettings = settings;
+            NotifyStateChanged();
         }
+
+        /// <summary>
+        /// متد به روزرسانی پویا پارامترهای محاسباتی توسط سوپر ادمین ارشد
+        /// </summary>
+        public async Task<bool> SaveWorkSettingsAsync(string startTime, string endTime, List<string> offDays)
+        {
+            if (_dbContext == null) return false;
+            try
+            {
+                var settings = await _dbContext.Set<WorkSettings>().FirstOrDefaultAsync();
+                if (settings != null)
+                {
+                    settings.RegularStartTime = startTime;
+                    settings.RegularEndTime = endTime;
+                    settings.OffDaysOfWeek = string.Join(",", offDays);
+
+                    _dbContext.Set<WorkSettings>().Update(settings);
+                    await _dbContext.SaveChangesAsync();
+                    CurrentSettings = settings;
+                    NotifyStateChanged();
+                    return true;
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private void NotifyStateChanged() => OnChange?.Invoke();
     }
 }
