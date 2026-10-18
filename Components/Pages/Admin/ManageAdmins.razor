@@ -28,33 +28,44 @@
                 </div>
             </div>
         }
-
-
-        @* ➕ ردیف ابزارها: تغییر ابعاد داینامیک عنوان صفحه و چسبیدن به سقف هدر *@
+        @* ➕ ردیف ابزارهای بالادستی:گرید سیستم برای همگام‌سازی کامل دسکتاپ، تبلت و موبایل *@
         <div class="row m-0 mb-3 align-items-center g-2" style="padding-left: 4px; padding-right: 4px; margin-top: -6px !important;">
 
-            @* 👑 فیکس نیازمندی دوم: متن هدر صفحه با سایز داینامیک بر اساس ابعاد دستگاه (موبایل کوچکتر، دسکتاپ بزرگتر) *@
-            <div class="col-md-5 col-12 p-0 text-right">
-                <h4 class="m-0 fw-bold header-responsive-title" style="color: #212529; white-space: nowrap; font-size: calc(12px + 0.3vw); line-height: 1.5;">📋 مدیریت سطوح دسترسی و مدیران</h4>
+            @* عنوان صفحه با سایز داینامیک و مینی‌مال *@
+            <div class="col-md-5 col-12 p-0 text-right text-md-right mb-2 mb-md-0">
+                <h4 class="m-0 fw-bold" style="color: #212529; font-size: calc(13px + 0.2vw); line-height: 1.5; white-space: nowrap;">📋 مدیریت سطوح دسترسی و مدیران</h4>
             </div>
 
-            <div class="col-md-7 col-12 p-0 d-flex flex-row align-items-center justify-content-md-end gap-2" style="direction: rtl;">
-                @* کادر جستجوی آنی نام کاربری مدیران سرور *@
-                <div class="input-group input-group-sm shadow-sm flex-grow-1 flex-md-grow-0" style="max-width: 260px;">
-                    <span class="input-group-text bg-dark text-white" style="font-size: 11px; font-weight: bold; padding: 4px 6px;">🔍 جستجو:</span>
+            @* زون ابزارها: در دسکتاپ سمت چپ تراز می‌شود و در موبایل کل عرض را به صورت متقارن پر می‌کند *@
+            <div class="col-md-7 col-12 p-0 d-flex flex-row align-items-center justify-content-between justify-content-md-end gap-2" style="direction: rtl;">
+
+                @* 🔍 کادر جستجوی آنی با انحنای لبه‌های کاملاً اصلاح‌شده و تراز با بوت‌استرپ *@
+                <div class="input-group input-group-sm shadow-sm flex-grow-1 flex-md-grow-0" style="max-width: 280px; direction: rtl;">
+                    @* فیلد متن: لبه راست گرد، لبه چپ کاملاً صاف متصل به دکمه *@
                     <input type="text" class="form-control form-control-sm text-right"
                            placeholder="جستجوی نام کاربری..."
-                           @bind="SearchQuery" @bind:event="oninput" style="font-family: Tahoma; font-size: 11px; height: 31px;" />
+                           @bind="SearchQuery" @bind:event="oninput"
+                           style="font-family: Tahoma; font-size: 11.5px; height: 32px; border-radius: 0 4px 4px 0 !important; border-left: none !important; border-color: #ced4da;" />
+
+                    @* دکمه مشکی: لبه راست صاف متصل به متن، لبه چپ کاملاً گرد *@
+                    <span class="input-group-text bg-dark text-white d-flex align-items-center justify-content-center"
+                          style="font-size: 11.5px; font-weight: bold; padding: 0 10px; height: 32px; border-radius: 4px 0 0 4px !important; border-color: #212529; white-space: nowrap;">
+                        جستجو 🔍
+                    </span>
                 </div>
 
-                @* دکمه باز کردن مودال فرم ثبت مدیر جدید *@
-                <div style="text-align: left !important;">
-                    <button type="button" class="btn btn-sm btn-success fw-bold" @onclick="OpenAddAdminModal" @onclick:stopPropagation style="font-size: 11px; padding: 5px 10px; border-radius: 4px; white-space: nowrap; height: 31px;">
+                @* دکمه ثبت مدیر جدید سیستم *@
+                <div class="flex-shrink-0">
+                    <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm d-flex align-items-center justify-content-center"
+                            @onclick="OpenAddAdminModal" @onclick:stopPropagation
+                            style="font-size: 11px; padding: 0 12px; border-radius: 4px; white-space: nowrap; height: 32px; line-height: 32px;">
                         ➕ مدیر جدید
                     </button>
                 </div>
+
             </div>
         </div>
+
 
         @* 🛠️ بخش جدول اصلی لیست مدیران و مجوزهای فعال سرور *@
         <div class="row m-0" style="padding-left: 4px; padding-right: 4px;">

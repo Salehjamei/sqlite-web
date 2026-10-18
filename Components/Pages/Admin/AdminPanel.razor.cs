@@ -49,7 +49,6 @@ namespace sqlite_web.Components.Pages
 
         // متغیرهای مدیریت پنجره‌های بازشو (Modal) و حذف
         protected bool showModal { get; set; } = false;
-        protected bool showDeleteModal { get; set; } = false;
         // 🟢 متغیر جدید جهت کنترل وضعیت باز یا بسته بودن مودال ثانویه ثبت دستی ساعت کاری
         protected bool showManualAddModal { get; set; } = false;
         // متدهای جدید کنترل وضعیت مودال ثبت دستی
@@ -64,8 +63,6 @@ namespace sqlite_web.Components.Pages
             showManualAddModal = false;
             CancelAttEdit();
         }
-
-        protected string deleteTargetMessage { get; set; } = string.Empty;
         private string deleteType { get; set; } = string.Empty;
         private int _targetDeleteId = 0;
 
@@ -305,12 +302,15 @@ namespace sqlite_web.Components.Pages
                     emp.ImagePath = previewImageUrl; // به‌روزرسانی نهایی آدرس عکس جدید یا قبلی در دیتابیس
 
                     DbContext.Employees.Update(emp);
-                    SystemMessage = "✅ مشخصات و تصویر پرسنل با موفقیت ویرایش و اصلاح شد.";
+
+                    // 🔴 تفکیک گرافیکی: تزریق رنگ قرمز به نام پرسنل در حالت ویرایش پرونده
+                    string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{newEmpName}»</span>";
+                    SystemMessage = $"✅ مشخصات و تصویر پرسنل با نام {coloredName} با موفقیت ویرایش و اصلاح شد.";
                 }
             }
             else
             {
-                // Gارد امنیتی بررسی مجوز افزودن کارمند جدید به سیستم حضور و غیاب
+                // گارد امنیتی بررسی مجوز افزودن کارمند جدید به سیستم حضور و غیاب
                 if (!canAddPerm && !AdminState.isCurrentUserSuperAdmin)
                 {
                     SystemMessage = "❌ خطای امنیتی: حساب کاربری شما فاقد مجوز ثبت کارمند جدید است!";
@@ -325,7 +325,9 @@ namespace sqlite_web.Components.Pages
                     ImagePath = previewImageUrl
                 });
 
-                SystemMessage = "✅ مشخصات کارمند جدید با موفقیت به همراه تصویر در سیستم ثبت شد.";
+                // 🔴 تفکیک گرافیکی: تزریق رنگ قرمز به نام پرسنل در حالت ثبت پرونده جدید
+                string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{newEmpName}»</span>";
+                SystemMessage = $"✅ مشخصات کارمند جدید با نام {coloredName} با موفقیت به همراه تصویر در سیستم ثبت شد.";
             }
 
             await DbContext.SaveChangesAsync(); // اعمال فیزیکی کل تغییرات در SQLite
@@ -334,17 +336,25 @@ namespace sqlite_web.Components.Pages
         }
 
 
+
         /// <summary>
         /// متد سوییچ وضعیت فرم به حالت ویرایش پرونده کارمند و لود مشخصات قبلی او در کادرهای ورودی فرم
         /// </summary>
         protected void StartEmpEdit(Employee emp)
         {
-            isEmpEditMode = true;
+            // بستن قطعی منوی آبشاری موبایل به محض لمس دکمه ویرایش
+            ActiveMobileDropdownId = null;
+
+            selectedEmployee = emp;
+            isEmpEditMode = true; // یا isEditMode بر اساس متغیر شما
             _editingEmployeeId = emp.Id;
-            newEmpName = emp.FullName;
-            newEmpPhone = emp.Phone ?? string.Empty;
+
+            // بایند مقادیر قبلی به فیلدهای مودال
+            newEmpName = emp.FullName ?? string.Empty;
             newEmpCode = emp.PersonnelCode ?? string.Empty;
-            previewImageUrl = emp.ImagePath ?? string.Empty; // نمایش عکس قبلی در کادر فرم ویرایش پرسنل
+            newEmpPhone = emp.Phone ?? string.Empty;
+            previewImageUrl = emp.ImagePath;
+
             showEmpFormModal = true;
         }
 
@@ -371,42 +381,7 @@ namespace sqlite_web.Components.Pages
             _targetDeleteId = id;
             deleteTargetMessage = $"آیا از حذف کامل پرونده پرسنلی «{name}» و کل تاریخچه ترددهای او مطمئن هستید؟";
             showDeleteModal = true;
-        }
-
-        /// <summary>
-        /// راه‌اندازی و باز کردن مودال تایید حذف ساعت کاری خاص بر اساس شناسه فیزیکی رکورد تردد
-        /// </summary>
-        protected void TriggerDeleteAttendance(int id)
-        {
-            if (!canEditPerm) { SystemMessage = "❌ خطای امنیتی: برای حذف ساعت کاری به سطح دسترسی ویرایش نیاز دارید!"; return; }
-            deleteType = "ATT";
-            _targetDeleteId = id;
-            deleteTargetMessage = "آیا از حذف این ردیف ساعت کاری (ورود/خروج) انتخاب شده مطمئن هستید؟";
-            showDeleteModal = true;
-        }
-        /// <summary>
-        /// اجرای عملیات نهایی حذف قطعی اطلاعات پرسنل یا ساعت کاری پس از تایید اپراتور در مودال تعاملی
-        /// </summary>
-        protected async Task ExecuteConfirmedDelete()
-        {
-            showDeleteModal = false;
-
-            if (deleteType == "EMP")
-            {
-                var emp = await DbContext.Employees.FindAsync(_targetDeleteId);
-                if (emp != null) DbContext.Employees.Remove(emp);
-                SystemMessage = "🗑️ پرونده پرسنلی و تاریخچه ترددهای کاربر با موفقیت حذف گردید.";
-            }
-            else if (deleteType == "ATT")
-            {
-                var att = await DbContext.Attendances.FindAsync(_targetDeleteId);
-                if (att != null) DbContext.Attendances.Remove(att);
-                SystemMessage = "🗑️ ردیف ساعت کاری انتخاب شده با موفقیت از سیستم حذف شد.";
-            }
-
-            await DbContext.SaveChangesAsync();
-            await RefreshDataAsync(); // تازه‌سازی خودکار آنی جهت آپدیت کادر سبز رنگ دور ردیف‌ها
-        }
+        }    
 
         /// <summary>
         /// حاضر کردن سریع کارمند از درون جدول یا منوی موبایل (تزریق زنده DateTime.Now به فیلد ورود)
@@ -463,7 +438,6 @@ namespace sqlite_web.Components.Pages
         }
 
         protected void CloseModal() { showModal = false; selectedEmployee = null; }
-        protected void CancelDeleteModal() { showDeleteModal = false; }
         protected void ClearSystemMessage() => SystemMessage = string.Empty;
 
         /// <summary>
@@ -804,6 +778,91 @@ namespace sqlite_web.Components.Pages
             showModal = true;
             LoadAvailableMonths(emp.Id);
             CalculateFilteredHours(emp.Id);
+        }
+        // 🛠️ کل متغیرهای مورد نیاز برای مدیریت هر دو نوع حذف (بسیار مینی‌مال)
+        protected bool showDeleteModal { get; set; } = false;
+        protected string deleteModalTitle { get; set; } = string.Empty;
+        protected string targetDeleteName { get; set; } = string.Empty;
+        protected string deleteTargetMessage { get; set; } = string.Empty;
+        protected string deleteModalSubMessage { get; set; } = string.Empty;
+
+        private int _targetIdToDelete = 0;
+        private string _deleteType = string.Empty; // "Employee" یا "Attendance"
+
+        // 🗑️ متد مشترک ۱: بیدار کردن مودال حذف برای پرسنل
+        protected void TriggerDeleteAttendance(int employeeId)
+        {
+            var emp = employees?.FirstOrDefault(e => e.Id == employeeId);
+            if (emp == null) return;
+
+            _targetIdToDelete = employeeId;
+            _deleteType = "Employee";
+            deleteModalTitle = "تاییدیه حذف قطعی پرونده پرسنلی";
+            targetDeleteName = emp.FullName ?? string.Empty;
+            deleteTargetMessage = $"آیا از حذف کامل پرونده پرسنلی کارمند با نام «{targetDeleteName}» مطمئن هستید؟";
+            deleteModalSubMessage = "توجه: با تایید نهایی، کلیه رکوردهای حضور و غیاب و سوابق تردد این کارمند فوراً و به صورت غیرقابل بازگشت پاک خواهد شد.";
+
+            ActiveMobileDropdownId = null;
+            showDeleteModal = true;
+        }
+
+        // 🗑️ متد مشترک ۲: بیدار کردن مودال حذف برای ساعت کاری (بدون کدهای اضافه)
+        protected void TriggerDeleteTimeRecord(Attendance att)
+        {
+            if (att == null) return;
+
+            _targetIdToDelete = att.Id;
+            _deleteType = "Attendance";
+            deleteModalTitle = "تاییدیه حذف قطعی رکورد تردد پرسنل";
+
+            string dateStr = att.ClockInTime?.ToString("yyyy/MM/dd") ?? "تاریخ نامشخص";
+            string timeStr = att.ClockInTime?.ToString("HH:mm") ?? "00:00";
+
+            targetDeleteName = $"تردد مورخ {dateStr} ساعت {timeStr}";
+            deleteTargetMessage = $"آیا از حذف کامل این رکورد تردد کاری پرسنل در تاریخ {dateStr} مطمئن هستید؟";
+            deleteModalSubMessage = "توجه: با تایید نهایی، این ساعت ورود و خروج خاص به طور کامل پاک شده و در محاسبات این ماه لحاظ نخواهد شد.";
+
+            showDeleteModal = true;
+        }
+
+        // 🗑️ متد انصراف مشترک برای هر دو حالت
+        protected void CancelDeleteModal() => showDeleteModal = false;
+
+        // 🎯 متد نهایی و فوق‌العاده هوشمند اجرای حذف دیتابیس بر اساس نوع کلیک
+        protected async Task ExecuteConfirmedDelete()
+        {
+            showDeleteModal = false;
+            if (_targetIdToDelete <= 0 || DbContext == null) return;
+
+            try
+            {
+                if (_deleteType == "Employee")
+                {
+                    var employee = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _targetIdToDelete);
+                    if (employee != null)
+                    {
+                        var attendances = DbContext.Attendances.Where(a => a.EmployeeId == _targetIdToDelete);
+                        DbContext.Attendances.RemoveRange(attendances);
+                        DbContext.Employees.Remove(employee);
+                        SystemMessage = $"✅ پرونده پرسنلی <span style='color: #dc3545; font-weight: 900;'>«{targetDeleteName}»</span> با موفقیت حذف شد.";
+                    }
+                }
+                else if (_deleteType == "Attendance")
+                {
+                    var att = await DbContext.Attendances.FirstOrDefaultAsync(a => a.Id == _targetIdToDelete);
+                    if (att != null)
+                    {
+                        DbContext.Attendances.Remove(att);
+                        SystemMessage = $"✅ رکورد {targetDeleteName} برای کارمند <span style='color: #dc3545; font-weight: 900;'>«{selectedEmployee?.FullName}»</span> با موفقیت ابطال شد.";
+                    }
+                }
+                await DbContext.SaveChangesAsync();
+            }
+            catch (Exception ex) { SystemMessage = $"❌ خطا در حذف: {ex.Message}"; }
+
+            if (selectedEmployee != null && _deleteType == "Attendance") CalculateFilteredHours(selectedEmployee.Id);
+            await RefreshDataAsync();
+            await InvokeAsync(StateHasChanged);
         }
 
     }

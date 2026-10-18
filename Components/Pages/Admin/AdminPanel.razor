@@ -1,6 +1,7 @@
 ﻿@page "/admin/panel"
 @rendermode InteractiveServer
 @namespace sqlite_web.Components.Pages
+@using sqlite_web.Components.Modules
 @using sqlite_web.Services
 
 <div class="container mt-2 modal-animation-fade" dir="rtl" style="text-align: right; font-family: Tahoma; max-width: 100%; padding-left: 15px; padding-right: 15px;" @onclick="CloseAllMobileDropdowns">
@@ -16,63 +17,74 @@
     else if (AdminState.IsChecked && AdminState.IsAuthorized)
     {
         @* 🔔 بنر نمایش زنده پیغام‌های موفقیت یا خطای عملیات سیستم *@
+        @* بنر هوشمند پیغام‌های سیستم مجهز به مفسر لایو کدهای رنگی HTML *@
         @if (!string.IsNullOrEmpty(SystemMessage))
         {
-            <div class="alert @(SystemMessage.Contains("❌") ? "alert-danger" : "alert-success") alert-dismissible fade show text-center fw-bold p-2 small shadow-sm" role="alert" style="margin-left: 5px; margin-right: 5px;">
-                @SystemMessage
-                <button type="button" class="btn-close p-2" @onclick="ClearSystemMessage"></button>
+            <div class="row m-0 mb-3 px-1">
+                <div class="col-12 p-0">
+                    <div class="alert @(SystemMessage.Contains("❌") ? "alert-danger" : "alert-success") alert-dismissible fade show text-center fw-bold shadow-sm m-0" role="alert" style="font-size: calc(11px + 0.2vw); padding: 10px 35px 10px 10px; border-radius: 6px; width: 100%; position: relative; z-index: 999999 !important;">
+                        @((MarkupString)SystemMessage)
+                        <button type="button" class="btn-close" style="padding: 13px 10px;" @onclick="() => SystemMessage = string.Empty"></button>
+                    </div>
+                </div>
             </div>
         }
-
         @* ➕ بخش دکمه بالادستی تعریف کارمند جدید - کاملاً فشرده و ریسپانسیو *@
-        <div class="row m-0 mb-2 align-items-center" style="padding-left: 5px; padding-right: 5px; margin-top: -8px !important;" @onclick="CloseAllMobileDropdowns">
+        @* ➕ ردیف ابزارهای بالادستی پنل پرسنل: مهندسی مجدد گرید سیستم برای همگام‌سازی کامل دسکتاپ و موبایل *@
+        <div class="row m-0 mb-3 align-items-center g-2" style="padding-left: 4px; padding-right: 4px; margin-top: -6px !important;">
 
-            @* عنوان صفحه: کوچک‌تر شدن فونت به 14px و چسبیدن به هدر بالای صفحه *@
-            <div class="col-md-5 col-12 p-0 mb-2 mb-md-0 text-right">
-                <h4 class="m-0 fw-bold" style="font-size: 14.5px; color: #212529; white-space: nowrap;">📋 مدیریت پرسنل و کارکردها</h4>
+            @* عنوان صفحه با سایز داینامیک و مینی‌مال *@
+            <div class="col-md-5 col-12 p-0 text-right text-md-right mb-2 mb-md-0">
+                <h4 class="m-0 fw-bold" style="color: #212529; font-size: calc(13px + 0.2vw); line-height: 1.5; white-space: nowrap;">📋 مدیریت پرسنل و کارکردها</h4>
             </div>
 
-            @* کانتینر ابزارهای سرچ و دکمه افزودن: ۱۰۰٪ ریسپانسیو در موبایل و خطی در دسکتاپ *@
-            <div class="col-md-7 col-12 p-0 d-flex flex-row align-items-center justify-content-md-end gap-2" style="direction: rtl;">
+            @* زون ابزارها: تراز افقی بی‌پایان مماس با یکدیگر متناسب با ابعاد دستگاه *@
+            <div class="col-md-7 col-12 p-0 d-flex flex-row align-items-center justify-content-between justify-content-md-end gap-2" style="direction: rtl;">
 
-                @* کادر جستجو: فیکس شدن پهنا و تراز شکیل در موبایل و دسکتاپ *@
-                <div class="input-group input-group-sm shadow-sm flex-grow-1 flex-md-grow-0" style="max-width: 280px;">
-                    <span class="input-group-text bg-dark text-white" style="font-size: 11px; font-weight: bold; padding: 4px 8px;">🔍 جستجو:</span>
+                @* 🔍 فیکس قطعی انحنای لبه‌ها و جفت شدن میلی‌متری کادر جستجوی آنی پرسنل *@
+                <div class="input-group input-group-sm shadow-sm flex-grow-1 flex-md-grow-0" style="max-width: 260px; direction: rtl;">
+                    @* فیلد متن: لبه راست گرد، لبه چپ کاملاً صاف متصل به دکمه *@
                     <input type="text" class="form-control form-control-sm text-right"
                            placeholder="نام یا کد ملی..."
-                           @bind="SearchQuery" @bind:event="oninput" style="font-family: Tahoma; font-size: 11.5px; height: 30px;" />
+                           @bind="SearchQuery" @bind:event="oninput"
+                           style="font-family: Tahoma; font-size: 11.5px; height: 32px; border-radius: 0 4px 4px 0 !important; border-left: none !important; border-color: #ced4da;" />
+
+                    @* دکمه مشکی: لبه راست صاف متصل به متن، لبه چپ کاملاً گرد *@
+                    <span class="input-group-text bg-dark text-white d-flex align-items-center justify-content-center"
+                          style="font-size: 11.5px; font-weight: bold; padding: 0 10px; height: 32px; border-radius: 4px 0 0 4px !important; border-color: #212529; white-space: nowrap;">
+                        جستجو 🔍
+                    </span>
                 </div>
 
-                @* دکمه افزودن پرسنل جدید *@
-                @* کانتینر دکمه‌های ابزارها: سوپر ادمین به هر دو دکمه دسترسی کامل دارد *@
-                <div class="d-flex gap-2 text-left" style="text-align: left !important;">
+                @* دکمه‌های فرم عملیاتی ویژه سوپر ادمین و مدیران مجاز *@
+                <div class="d-flex gap-2 flex-shrink-0">
 
-                    @* 🛠️ دکمه چرخ‌دنده تنظیمات محاسباتی ساعات کاری (منحصراً برای سوپر ادمین) *@
+                    @* تنظیمات کاری ویژه سوپر ادمین *@
                     @if (AdminState.isCurrentUserSuperAdmin)
                     {
-                        <button type="button" class="btn btn-sm btn-dark fw-bold shadow-sm" @onclick="OpenSettingsModal" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
+                        <button type="button" class="btn btn-sm btn-dark fw-bold shadow-sm" @onclick="OpenSettingsModal" style="font-size: 11px; padding: 0 10px; border-radius: 4px; white-space: nowrap; height: 32px; line-height: 32px;">
                             ⚙️ تنظیمات کاری
                         </button>
                     }
 
-                    @* ➕ اصلاح منطق: دکمه پرسنل جدید برای سوپر ادمین یا افراد دارای مجوز فعال است *@
+                    @* ثبت پرسنل جدید متصل به دسترسی ارشد *@
                     @if (AdminState.isCurrentUserSuperAdmin || canAddPerm)
                     {
-                        <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm" @onclick="OpenAddEmployeeModal" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
+                        <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm" @onclick="OpenAddEmployeeModal" style="font-size: 11px; padding: 0 12px; border-radius: 4px; white-space: nowrap; height: 32px; line-height: 32px;">
                             ➕ پرسنل جدید
                         </button>
                     }
                     else
                     {
-                        <button type="button" disabled class="btn btn-sm btn-secondary fw-bold shadow-sm" title="شما مجوز ندارید" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; white-space: nowrap; height: 30px;">
+                        <button type="button" disabled class="btn btn-sm btn-secondary fw-bold shadow-sm" title="شما مجوز ندارید" style="font-size: 11px; padding: 0 12px; border-radius: 4px; white-space: nowrap; height: 32px; line-height: 32px;">
                             🔒 پرسنل جدید
                         </button>
                     }
                 </div>
 
-
             </div>
         </div>
+
 
         @* 🛠️ بخش جدول اصلی پرسنل سیستم *@
         <div class="row m-0" style="padding-left: 5px; padding-right: 5px;">
@@ -156,7 +168,8 @@
                                             @* ✏️ ۷. اتصال دکمه دسکتاپ به متد تصحیح‌شده بارگذاری مشخصات کارمند جهت ویرایش *@
                                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
                                                 <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => StartEmpEdit(emp)" title="ویرایش">✏️</button>
-                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDelete(emp.Id, emp.FullName)" title="حذف">🗑️</button>
+                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDeleteAttendance(emp.Id)" title="حذف">🗑️</button>
+
                                             </td>
 
                                             <td class="d-md-none" style="padding: 4px 2px; position: relative;">
@@ -176,7 +189,7 @@
                                                             <button type="button" class="dropdown-item text-success fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => StartAttendanceNow(emp.Id)">ثبت ورود سریع</button>
                                                         }
                                                         <div class="dropdown-divider m-1"></div>
-                                                        <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDelete(emp.Id, emp.FullName)">حذف پرونده</button>
+                                                        <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDeleteAttendance(emp.Id)">حذف پرونده</button>
                                                     </div>
                                                 }
                                             </td>
@@ -296,7 +309,13 @@
                                                         {
                                                             <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StartAttEdit(att)">✏️ ویرایش ساعت</button>
                                                         }
-                                                        <button type="button" disabled="@(!canEditPerm)" class="btn btn-outline-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => TriggerDeleteAttendance(att.Id)">🗑️ حذف</button>
+                                                        @* 🟢  دکمه حذف ساعت کاری درون جدول مودال کارنامه تفکیکی *@
+                                                        <button type="button" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)"
+                                                                class="btn btn-outline-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;"
+                                                                @onclick="() => TriggerDeleteTimeRecord(att)">
+                                                            حذف 🗑️
+                                                        </button>
+
                                                     </div>
                                                 </td>
                                             </tr>
@@ -355,28 +374,12 @@
             </div>
         }
 
-        @* 🚨 مودال تعاملی تاییدیه حذف قطعی اطلاعات پرسنل یا ساعت کاری *@
-        @if (showDeleteModal)
-        {
-            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseAllMobileDropdowns">
-                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 450px !important; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;">
-                    <div class="bg-danger text-white p-3 fw-bold">⚠️ تاییدیه حذف قطعی اطلاعات</div>
-                    <div class="p-3 text-right" style="direction: rtl;">
-                        <p class="fw-bold text-danger">@deleteTargetMessage</p>
-                        <p class="text-muted small m-0">این عملیات غیرقابل بازگشت است و دیتای انتخاب شده به طور کامل پاک خواهد شد.</p>
-                    </div>
-                    <div class="p-3 bg-light d-flex justify-content-end gap-2 border-top">
-                        <button type="button" class="btn btn-danger btn-sm px-3 fw-bold" @onclick="ExecuteConfirmedDelete">بله، حذف شود</button>
-                        <button type="button" class="btn btn-secondary btn-sm px-3" @onclick="CancelDeleteModal">انصراف</button>
-                    </div>
-                </div>
-            </div>
-        }
         @* 🔒 مودال تعاملی برای ثبت و ویرایش کارمند همراه با تصویر *@
         @if (showEmpFormModal)
         {
-            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2000 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseAllMobileDropdowns">
-                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;">
+            @* بک‌دراپ تیره مهار کلیک بیرون تعاملی با استاپ پروپاگیشن *@
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2000 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseEmpFormModal">
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation>
 
                     <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
                         <h5 class="m-0" style="font-size: 15px;">@(isEmpEditMode ? "✏️ ویرایش اطلاعات کارمند" : "➕ تعریف کارمند جدید سیستم")</h5>
@@ -386,25 +389,37 @@
                     <div class="p-3 text-right" style="direction: rtl;">
                         <form @onsubmit="SaveEmployeeData" @onsubmit:preventDefault>
 
+                            @* 👤 کادر ورودی نام: مهار خطا و حاشیه قرمز زنده *@
                             <div class="mb-2">
                                 <label class="form-label text-muted small mb-1">نام و نام خانوادگی:</label>
-                                <input type="text" maxlength="40" @bind="newEmpName" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" />
+                                <input type="text" id="empNameInput" maxlength="40" @bind="newEmpName"
+                                       disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
+                                       class="form-control form-control-sm @(string.IsNullOrWhiteSpace(newEmpName) && !string.IsNullOrEmpty(SystemMessage) && SystemMessage.Contains("نام") ? "border-danger bg-danger-subtle" : "")" />
                             </div>
 
+                            @* 🪪 کادر ورودی کد ملی: مهار خطا، حفظ کدهای فیلتر جاوااسکریپت و حاشیه قرمز *@
                             <div class="mb-2">
                                 <label class="form-label text-muted small mb-1">کد ملی (۱۰ رقم):</label>
-                                <input type="text" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="10" @bind="newEmpCode" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" />
+                                <input type="text" id="empCodeInput" inputmode="numeric" pattern="[0-9]*"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="10" @bind="newEmpCode"
+                                       disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
+                                       class="form-control form-control-sm @((string.IsNullOrWhiteSpace(newEmpCode) || newEmpCode.Length != 10) && !string.IsNullOrEmpty(SystemMessage) && SystemMessage.Contains("کد") ? "border-danger bg-danger-subtle" : "")" />
                             </div>
 
+                            @* 📱 کادر ورودی شماره تماس: مهار خطا و حفظ کدهای فیلتر جاوااسکریپت *@
                             <div class="mb-2">
                                 <label class="form-label text-muted small mb-1">شماره تماس:</label>
-                                <input type="text" inputmode="numeric" pattern="[0-9]*" oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="15" @bind="newEmpPhone" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm text-center" placeholder="0912-000-0000" />
+                                <input type="text" id="empPhoneInput" inputmode="numeric" pattern="[0-9]*"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="15" @bind="newEmpPhone"
+                                       disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
+                                       class="form-control form-control-sm text-center @(!string.IsNullOrWhiteSpace(newEmpPhone) && newEmpPhone.Length > 15 && !string.IsNullOrEmpty(SystemMessage) && SystemMessage.Contains("تماس") ? "border-danger bg-danger-subtle" : "")"
+                                       placeholder="0912-000-0000" />
                             </div>
 
                             @* 📸 کادر بارگذاری و پیش‌نمایش زنده عکس پرسنل *@
                             <div class="mb-3">
                                 <label class="form-label text-muted small mb-1">آپلود عکس:</label>
-                                <InputFile OnChange="HandleImageUpload" disabled="@((isEmpEditMode && !canEditPerm) || (!isEmpEditMode && !canAddPerm))" class="form-control form-control-sm" accept=".jpg,.jpeg,.png" />
+                                <InputFile OnChange="HandleImageUpload" disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))" class="form-control form-control-sm" accept=".jpg,.jpeg,.png" />
 
                                 @if (!string.IsNullOrEmpty(previewImageUrl))
                                 {
@@ -417,11 +432,11 @@
                             <div class="d-flex gap-2 mt-3 border-top pt-3">
                                 @if (isEmpEditMode)
                                 {
-                                    <button type="submit" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-sm flex-grow-1 fw-bold">💾 ثبت تغییرات</button>
+                                    <button type="submit" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)" class="btn btn-warning text-dark btn-sm flex-grow-1 fw-bold">💾 ثبت تغییرات</button>
                                 }
                                 else
                                 {
-                                    <button type="submit" disabled="@(!canAddPerm)" class="btn btn-success btn-sm flex-grow-1 fw-bold">💾 ذخیره اطلاعات</button>
+                                    <button type="submit" disabled="@(!canAddPerm && !AdminState.isCurrentUserSuperAdmin)" class="btn btn-success btn-sm flex-grow-1 fw-bold">💾 ذخیره اطلاعات</button>
                                 }
                                 <button type="button" @onclick="CloseEmpFormModal" class="btn btn-secondary btn-sm">انصراف</button>
                             </div>
@@ -431,6 +446,7 @@
                 </div>
             </div>
         }
+
         @* 🛠️ ۲. مودال تعاملی، لایه‌ای و تفکیک شده تنظیمات قوانین کاری و محاسبات سرور *@
         @if (showSettingsModal)
         {
@@ -520,3 +536,12 @@
 
     } @* 🔒 پایان بلاک ادمین مجاز *@
 </div> @* پایان کانتینر ریشه *@
+@* 📅 فراخوانی هوشمند و ماژولار کامپوننت تایید حذف پرسنل سرور *@
+@* 🟢 تنها تگ مشترک و فوق‌العاده مینی‌مال حذف برای کل صفحه ادمین‌پنل *@
+<DeleteModal Show="@showDeleteModal"
+             Title="@deleteModalTitle"
+             TargetName="@targetDeleteName"
+             Message="@deleteTargetMessage"
+             SubMessage="@deleteModalSubMessage"
+             OnConfirm="ExecuteConfirmedDelete"
+             OnCancel="CancelDeleteModal" />
