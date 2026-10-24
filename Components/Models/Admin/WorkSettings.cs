@@ -15,5 +15,7 @@ namespace sqlite_web.Components.Models.Admin
 
         // روزهای تعطیل هفته که به صورت کاملاً اضافه کاری محاسبه می‌شوند (با کاما تفکیک می‌شوند: "Saturday,Sunday")
         public string OffDaysOfWeek { get; set; } = "Saturday,Sunday";
+        // 🟢 فیلد جدید: آستانه دقیقه جهت انتقال اضافه کاری به موظفی (پیش‌فرض ۱۵ دقیقه)
+        public int DeficitThresholdMinutes { get; set; } = 15;
     }
 }

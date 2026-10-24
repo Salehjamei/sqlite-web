@@ -95,7 +95,7 @@
                             <thead class="table-light text-dark">
                                 <tr class="fw-bold" style="font-weight: bold !important; background-color: #f8f9fa;">
                                     <th style="width: 55px; font-size: 12px; padding: 8px 2px; font-weight: bold !important;">عکس</th>
-                                    @* 🟢 فیکس ساختار: تخصیص عرض ۲۵ درصدی به ستون نام جهت باز شدن فضا برای کدملی و شماره تماس *@
+                                    @* 🟢 تراز هندسی دقیق: تخصیص عرض ۲۵ درصدی به ستون نام جهت باز شدن فضا برای کدملی و شماره تماس *@
                                     <th style="text-align: right; padding-right: 12px; font-size: 12px; font-weight: bold !important; width: 25%;">نام و نام خانوادگی</th>
                                     <th class="d-none d-md-table-cell" style="width: 110px; font-size: 12px; font-weight: bold !important;">کد ملی</th>
                                     <th class="d-none d-md-table-cell" style="width: 120px; font-size: 12px; font-weight: bold !important;">شماره تماس</th>
@@ -110,7 +110,12 @@
                                 {
                                     @foreach (var emp in FilteredEmployees)
                                     {
-                                        var todayRecords = allAttendances.Where(a => a.EmployeeId == emp.Id && a.ClockInTime >= DateTime.Today).ToList();
+                                        // واکشی رکوردهای امروز برای کارمند جاری جهت تعیین وضعیت آنلاین/آفلاین سریع
+                                        var todayRecords = allAttendances != null
+                                            ? allAttendances.Where(a => a.EmployeeId == emp.Id && a.ClockInTime.HasValue && a.ClockInTime.Value.Date == DateTime.Today).ToList()
+                                            : new List<sqlite_web.Components.Models.Attendance>();
+
+
                                         var lastRec = todayRecords.LastOrDefault();
                                         bool isPresent = lastRec != null && lastRec.ClockOutTime == null;
 
@@ -165,11 +170,9 @@
                                                 }
                                             </td>
 
-                                            @* ✏️ ۷. اتصال دکمه دسکتاپ به متد تصحیح‌شده بارگذاری مشخصات کارمند جهت ویرایش *@
                                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
                                                 <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => StartEmpEdit(emp)" title="ویرایش">✏️</button>
-                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDeleteAttendance(emp.Id)" title="حذف">🗑️</button>
-
+                                                <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)" title="حذف">🗑️</button>
                                             </td>
 
                                             <td class="d-md-none" style="padding: 4px 2px; position: relative;">
@@ -177,7 +180,6 @@
                                                 @if (ActiveMobileDropdownId == emp.Id)
                                                 {
                                                     <div style="position: absolute; top: 100%; left: 0; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999999 !important; min-width: 150px; padding: 4px 0; text-align: right;" @onclick:stopPropagation>
-                                                        @* ✏️ اتصال گزینه موبایل به متد تصحیح‌شده بارگذاری مشخصات کارمند جهت ویرایش *@
                                                         <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => StartEmpEdit(emp)">ویرایش مشخصات</button>
 
                                                         @if (isPresent)
@@ -189,7 +191,7 @@
                                                             <button type="button" class="dropdown-item text-success fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => StartAttendanceNow(emp.Id)">ثبت ورود سریع</button>
                                                         }
                                                         <div class="dropdown-divider m-1"></div>
-                                                        <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDeleteAttendance(emp.Id)">حذف پرونده</button>
+                                                        <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)">حذف پرونده</button>
                                                     </div>
                                                 }
                                             </td>
@@ -202,6 +204,7 @@
                                 }
                             </tbody>
                         </table>
+
 
                     </div>
 
@@ -278,51 +281,114 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @{
-                                        var empRecords = allAttendances.Where(a => a.EmployeeId == selectedEmployee.Id).ToList();
-                                    }
-                                    @if (!empRecords.Any())
+                                    @if (selectedEmployee != null)
                                     {
-                                        <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">هیچ سابقه کارکردی ثبت نشده است.</td></tr>
-                                    }
-                                    else
-                                    {
-                                        @foreach (var att in empRecords.Where(r => r.ClockInTime.HasValue).OrderByDescending(a => a.ClockInTime))
-                                        {
-                                            <tr>
-                                                <td class="fw-bold text-dark" style="font-size: 11px;">@att.ClockInTime!.Value.ToString("yyyy/MM/dd")</td>
-                                                <td style="font-size: 11px; text-align: center; padding: 4px 2px; direction: rtl;">
-                                                    ورود: @att.ClockInTime!.Value.ToString("HH:mm") |
-                                                    خروج: @(att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "🔴 تردد")
-                                                </td>
+                                        // 🟢 ۱. واکشی رکوردهای فیلتر شده کارمند با نام کاملاً متمایز محلی
+                                        var localEmpRecordsTable = allAttendances.Where(a => a.EmployeeId == selectedEmployee.Id).ToList();
 
-                                                <td class="@(att.ClockOutTime == null ? "text-warning fw-bold" : "text-success fw-bold")" style="font-size: 11px; padding: 4px 2px;">
-                                                    @GetSingleDuration(att)
-                                                </td>
-                                                <td style="padding: 4px 2px;">
-                                                    <div class="d-flex justify-content-center gap-1">
-                                                        @if (att.ClockOutTime == null)
+                                        // 🟢 ۲. تعریف مستقل و Null-Safe متغیرهای قوانین کاری با کلمه کلیدی var جهت رفع ریشه‌ای تداخل نام‌ها
+                                        var localSettingsData = AdminState.CurrentSettings;
+                                        TimeSpan localRegStartField = localSettingsData != null ? TimeSpan.Parse(localSettingsData.RegularStartTime) : TimeSpan.FromHours(7);
+                                        TimeSpan localRegEndField = localSettingsData != null ? TimeSpan.Parse(localSettingsData.RegularEndTime) : TimeSpan.FromHours(17).Add(TimeSpan.FromMinutes(30));
+                                        var localOffDaysListField = localSettingsData != null ? localSettingsData.OffDaysOfWeek.Split(',').ToList() : new List<string> { "Saturday", "Sunday" };
+
+                                        @if (!localEmpRecordsTable.Any())
+                                        {
+                                            <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">هیچ سابقه کارکردی ثبت نشده است.</td></tr>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var att in localEmpRecordsTable.Where(r => r.ClockInTime.HasValue).OrderByDescending(a => a.ClockInTime))
+                                            {
+                                                DateTime clockIn = att.ClockInTime!.Value;
+                                                DateTime clockOut = att.ClockOutTime ?? DateTime.Now;
+
+                                                // ۳. تشخیص هوشمند وضعیت پایان روز کامل و خروج اتوماتیک سیستم روی ساعت ۲۳:۵۹
+                                                bool isFullDayAutoExit = att.ClockOutTime.HasValue && att.ClockOutTime.Value.ToString("HH:mm") == "23:59";
+
+                                                // ۴. محاسبه وضعیت وجود اضافه کاری بر اساس پارامترهای محلی و اختصاصی جدید
+                                                bool hasOvertime = false;
+                                                if (localOffDaysListField.Contains(clockIn.DayOfWeek.ToString()))
+                                                {
+                                                    hasOvertime = (clockOut - clockIn).TotalMinutes > 0;
+                                                }
+                                                else
+                                                {
+                                                    DateTime regularStartThreshold = clockIn.Date.Add(localRegStartField);
+                                                    DateTime regularEndThreshold = clockIn.Date.Add(localRegEndField);
+                                                    hasOvertime = clockIn < regularStartThreshold || clockOut > regularEndThreshold;
+                                                }
+
+                                                // 🟠 اعمال رنگ پس‌زمینه نارنجی به کل ردیف در صورت ثبت خروج خودکار پایان روز
+                                                <tr style="@(isFullDayAutoExit ? "background-color: #fff3cd !important;" : "")">
+
+                                                    // ۵. نمایش نام روز هفته و تاریخ به صورت کاملاً پویا و مستقیم از نمونه کلاس تقویم شما
+                                                    <td class="fw-bold text-dark" style="font-size: 11px; vertical-align: middle;">
+                                                        @{
+                                                            string dayName = CalendarManager != null ? CalendarManager.GetDynamicDayName(att.ClockInTime) : "";
+                                                            string dateStr = CalendarManager != null ? CalendarManager.GetDynamicFormattedDate(att.ClockInTime) : "";
+                                                        }
+                                                        @dayName - @dateStr
+                                                    </td>
+
+                                                    <td style="font-size: 11px; text-align: center; padding: 4px 2px; direction: rtl; vertical-align: middle;">
+                                                        ورود: @att.ClockInTime!.Value.ToString("HH:mm") |
+
+                                                        @if (isFullDayAutoExit)
                                                         {
-                                                            <button type="button" disabled="@(!canEditPerm)" class="btn btn-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StopAttendanceNow(att.Id)">🛑 توقف تردد سریع</button>
+                                                            // نمایش علامت تعجب زرد رنگ در وسط ستون برای خروج‌های خودکار ۲۳:۵۹ سرور
+                                                            <span class="fw-bold text-danger">خروج: 23:59 </span>
+                                                            <span class="badge bg-warning text-dark px-1.5 ms-1 fw-bold" style="font-size: 10px;" title="روز کامل - ثبت اتوماتیک سیستم">⚠️</span>
                                                         }
                                                         else
                                                         {
-                                                            <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StartAttEdit(att)">✏️ ویرایش ساعت</button>
+                                                            <span>خروج: @(att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "🔴 تردد")</span>
                                                         }
-                                                        @* 🟢  دکمه حذف ساعت کاری درون جدول مودال کارنامه تفکیکی *@
-                                                        <button type="button" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)"
-                                                                class="btn btn-outline-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;"
-                                                                @onclick="() => TriggerDeleteTimeRecord(att)">
-                                                            حذف 🗑️
-                                                        </button>
 
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                                        // 🔷 رندر شاخص هندسی لوزی سبز رنگ: خروج ثبت شده و دارای اضافه کاری واقعی است
+                                                        @if (att.ClockOutTime.HasValue && !isFullDayAutoExit && hasOvertime)
+                                                        {
+                                                            <span class="text-success ms-1" style="font-size: 13px; font-weight: bold;" title="دارای اضافه کاری محقق شده">🔷</span>
+                                                        }
+                                                        // 🟩 رندر شاخص هندسی مربع سبز رنگ: حضور زنده (بدون خروج)، اما زمان از مرز موظفی گذشته و در محدوده اضافه کاری است
+                                                        else if (!att.ClockOutTime.HasValue && hasOvertime)
+                                                        {
+                                                            <span class="text-success ms-1" style="font-size: 11px; font-weight: bold;" title="حضور زنده در محدوده اضافه کاری">🟩</span>
+                                                        }
+                                                    </td>
+
+                                                    <td class="@(att.ClockOutTime == null ? "text-warning fw-bold" : "text-success fw-bold")" style="font-size: 11px; padding: 4px 2px; vertical-align: middle;">
+                                                        @GetSingleDuration(att)
+                                                    </td>
+
+                                                    <td style="padding: 4px 2px; vertical-align: middle;">
+                                                        <div class="d-flex justify-content-center gap-1">
+                                                            @if (att.ClockOutTime == null)
+                                                            {
+                                                                <button type="button" disabled="@(!canEditPerm)" class="btn btn-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StopAttendanceNow(att.Id)">🛑 توقف تردد سریع</button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StartAttEdit(att)">✏️ ویرایش ساعت</button>
+                                                            }
+                                                            <button type="button" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)"
+                                                                    class="btn btn-outline-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;"
+                                                                    @onclick="() => TriggerDeleteTimeRecord(att)">
+                                                                حذف 🗑️
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
                                         }
+                                    }
+                                    else
+                                    {
+                                        <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">جهت مشاهده سوابق کارکرد، کارمند مورد نظر را انتخاب کنید.</td></tr>
                                     }
                                 </tbody>
                             </table>
+
                         </div>
                     </div>
                 </div>
@@ -332,11 +398,8 @@
         @* 📅 🔒 مودال جدید، تفکیک شده و ۱۰۰٪ کامل ثبت دستی و ویرایش ساعت کاری پرسنل *@
         @if (showManualAddModal && selectedEmployee != null)
         {
-            @* بک‌دراپ تیره مهار کلیک بیرون: کلیک روی این لایه فرم را می‌بندد *@
             <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseManualAddModal">
-
-                @* کادر سفید مودال: استاپ پروپاگیشن مانع از بسته شدن فرم هنگام تفکیک فیلدها می‌شود *@
-                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 420px !important; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;" @onclick:stopPropagation>
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 430px !important; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;" @onclick:stopPropagation>
 
                     <div class="bg-secondary text-white d-flex justify-content-between align-items-center p-3">
                         <h6 class="m-0 fw-bold" style="font-size: 13.5px;">@(isAttEditMode ? "✏️ ویرایش ردیف ساعت کاری" : "📅 ثبت دستی ساعت تردد جدید")</h6>
@@ -344,14 +407,71 @@
                     </div>
 
                     <div class="p-3 text-right" style="direction: rtl;">
+
+                        @if (CalendarManager != null && !string.IsNullOrEmpty(CalendarManager.AttendanceValidationMessage))
+                        {
+                            <div class="alert alert-danger text-center p-2 mb-3 fw-bold small" style="border-radius: 6px; font-size: 11.5px;">
+                                @CalendarManager.AttendanceValidationMessage
+                            </div>
+                        }
+
+                        @* 🟢 کادر منوهای آبشاری تفکیک شده انتخاب تاریخ روز ورود پرسنل *@
                         <div class="mb-2.5">
-                            <label class="form-label text-muted small mb-1">انتخاب تاریخ روز:</label>
-                            <input type="date" @bind="manualDate" disabled="@isAttEditMode" class="form-control form-control-sm text-center" style="font-size: 12px;" />
+                            <label class="form-label text-muted small mb-1">تاریخ روز ورود:</label>
+                            <div class="input-group input-group-sm gap-1" style="direction: ltr;">
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualInYear" style="font-size: 12px; border-radius: 4px;">
+                                    @foreach (var y in CalendarManager.GetFormYears())
+                                    {
+                                        <option value="@y">@y</option>
+                                    }
+                                </select>
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualInMonth" style="font-size: 12px; border-radius: 4px;">
+                                    @foreach (var m in CalendarManager.GetFormMonths())
+                                    {
+                                        <option value="@m.Key">@m.Value</option>
+                                    }
+                                </select>
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualInDay" style="font-size: 12px; border-radius: 4px;">
+                                    @for (int i = 1; i <= 31; i++)
+                                    {
+                                        var d = i.ToString("D2");
+                                        <option value="@d">@d</option>
+                                    }
+                                </select>
+                            </div>
                         </div>
+
                         <div class="mb-2.5">
                             <label class="form-label text-muted small mb-1">ساعت ورود:</label>
                             <input type="text" @bind="manualInTime" class="form-control form-control-sm text-center font-monospace" placeholder="07:00" style="font-size: 13px;" />
                         </div>
+
+                        @* 🟢 کادر منوهای آبشاری تفکیک شده انتخاب تاریخ روز خروج پرسنل *@
+                        <div class="mb-2.5">
+                            <label class="form-label text-muted small mb-1">تاریخ روز خروج:</label>
+                            <div class="input-group input-group-sm gap-1" style="direction: ltr;">
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualOutYear" style="font-size: 12px; border-radius: 4px;">
+                                    @foreach (var y in CalendarManager.GetFormYears())
+                                    {
+                                        <option value="@y">@y</option>
+                                    }
+                                </select>
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualOutMonth" style="font-size: 12px; border-radius: 4px;">
+                                    @foreach (var m in CalendarManager.GetFormMonths())
+                                    {
+                                        <option value="@m.Key">@m.Value</option>
+                                    }
+                                </select>
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualOutDay" style="font-size: 12px; border-radius: 4px;">
+                                    @for (int i = 1; i <= 31; i++)
+                                    {
+                                        var d = i.ToString("D2");
+                                        <option value="@d">@d</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label text-muted small mb-1">ساعت خروج:</label>
                             <input type="text" @bind="manualOutTime" class="form-control form-control-sm text-center font-monospace" placeholder="17:30" style="font-size: 13px;" />
@@ -373,6 +493,7 @@
                 </div>
             </div>
         }
+
 
         @* 🔒 مودال تعاملی برای ثبت و ویرایش کارمند همراه با تصویر *@
         @if (showEmpFormModal)

@@ -70,6 +70,9 @@ namespace sqlite_web.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("DeficitThresholdMinutes")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("OffDaysOfWeek")
                         .IsRequired()
                         .HasColumnType("TEXT");

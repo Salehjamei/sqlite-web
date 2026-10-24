@@ -394,30 +394,52 @@ namespace sqlite_web.Services
         {
             CurrentOnlineAdmin = null;
             IsAuthorized = false;
-        }        
+        }
         /// <summary>
-        /// متد آسنکرون بارگذاری یا ساخت پیش‌فرض تنظیمات کاری از بانک اطلاعاتی SQLite
+        /// متد آسنکرون بارگذاری یا ساخت پیش‌فرض تنظیمات کاری از بانک اطلاعاتی SQLite با ایمنی کامل
         /// </summary>
         public async Task LoadWorkSettingsAsync()
         {
             if (_dbContext == null) return;
 
-            var settings = await _dbContext.Set<WorkSettings>().FirstOrDefaultAsync();
-            if (settings == null)
+            try
             {
-                // ایجاد رکورد پیش‌فرض در اولین اجرای سیستم
-                settings = new WorkSettings
+                var settings = await _dbContext.Set<WorkSettings>().FirstOrDefaultAsync();
+                if (settings == null)
+                {
+                    // ایجاد رکورد پیش‌فرض در اولین اجرای سیستم
+                    settings = new WorkSettings
+                    {
+                        RegularStartTime = "07:00",
+                        RegularEndTime = "17:30",
+                        OffDaysOfWeek = "Saturday,Sunday",
+                        DeficitThresholdMinutes = 15 // مقدار پیش‌فرض آستانه تهاتر کسری کار
+                    };
+                    _dbContext.Set<WorkSettings>().Add(settings);
+                    await _dbContext.SaveChangesAsync();
+                }
+                CurrentSettings = settings;
+            }
+            catch (Exception ex)
+            {
+                // 🟢 گارد امنیتی: اگر جدول دیتابیس مایگریشن نداشت، مقدار پیش‌فرض را در رم مقداردهی کن تا کل پنل قطع نشود
+                Console.WriteLine($"⚠️ هشدار دیتابیس در تنظیمات: {ex.Message}");
+
+                CurrentSettings = new WorkSettings
                 {
                     RegularStartTime = "07:00",
                     RegularEndTime = "17:30",
-                    OffDaysOfWeek = "Saturday,Sunday"
+                    OffDaysOfWeek = "Saturday,Sunday",
+                    DeficitThresholdMinutes = 15
                 };
-                _dbContext.Set<WorkSettings>().Add(settings);
-                await _dbContext.SaveChangesAsync();
             }
-            CurrentSettings = settings;
-            NotifyStateChanged();
+            finally
+            {
+                NotifyStateChanged();
+            }
         }
+
+
 
         /// <summary>
         /// متد به روزرسانی پویا پارامترهای محاسباتی توسط سوپر ادمین ارشد
