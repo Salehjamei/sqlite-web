@@ -112,9 +112,9 @@
                                                 }
                                             </td>
 
-                                            @* وضعیت حساب دسکتاپ *@
+                                            @* وضعیت حساب دسکتاپ: استفاده از شرط ساختاری عمومی به جای نام کاربری متنی *@
                                             <td class="d-none d-md-table-cell">
-                                                @if (admin.Username.ToLower() != "admintop" && !isOnline)
+                                                @if (!admin.IsSuperAdmin && !isOnline)
                                                 {
                                                     @if (admin.IsFrozen)
                                                     {
@@ -146,7 +146,6 @@
                                                     <span class="badge bg-light text-muted small border w-100 py-1" style="font-size: 10px;">@(admin.IsTokenStopped ? "ابطال شده" : "فاقد سشن")</span>
                                                 }
                                             </td>
-
                                             @* ستون زمان انقضای توکن *@
                                             <td class="d-none d-md-table-cell text-secondary" style="font-size: 11.5px; font-family: Tahoma, Arial !important;">
                                                 @if (hasActiveToken && admin.TokenExpireTime.HasValue)
@@ -170,12 +169,13 @@
                                                 }
                                             </td>
 
+                                            @* عملیات پرونده دسکتاپ: دکمه حذف بر اساس فلگ سوپر ادمین غیرفعال است *@
                                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
                                                 <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => TriggerStartEdit(admin)" title="ویرایش">✏️</button>
-                                                <button type="button" class="btn btn-sm text-danger p-0" disabled="@(admin.Username.ToLower() == "admintop" || isOnline)" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)" title="حذف">🗑️</button>
+                                                <button type="button" class="btn btn-sm text-danger p-0" disabled="@(admin.IsSuperAdmin || isOnline)" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)" title="حذف">🗑️</button>
                                             </td>
 
-                                            @* منوی عملیات موبایل بدون ایموجی مزاحم *@
+                                            @* منوی عملیات موبایل: مهار گزینه‌های حساس امنیتی برای سوپر ادمین‌ها *@
                                             <td class="d-md-none" style="padding: 4px 2px; position: relative;">
                                                 <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10px; padding: 2px 5px;" @onclick="() => ToggleMobileMenuDropdown(admin.Id)" @onclick:stopPropagation>عملیات</button>
                                                 @if (ActiveMobileDropdownId == admin.Id)
@@ -190,7 +190,7 @@
                                                         {
                                                             <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => AdminState.LogoutAsync()">خروج و ابطال سشن</button>
                                                         }
-                                                        else if (admin.Username.ToLower() != "admintop")
+                                                        else if (!admin.IsSuperAdmin)
                                                         {
                                                             @if (hasActiveToken)
                                                             {

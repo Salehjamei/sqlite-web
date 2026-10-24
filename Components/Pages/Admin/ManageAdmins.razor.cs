@@ -100,19 +100,30 @@ namespace sqlite_web.Components.Pages.Admin
             string targetAdminName = AdminState.FormAdminUsername;
             bool isModeEdit = AdminState.IsEditMode;
 
-            await AdminState.SaveAdminAsync();
+            // 🟢 گرفتن خروجی بوبلین از متد بک‌اند
+            bool isSuccess = await AdminState.SaveAdminAsync();
 
-            // 🔴 تزریق استایل رنگ قرمز به نام ادمین جهت تفکیک بصری کامل
-            string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
+            if (isSuccess)
+            {
+                // 🔴 در صورت موفقیت واقعی، پیغام موفقیت تولید و مودال بسته می‌شود
+                string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
 
-            AdminState.FeedbackMessage = isModeEdit
-                ? $"مشخصات و مجوزهای حساب کاربری مدیر سیستم با نام {coloredName} با موفقیت اصلاح شد."
-                : $"حساب کاربری مدیر جدید سیستم با نام {coloredName} با موفقیت در سرور تعریف و ثبت گردید.";
+                AdminState.FeedbackMessage = isModeEdit
+                    ? $"مشخصات و مجوزهای حساب کاربری مدیر سیستم با نام {coloredName} با موفقیت اصلاح شد."
+                    : $"حساب کاربری مدیر جدید سیستم با نام {coloredName} با موفقیت در سرور تعریف و ثبت گردید.";
 
-            showFormModal = false;
-            CloseAllMobileDropdowns();
+                showFormModal = false; // بستن مودال فقط در صورت موفقیت
+                CloseAllMobileDropdowns();
+            }
+            else
+            {
+                // 🛑 در صورت شکست (تک سوپر ادمین)، مودال باز می‌ماند و پیغام خطای متد بک‌اند نمایش داده می‌شود
+                // نیازی به بستن مودال یا تغییر دستی FeedbackMessage نیست، چون دیتابیس خطا را پر کرده است
+            }
+
             await InvokeAsync(StateHasChanged);
         }
+
 
         /// <summary>
         /// فعال‌سازی آلرت برای عملیات فریز همراه با نمایش نام قرمز رنگ مدیر هدف

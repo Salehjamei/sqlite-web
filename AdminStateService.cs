@@ -244,23 +244,40 @@ namespace sqlite_web.Services
             }
         }
 
-        public async Task SaveAdminAsync()
+        public async Task<bool> SaveAdminAsync()
         {
-            if (_dbContext == null) return;
-            if (string.IsNullOrWhiteSpace(FormAdminUsername) || string.IsNullOrWhiteSpace(FormAdminPassword)) return;
+            if (_dbContext == null) return false;
+            if (string.IsNullOrWhiteSpace(FormAdminUsername) || string.IsNullOrWhiteSpace(FormAdminPassword)) return false;
 
             if (IsEditMode && _editingAdminId.HasValue)
             {
                 var existingAdmin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == _editingAdminId.Value);
                 if (existingAdmin != null)
                 {
+                    bool finalSuperAdminStatus = FormIsSuperAdmin;
+
+                    // بررسی اینکه آیا کاربر قصد دارد تیک سوپر ادمین یک سوپر ادمین موجود را بردارد
+                    if (!FormIsSuperAdmin && existingAdmin.IsSuperAdmin)
+                    {
+                        int totalSuperAdmins = await _dbContext.Admins.CountAsync(a => a.IsSuperAdmin);
+
+                        // اگر فقط همین یک سوپر ادمین در دیتابیس وجود دارد، اجازه تغییر نمی‌دهیم
+                        if (totalSuperAdmins <= 1)
+                        {
+                            FeedbackMessage = "❌ خطا: سیستم باید حداقل دارای یک سوپر ادمین باشد. امکان حذف رتبه تنها سوپر ادمین وجود ندارد!";
+                            return false; // 🛑 متوقف کردن فوری متد و بازگرداندن وضعیت شکست عملیات
+                        }
+                    }
+
                     existingAdmin.Username = FormAdminUsername;
                     existingAdmin.Password = FormAdminPassword;
-                    existingAdmin.IsSuperAdmin = FormIsSuperAdmin;
+                    existingAdmin.IsSuperAdmin = finalSuperAdminStatus;
                     existingAdmin.CanAddEmployee = FormCanAdd;
                     existingAdmin.CanEditEmployee = FormCanEdit;
                     existingAdmin.CanDeleteEmployee = FormCanDelete;
+
                     _dbContext.Admins.Update(existingAdmin);
+
                     if (CurrentOnlineAdmin != null && CurrentOnlineAdmin.Id == existingAdmin.Id)
                     {
                         CurrentOnlineAdmin = existingAdmin;
@@ -279,15 +296,24 @@ namespace sqlite_web.Services
                     CanDeleteEmployee = FormCanDelete
                 });
             }
+
             await _dbContext.SaveChangesAsync();
             await LoadAdminsDataAsync();
             ClearForm();
+            FeedbackMessage = "✅ تغییرات با موفقیت ذخیره شد.";
+            return true; // ✨ عملیات با موفقیت واقعی ثبت شد
         }
+
+
         public async Task ToggleFreezeAdminAsync(int id, bool freezeStatus)
         {
+            // ۱. محافظت اول: ادمین جاری سیستم نباید بتواند خودش را فریز کند
             if (_dbContext == null || (CurrentOnlineAdmin != null && CurrentOnlineAdmin.Id == id)) return;
+
             var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == id);
-            if (admin != null && admin.Username.ToLower() != "admintop")
+
+            // ۲. محافظت دوم: جایگزینی "admintop" با شرط ساختاری (هیچ سوپر ادمینی نباید فریز شود)
+            if (admin != null && !admin.IsSuperAdmin)
             {
                 admin.IsFrozen = freezeStatus;
                 if (freezeStatus)
@@ -335,15 +361,20 @@ namespace sqlite_web.Services
         }
         public async Task DeleteAdminAsync(int id)
         {
-            if (_dbContext == null) return;
+            // ۱. محافظت اول: ادمین جاری سیستم نباید بتواند خودش را حذف کند
+            if (_dbContext == null || (CurrentOnlineAdmin != null && CurrentOnlineAdmin.Id == id)) return;
+
             var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == id);
-            if (admin != null && admin.Username.ToLower() != "admintop")
+
+            // ۲. محافظت دوم: جایگزینی "admintop" با شرط ساختاری (هیچ سوپر ادمینی نباید حذف شود)
+            if (admin != null && !admin.IsSuperAdmin)
             {
                 _dbContext.Admins.Remove(admin);
                 await _dbContext.SaveChangesAsync();
             }
             await LoadAdminsDataAsync();
         }
+
         private void ClearForm()
         {
             FormAdminUsername = string.Empty;
