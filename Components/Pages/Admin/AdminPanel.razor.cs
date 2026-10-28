@@ -90,14 +90,25 @@ namespace sqlite_web.Components.Pages
         protected string deleteModalSubMessage { get; set; } = string.Empty;
         private int _targetIdToDelete = 0;
         private string _deleteType = string.Empty;
-
-        // متد باز کردن مودال ثبت تردد دستی جدید
+        // 💾 تزریق سرویس حافظه محلی مرورگر جهت ذخیره‌سازی ماندگار تنظیمات کاربر
+        [Inject] public Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage LocalStorage { get; set; } = default!;
+        // متد باز کردن مودال ثبت تردد دستی و تنظیم خودکار فیلدها روی تاریخ امروز سیستم
         protected void OpenManualAddModal()
         {
             CancelAttEdit();
-            if (CalendarManager != null) CalendarManager.GetType().GetProperty("AttendanceValidationMessage")?.SetValue(CalendarManager, string.Empty);
+
+            if (CalendarManager == null)
+            {
+                CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
+            }
+
+            // 🟢 لود زنده تاریخ امروز (سال، ماه، روز جاری) درون سلکتورهای آبشاری فرم دستی
+            CalendarManager.SyncFormCalendarFields(DateTime.Today, DateTime.Today);
+            CalendarManager.AttendanceValidationMessage = string.Empty;
+
             showManualAddModal = true;
         }
+
 
         // بستن مودال ثبت تردد دستی
         protected void CloseManualAddModal()
@@ -121,7 +132,6 @@ namespace sqlite_web.Components.Pages
             public string Value { get; set; } = string.Empty;
             public string Text { get; set; } = string.Empty;
         }
-
         // مقداردهی اولیه و واکشی داده‌ها قبل از رندر شدن جدول
         protected override async Task OnInitializedAsync()
         {
@@ -153,13 +163,67 @@ namespace sqlite_web.Components.Pages
                 Console.WriteLine($"❌ خطا در متد OnInitializedAsync: {ex.Message}");
             }        
         }
-
-        // متد رندر تعاملی جهت فعال کردن رویدادهای دکمه‌ها در مرورگر
+        // متد رندر تعاملی جهت فعال کردن رویدادها و بازیابی خودکار وضعیت تقویم ذخیره‌شده کاربر
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (firstRender) await InvokeAsync(StateHasChanged);
-        }
+            if (firstRender)
+            {
+                try
+                {
+                    // 🟢 واکشی وضعیت ذخیره شده تقویم از حافظه مرورگر کلاینت
+                    var result = await LocalStorage.GetAsync<bool>("UsePersianCalendarSetting");
 
+                    // در صورت وجود تنظیمات قبلی، آن را روی شیء مدیریت تقویم اعمال می‌کند
+                    if (result.Success)
+                    {
+                        if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
+
+                        CalendarManager.UsePersianCalendar = result.Value;
+
+                        // بازسازی فوری اطلاعات کارنامه بر اساس تقویم لود شده
+                        if (selectedEmployee != null)
+                        {
+                            LoadAvailableMonths(selectedEmployee.Id);
+                            CalculateFilteredHours(selectedEmployee.Id);
+                        }
+                    }
+                }
+                catch
+                {
+                    // مهار خطاهای احتمالی ارتباط اولیه با مرورگر
+                }
+
+                // بیدار کردن کامپوننت و فعال‌سازی قطعی رویداد دکمه‌ها در مرورگر
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        // متد تغییر نوع تقویم به همراه ذخیره‌سازی ماندگار و همیشگی در سیستم
+        protected async Task SetCalendarType(bool isPersian)
+        {
+            if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
+
+            // اعمال تغییر روی شیء مدیریت تقویم
+            CalendarManager.UsePersianCalendar = isPersian;
+
+            try
+            {
+                // 🟢 ذخیره قطعی و ماندگار انتخاب کاربر در حافظه مرورگر برای دفعات بعدی
+                await LocalStorage.SetAsync("UsePersianCalendarSetting", isPersian);
+            }
+            catch
+            {
+                // مهار خطای عدم دسترسی کلاینت
+            }
+
+            // بازسازی گزینه‌های ماه بر اساس تقویم جدید
+            if (selectedEmployee != null)
+            {
+                LoadAvailableMonths(selectedEmployee.Id);
+                CalculateFilteredHours(selectedEmployee.Id);
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
         // تازه سازی آنی لیست کارمندان و کل ترددهای ثبت شده از دیتابیس SQLite
         private async Task RefreshDataAsync()
         {
@@ -344,8 +408,6 @@ namespace sqlite_web.Components.Pages
             }
             await InvokeAsync(StateHasChanged);
         }
-        // 🔐 ثبت دستی یا ویرایش ساعت کاری مجهز به شروط دقیق ولیدیشن انطباق روز و تقدم زمان
-        // متد ثبت دستی یا ویرایش دوکاره ساعت کاری پرسنل توسط ادمین سیستم
         // متد ثبت دستی یا ویرایش دوکاره ساعت کاری پرسنل بر اساس ولیدیشن انطباق روز و تقدم ساعت
         protected async Task AddManualAttendance()
         {
@@ -435,51 +497,68 @@ namespace sqlite_web.Components.Pages
         }
 
         // انصراف از ویرایش فیلد ردیف ساعت کاری
+        // انصراف از ویرایش یا ثبت و بازنشانی فیلدهای فرم به تاریخ امروز و ساعت پیش‌فرض
         protected void CancelAttEdit()
         {
             isAttEditMode = false;
             _editingAttendanceId = null;
-            manualDate = DateTime.Today;
-            manualOutDate = DateTime.Today;
             manualInTime = "07:00";
             manualOutTime = "17:30";
-            if (CalendarManager != null) CalendarManager.GetType().GetProperty("AttendanceValidationMessage")?.SetValue(CalendarManager, string.Empty);
+
+            if (CalendarManager != null)
+            {
+                CalendarManager.SyncFormCalendarFields(DateTime.Today, DateTime.Today);
+                CalendarManager.AttendanceValidationMessage = string.Empty;
+            }
         }
-        // استخراج تمام ماه‌های دارای سابقه تردد به صورت داینامیک متناسب با متد تقویم جدید شما
+        // متد بارگذاری لیست ماه‌ها مجهز به گزینه نمایش تمام ماه‌ها
         private void LoadAvailableMonths(int employeeId)
         {
             AvailableMonths.Clear();
             var now = DateTime.Now;
 
-            if (allAttendances == null) allAttendances = new();
-            if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
-
-            // استخراج سال و ماه‌های رکوردهای تردد به صورت متمایز و مرتب‌شده
-            var dates = allAttendances
-                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue)
-                .Select(a => new { a.ClockInTime!.Value.Year, a.ClockInTime.Value.Month })
-                .Distinct()
-                .OrderByDescending(d => d.Year)
-                .ThenByDescending(d => d.Month)
-                .ToList();
-
-            foreach (var d in dates)
+            // 🟢 ۱. درج گزینه نمایش کل ماه‌ها در ابتدای لیست سلکتور
+            AvailableMonths.Add(new MonthOption
             {
-                // 🟢 فراخوانی کاملاً مستقیم و امن متد متنی ماه بدون استفاده از رفلکشن
-                string monthText = CalendarManager.GetDynamicMonthText(d.Year, d.Month);
-                AvailableMonths.Add(new MonthOption { Value = $"{d.Year}-{d.Month}", Text = monthText });
+                Value = "ALL",
+                Text = CalendarManager.UsePersianCalendar ? "همه ماه‌های کارکرد" : "All Months"
+            });
+
+            var allRecords = allAttendances
+                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue).ToList();
+
+            // ۲. استخراج سال و ماه دقیقاً بر اساس تقویم فعال سیستم
+            if (CalendarManager.UsePersianCalendar)
+            {
+                System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
+                var pDates = allRecords.Select(a => new {
+                    Year = pc.GetYear(a.ClockInTime!.Value),
+                    Month = pc.GetMonth(a.ClockInTime!.Value)
+                }).Distinct().OrderByDescending(d => d.Year).ThenByDescending(d => d.Month).ToList();
+
+                foreach (var d in pDates)
+                {
+                    string monthText = CalendarManager.GetDynamicMonthText(d.Year, d.Month);
+                    AvailableMonths.Add(new MonthOption { Value = $"{d.Year}-{d.Month}", Text = monthText });
+                }
+            }
+            else
+            {
+                var mDates = allRecords.Select(a => new {
+                    Year = a.ClockInTime!.Value.Year,
+                    Month = a.ClockInTime!.Value.Month
+                }).Distinct().OrderByDescending(d => d.Year).ThenByDescending(d => d.Month).ToList();
+
+                foreach (var d in mDates)
+                {
+                    string monthText = CalendarManager.GetDynamicMonthText(d.Year, d.Month);
+                    AvailableMonths.Add(new MonthOption { Value = $"{d.Year}-{d.Month}", Text = monthText });
+                }
             }
 
-            // بررسی و درج ماه جاری در صورت عدم وجود سابقه در لیست
-            var currentMonthValue = $"{now.Year}-{now.Month}";
-            if (!AvailableMonths.Any(m => m.Value == currentMonthValue))
-            {
-                string monthText = CalendarManager.GetDynamicMonthText(now.Year, now.Month);
-                AvailableMonths.Insert(0, new MonthOption { Value = currentMonthValue, Text = monthText });
-            }
-
-            if (string.IsNullOrEmpty(SelectedMonthFilter)) SelectedMonthFilter = currentMonthValue;
+            if (string.IsNullOrEmpty(SelectedMonthFilter)) SelectedMonthFilter = "ALL";
         }
+
 
         // تغییر فیلتر ماهانه کارکرد جدول
         protected void OnMonthSelectorChanged(ChangeEventArgs e)
@@ -581,63 +660,59 @@ namespace sqlite_web.Components.Pages
 
 
         // موتور هوشمند محاسبه کارکرد و تفکیک کامل روزهای موظفی و اضافه کاری ماه انتخابی
+        // موتور هوشمند محاسبه کارکرد مجهز به فیلتر صحیح ماه‌های شمسی و میلادی بدون باگ جابه‌جایی ردیف‌ها
         private void CalculateFilteredHours(int employeeId)
         {
-            if (string.IsNullOrEmpty(SelectedMonthFilter)) return;
+            // واکشی کل ترددهای فیلتر نشده کارمند
+            var allRecords = allAttendances
+                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue).ToList();
 
-            var parts = SelectedMonthFilter.Split('-');
-            int targetYear = int.Parse(parts[0]);
-            int targetMonth = int.Parse(parts[1]);
+            List<Attendance> monthlyRecords = new List<Attendance>();
 
-            // ۱. بررسی و آپدیت خودکار ترددهایی که روزشان گذشته و خروج نخورده‌اند به ۲۳:۵۹
-            var openAttendances = DbContext.Attendances
-                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue && !a.ClockOutTime.HasValue)
-                .ToList();
-
-            bool physicalDbChanged = false;
-            foreach (var openAtt in openAttendances)
+            // 🟢 مهار باگ فیلتر: اگر گزینه "ALL" انتخاب نشده باشد، ردیف‌ها بر اساس نوع تقویم جاری فیلتر می‌شوند
+            if (!string.IsNullOrEmpty(SelectedMonthFilter) && SelectedMonthFilter != "ALL")
             {
-                // اگر تاریخ ورود قبل از امروز است یعنی روز تمام شده و باید ۲۳:۵۹ ثبت شود
-                if (openAtt.ClockInTime.Value.Date < DateTime.Today)
+                var parts = SelectedMonthFilter.Split('-');
+                int targetYear = int.Parse(parts[0]);
+                int targetMonth = int.Parse(parts[1]);
+
+                if (CalendarManager.UsePersianCalendar)
                 {
-                    openAtt.ClockOutTime = openAtt.ClockInTime.Value.Date.AddHours(23).AddMinutes(59);
-                    DbContext.Attendances.Update(openAtt);
-                    physicalDbChanged = true;
+                    System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
+                    monthlyRecords = allRecords.Where(a => pc.GetYear(a.ClockInTime!.Value) == targetYear
+                                                        && pc.GetMonth(a.ClockInTime!.Value) == targetMonth).ToList();
+                }
+                else
+                {
+                    monthlyRecords = allRecords.Where(a => a.ClockInTime!.Value.Year == targetYear
+                                                        && a.ClockInTime!.Value.Month == targetMonth).ToList();
                 }
             }
-            if (physicalDbChanged) DbContext.SaveChanges();
-
-            // واکشی کل ترددهای فیلتر شده ماه
-            var monthlyRecords = DbContext.Attendances.AsNoTracking()
-                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue
-                       && a.ClockInTime.Value.Year == targetYear && a.ClockInTime.Value.Month == targetMonth).ToList();
+            else
+            {
+                monthlyRecords = allRecords; // حالت نمایش همه ماه‌ها
+            }
 
             double totalRegularMinutes = 0;
             double totalOvertimeMinutes = 0;
-            double totalDeficitMinutes = 0; // مجموع کسری کار عادی پرسنل در این ماه
+            double totalDeficitMinutes = 0;
 
-            // 🟢 مهار فیزیکی نال بودن متغیر تنظیمات سرور جهت جلوگیری از قطع شدن ارتباط کلاینت
             var settings = AdminState.CurrentSettings;
-
-            // واکشی امن مقادیر فیلدها با در نظر گرفتن مقادیر پیش‌فرض محلی سیستم
             string startTimeStr = settings?.RegularStartTime ?? "07:00";
             string endTimeStr = settings?.RegularEndTime ?? "17:30";
             string offDaysStr = settings?.OffDaysOfWeek ?? "Saturday,Sunday";
-            int thresholdMinutes = settings?.GetType().GetProperty("DeficitThresholdMinutes")?.GetValue(settings) as int? ?? 15;
+            int thresholdMinutes = settings?.DeficitThresholdMinutes ?? 15;
 
             TimeSpan regStart = TimeSpan.Parse(startTimeStr);
             TimeSpan regEnd = TimeSpan.Parse(endTimeStr);
-            double maxExpectedRegularMinutes = (regEnd - regStart).TotalMinutes; // مجموع کل دقایق موظفی یک روز عادی (مثلاً ۶۳۰ دقیقه)
+            double maxExpectedRegularMinutes = (regEnd - regStart).TotalMinutes;
             var offDaysList = offDaysStr.Split(',').ToList();
 
             foreach (var rec in monthlyRecords)
             {
                 DateTime clockIn = rec.ClockInTime!.Value;
-
-                // اگر هنوز خروج نزده و مال امروز است، زمان حال را برای محاسبات موقت در نظر بگیرد
                 DateTime clockOut = rec.ClockOutTime ?? DateTime.Now;
 
-                // اگر روز تعطیل رسمی هفته بود، کل کارکرد مستقیماً به اضافه کاری می‌رود
                 if (offDaysList.Contains(clockIn.DayOfWeek.ToString()))
                 {
                     totalOvertimeMinutes += (clockOut - clockIn).TotalMinutes;
@@ -647,14 +722,12 @@ namespace sqlite_web.Components.Pages
                 DateTime regularStartThreshold = clockIn.Date.Add(regStart);
                 DateTime regularEndThreshold = clockIn.Date.Add(regEnd);
 
-                // محاسبه اضافه کاری صبح
                 if (clockIn < regularStartThreshold)
                 {
                     var endOfEarlyOvertime = clockOut < regularStartThreshold ? clockOut : regularStartThreshold;
                     totalOvertimeMinutes += (endOfEarlyOvertime - clockIn).TotalMinutes;
                 }
 
-                // محاسبه کارکرد واقعی درون بازه موظفی
                 DateTime effectiveIn = clockIn < regularStartThreshold ? regularStartThreshold : clockIn;
                 DateTime effectiveOut = clockOut > regularEndThreshold ? regularEndThreshold : clockOut;
 
@@ -665,13 +738,11 @@ namespace sqlite_web.Components.Pages
                     totalRegularMinutes += dayRegularMinutes;
                 }
 
-                // ⚠️ محاسبه کسری کار روزانه: اگر کارکرد داخل مرز موظفی کمتر از استاندارد باشد
                 if (rec.ClockOutTime.HasValue && dayRegularMinutes < maxExpectedRegularMinutes)
                 {
                     totalDeficitMinutes += (maxExpectedRegularMinutes - dayRegularMinutes);
                 }
 
-                // محاسبه اضافه کاری عصر و شب
                 if (clockOut > regularEndThreshold)
                 {
                     DateTime effectiveOvertimeStart = clockIn > regularEndThreshold ? clockIn : regularEndThreshold;
@@ -679,16 +750,13 @@ namespace sqlite_web.Components.Pages
                 }
             }
 
-            // 🧮 موتور تهاتر هوشمند: اگر کسری کار از آستانه تعیین شده ادمین بیشتر بود
             if (totalDeficitMinutes >= thresholdMinutes)
             {
-                // اگر اضافه کاری داشتیم، تا جای ممکن کسری موظفی را از اضافه کاری کم کرده و به موظفی انتقال می‌دهیم
                 double compensation = Math.Min(totalOvertimeMinutes, totalDeficitMinutes);
                 totalOvertimeMinutes -= compensation;
                 totalRegularMinutes += compensation;
             }
 
-            // تبدیل دقایق نهایی حاصل از تهاتر به فرمت HH:mm جهت نمایش در باکس‌ها
             int regHours = (int)(totalRegularMinutes / 60);
             int regMins = (int)(totalRegularMinutes % 60);
             TotalRegularHours = $"{regHours:00}:{regMins:00}";
@@ -697,6 +765,7 @@ namespace sqlite_web.Components.Pages
             int overMins = (int)(totalOvertimeMinutes % 60);
             TotalOvertimeHours = $"{overHours:00}:{overMins:00}";
         }
+
 
         // باز کردن پاپ‌آپ تنظیمات سرور و بارگذاری مقادیر ساعات کاری از SQLite
         protected void OpenSettingsModal()

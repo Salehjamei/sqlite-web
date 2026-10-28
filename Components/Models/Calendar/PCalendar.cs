@@ -59,15 +59,15 @@ namespace sqlite_web.Components.Models.Calendar
             return dateTime.Value.ToString("dddd", CultureInfo.InvariantCulture);
         }
 
-        // استخراج نام ماه و سال کارکرد بر اساس قالب متنی سیستم
+        /// <summary>
+        /// استخراج نام ماه و سال کارکرد به صورت کاملاً دقیق متناسب با تقویم فعال سیستم
+        /// </summary>
         public string GetDynamicMonthText(int year, int month)
         {
-            DateTime dt = new DateTime(year, month, 1);
             if (UsePersianCalendar)
             {
-                PersianCalendar pc = new PersianCalendar();
-                int pMonth = pc.GetMonth(dt);
-                string monthName = pMonth switch
+                // 🟢 مهار باگ سال ۷۸۴: تخصیص مستقیم نام ماه شمسی بدون جابجایی ارقام ریاضی
+                string monthName = month switch
                 {
                     1 => "فروردین",
                     2 => "اردیبهشت",
@@ -83,10 +83,18 @@ namespace sqlite_web.Components.Models.Calendar
                     12 => "اسفند",
                     _ => ""
                 };
-                return $"{monthName} {pc.GetYear(dt)}";
+
+                // بازگرداندن متن ماه در کنار سال شمسی دریافت شده از ورودی سلکتور
+                return $"{monthName} {year}";
             }
-            return dt.ToString("MMMM yyyy", CultureInfo.InvariantCulture);
+            else
+            {
+                // حالت نمایش تقویم میلادی استاندارد
+                DateTime dt = new DateTime(year, month, 1);
+                return dt.ToString("MMMM yyyy", System.Globalization.CultureInfo.InvariantCulture);
+            }
         }
+
 
         // تولید محدوده سال‌ها متناسب با تقویم انتخابی برای منوهای آبشاری
         public List<string> GetFormYears()
@@ -113,6 +121,7 @@ namespace sqlite_web.Components.Models.Calendar
         }
 
         // همگام‌سازی فیلدهای متنی آبشاری منوها هنگام باز شدن مودال یا کلیک روی دکمه ویرایش ردیف
+        // همگام‌سازی فیلدهای داخلی منوهای آبشاری با تاریخ مورد نظر (شمسی یا میلادی)
         public void SyncFormCalendarFields(DateTime inDt, DateTime outDt)
         {
             if (UsePersianCalendar)
@@ -137,6 +146,7 @@ namespace sqlite_web.Components.Models.Calendar
                 ManualOutDay = outDt.Day.ToString("D2");
             }
         }
+
 
         // تبدیل فیلدهای انتخاب شده منوهای آبشاری تفکیک شده کلاینت به شیء استاندارد DateTime سی‌شارپ
         public DateTime ParseFormFieldsToDateTime(string year, string month, string day, string timeStr)

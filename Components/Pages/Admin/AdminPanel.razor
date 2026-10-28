@@ -265,7 +265,7 @@
                             <div class="text-right mb-2 text-md-left" style="text-align: left !important;">
                                 <button type="button" class="btn btn-sm btn-outline-primary fw-bold px-3 btn-report-modal-add" @onclick="OpenManualAddModal" style="font-size: 11px; padding: 4px 10px; border-radius: 4px;">
                                     📅 ثبت تردد دستی جدید
-                                </button>
+                                </button>                               
                             </div>
                         }
 
@@ -283,30 +283,54 @@
                                 <tbody>
                                     @if (selectedEmployee != null)
                                     {
-                                        // 🟢 ۱. واکشی رکوردهای فیلتر شده کارمند با نام کاملاً متمایز محلی
                                         var localEmpRecordsTable = allAttendances.Where(a => a.EmployeeId == selectedEmployee.Id).ToList();
 
-                                        // 🟢 ۲. تعریف مستقل و Null-Safe متغیرهای قوانین کاری با کلمه کلیدی var جهت رفع ریشه‌ای تداخل نام‌ها
                                         var localSettingsData = AdminState.CurrentSettings;
                                         TimeSpan localRegStartField = localSettingsData != null ? TimeSpan.Parse(localSettingsData.RegularStartTime) : TimeSpan.FromHours(7);
                                         TimeSpan localRegEndField = localSettingsData != null ? TimeSpan.Parse(localSettingsData.RegularEndTime) : TimeSpan.FromHours(17).Add(TimeSpan.FromMinutes(30));
                                         var localOffDaysListField = localSettingsData != null ? localSettingsData.OffDaysOfWeek.Split(',').ToList() : new List<string> { "Saturday", "Sunday" };
 
-                                        @if (!localEmpRecordsTable.Any())
+                                        // 🟢 فیلتر آنی ردیف‌های جدول در فرانت‌اِند کاملاً منطبق بر نوع تقویم
+                                        List<sqlite_web.Components.Models.Attendance> displayRecords = new List<sqlite_web.Components.Models.Attendance>();
+
+                                        if (!string.IsNullOrEmpty(SelectedMonthFilter) && SelectedMonthFilter != "ALL")
                                         {
-                                            <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">هیچ سابقه کارکردی ثبت نشده است.</td></tr>
+                                            var filterParts = SelectedMonthFilter.Split('-');
+                                            int filterYear = int.Parse(filterParts[0]);
+                                            int filterMonth = int.Parse(filterParts[1]);
+
+                                            if (CalendarManager.UsePersianCalendar)
+                                            {
+                                                System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
+                                                displayRecords = localEmpRecordsTable.Where(a => a.ClockInTime.HasValue
+                                                    && pc.GetYear(a.ClockInTime.Value) == filterYear
+                                                    && pc.GetMonth(a.ClockInTime.Value) == filterMonth).ToList();
+                                            }
+                                            else
+                                            {
+                                                displayRecords = localEmpRecordsTable.Where(a => a.ClockInTime.HasValue
+                                                    && a.ClockInTime.Value.Year == filterYear
+                                                    && a.ClockInTime.Value.Month == filterMonth).ToList();
+                                            }
                                         }
                                         else
                                         {
-                                            @foreach (var att in localEmpRecordsTable.Where(r => r.ClockInTime.HasValue).OrderByDescending(a => a.ClockInTime))
+                                            displayRecords = localEmpRecordsTable; // نمایش کل تاریخچه در حالت انتخاب "همه ماه‌های کارکرد"
+                                        }
+
+                                        @if (!displayRecords.Any())
+                                        {
+                                            <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">هیچ سابقه کارکردی برای بازه انتخابی وجود ندارد.</td></tr>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var att in displayRecords.Where(r => r.ClockInTime.HasValue).OrderByDescending(a => a.ClockInTime))
                                             {
                                                 DateTime clockIn = att.ClockInTime!.Value;
                                                 DateTime clockOut = att.ClockOutTime ?? DateTime.Now;
 
-                                                // ۳. تشخیص هوشمند وضعیت پایان روز کامل و خروج اتوماتیک سیستم روی ساعت ۲۳:۵۹
                                                 bool isFullDayAutoExit = att.ClockOutTime.HasValue && att.ClockOutTime.Value.ToString("HH:mm") == "23:59";
 
-                                                // ۴. محاسبه وضعیت وجود اضافه کاری بر اساس پارامترهای محلی و اختصاصی جدید
                                                 bool hasOvertime = false;
                                                 if (localOffDaysListField.Contains(clockIn.DayOfWeek.ToString()))
                                                 {
@@ -319,10 +343,7 @@
                                                     hasOvertime = clockIn < regularStartThreshold || clockOut > regularEndThreshold;
                                                 }
 
-                                                // 🟠 اعمال رنگ پس‌زمینه نارنجی به کل ردیف در صورت ثبت خروج خودکار پایان روز
                                                 <tr style="@(isFullDayAutoExit ? "background-color: #fff3cd !important;" : "")">
-
-                                                    // ۵. نمایش نام روز هفته و تاریخ به صورت کاملاً پویا و مستقیم از نمونه کلاس تقویم شما
                                                     <td class="fw-bold text-dark" style="font-size: 11px; vertical-align: middle;">
                                                         @{
                                                             string dayName = CalendarManager != null ? CalendarManager.GetDynamicDayName(att.ClockInTime) : "";
@@ -336,21 +357,18 @@
 
                                                         @if (isFullDayAutoExit)
                                                         {
-                                                            // نمایش علامت تعجب زرد رنگ در وسط ستون برای خروج‌های خودکار ۲۳:۵۹ سرور
                                                             <span class="fw-bold text-danger">خروج: 23:59 </span>
-                                                            <span class="badge bg-warning text-dark px-1.5 ms-1 fw-bold" style="font-size: 10px;" title="روز کامل - ثبت اتوماتیک سیستم">⚠️</span>
+                                                            <span class="badge bg-warning text-dark px-1.5 ms-1 fw-bold" style="font-size: 10px;">⚠️</span>
                                                         }
                                                         else
                                                         {
                                                             <span>خروج: @(att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "🔴 تردد")</span>
                                                         }
 
-                                                        // 🔷 رندر شاخص هندسی لوزی سبز رنگ: خروج ثبت شده و دارای اضافه کاری واقعی است
                                                         @if (att.ClockOutTime.HasValue && !isFullDayAutoExit && hasOvertime)
                                                         {
                                                             <span class="text-success ms-1" style="font-size: 13px; font-weight: bold;" title="دارای اضافه کاری محقق شده">🔷</span>
                                                         }
-                                                        // 🟩 رندر شاخص هندسی مربع سبز رنگ: حضور زنده (بدون خروج)، اما زمان از مرز موظفی گذشته و در محدوده اضافه کاری است
                                                         else if (!att.ClockOutTime.HasValue && hasOvertime)
                                                         {
                                                             <span class="text-success ms-1" style="font-size: 11px; font-weight: bold;" title="حضور زنده در محدوده اضافه کاری">🟩</span>
@@ -387,6 +405,7 @@
                                         <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">جهت مشاهده سوابق کارکرد، کارمند مورد نظر را انتخاب کنید.</td></tr>
                                     }
                                 </tbody>
+
                             </table>
 
                         </div>
@@ -395,7 +414,7 @@
             </div>
         }
 
-        @* 📅 🔒 مودال جدید، تفکیک شده و ۱۰۰٪ کامل ثبت دستی و ویرایش ساعت کاری پرسنل *@
+        @* 📅 🔒 مودال تفکیک شده ثبت دستی و ویرایش ساعت کاری پرسنل *@
         @if (showManualAddModal && selectedEmployee != null)
         {
             <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseManualAddModal">
@@ -415,23 +434,29 @@
                             </div>
                         }
 
-                        @* 🟢 کادر منوهای آبشاری تفکیک شده انتخاب تاریخ روز ورود پرسنل *@
+                        @* 🟢 کادر منوهای آبشاری تفکیک شده انتخاب تاریخ روز ورود پرسنل مجهز به رویداد تاگل زنده خروج *@
                         <div class="mb-2.5">
                             <label class="form-label text-muted small mb-1">تاریخ روز ورود:</label>
                             <div class="input-group input-group-sm gap-1" style="direction: ltr;">
-                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualInYear" style="font-size: 12px; border-radius: 4px;">
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
+                                        value="@CalendarManager!.ManualInYear"
+                                        @onchange='(e) => { CalendarManager.ManualInYear = e.Value?.ToString(); CalendarManager.ManualOutYear = e.Value?.ToString(); }'>
                                     @foreach (var y in CalendarManager.GetFormYears())
                                     {
                                         <option value="@y">@y</option>
                                     }
                                 </select>
-                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualInMonth" style="font-size: 12px; border-radius: 4px;">
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
+                                        value="@CalendarManager!.ManualInMonth"
+                                        @onchange='(e) => { CalendarManager.ManualInMonth = e.Value?.ToString(); CalendarManager.ManualOutMonth = e.Value?.ToString(); }'>
                                     @foreach (var m in CalendarManager.GetFormMonths())
                                     {
                                         <option value="@m.Key">@m.Value</option>
                                     }
                                 </select>
-                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualInDay" style="font-size: 12px; border-radius: 4px;">
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
+                                        value="@CalendarManager!.ManualInDay"
+                                        @onchange='(e) => { CalendarManager.ManualInDay = e.Value?.ToString(); CalendarManager.ManualOutDay = e.Value?.ToString(); }'>
                                     @for (int i = 1; i <= 31; i++)
                                     {
                                         var d = i.ToString("D2");
@@ -446,23 +471,23 @@
                             <input type="text" @bind="manualInTime" class="form-control form-control-sm text-center font-monospace" placeholder="07:00" style="font-size: 13px;" />
                         </div>
 
-                        @* 🟢 کادر منوهای آبشاری تفکیک شده انتخاب تاریخ روز خروج پرسنل *@
+                        @* 🟢 کادر منوهای آبشاری تفکیک شده انتخاب تاریخ روز خروج پرسنل: قفل شده و کاملاً همگام با ورود *@
                         <div class="mb-2.5">
-                            <label class="form-label text-muted small mb-1">تاریخ روز خروج:</label>
+                            <label class="form-label text-muted small mb-1">تاریخ روز خروج (قفل همگام با ورود):</label>
                             <div class="input-group input-group-sm gap-1" style="direction: ltr;">
-                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualOutYear" style="font-size: 12px; border-radius: 4px;">
+                                <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutYear">
                                     @foreach (var y in CalendarManager.GetFormYears())
                                     {
                                         <option value="@y">@y</option>
                                     }
                                 </select>
-                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualOutMonth" style="font-size: 12px; border-radius: 4px;">
+                                <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutMonth">
                                     @foreach (var m in CalendarManager.GetFormMonths())
                                     {
                                         <option value="@m.Key">@m.Value</option>
                                     }
                                 </select>
-                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode" @bind="CalendarManager!.ManualOutDay" style="font-size: 12px; border-radius: 4px;">
+                                <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutDay">
                                     @for (int i = 1; i <= 31; i++)
                                     {
                                         var d = i.ToString("D2");
@@ -510,7 +535,7 @@
                     <div class="p-3 text-right" style="direction: rtl;">
                         <form @onsubmit="SaveEmployeeData" @onsubmit:preventDefault>
 
-                            @* 👤 کادر ورودی نام: مهار خطا و حاشیه قرمز زنده *@
+                            @* 👤 کادر ورودی نام *@
                             <div class="mb-2">
                                 <label class="form-label text-muted small mb-1">نام و نام خانوادگی:</label>
                                 <input type="text" id="empNameInput" maxlength="40" @bind="newEmpName"
@@ -568,7 +593,7 @@
             </div>
         }
 
-        @* 🛠️ ۲. مودال تعاملی، لایه‌ای و تفکیک شده تنظیمات قوانین کاری و محاسبات سرور *@
+        @* 🛠️ ۲. مودال تعاملی، لایه‌ای و تفکیک شده تنظیمات قوانین کاری و محاسبات سرور مجهز به سیستم انتخاب تقویم ماندگار *@
         @if (showSettingsModal)
         {
             @* بک‌دراپ تیره مهار کلیک بیرون: لمس این فضا مودال تنظیمات را فوراً غیب می‌کند *@
@@ -585,7 +610,7 @@
                     <div class="p-3 text-right" style="direction: rtl; text-align: right; font-family: Tahoma;">
                         <form @onsubmit="SaveSettingsData" @onsubmit:preventDefault>
 
-                            @* بخش اول: تعیین دقیق بازه فیزیکی ساعات موظفی پرسنل *@
+                            @* بخش اول: تعیین دقیق بازه فیزیکی ساعات موظفی پرسنل (ریسپانسیو) *@
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label text-muted small mb-1">⏱️ شروع ساعت موظفی:</label>
@@ -597,13 +622,37 @@
                                 </div>
                             </div>
 
+                            @* 🟢 بخش دوم: انتخاب نوع تقویم و زبان پیش‌فرض سیستم به صورت کاملاً ریسپانسیو *@
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">🌐 نوع تقویم و زبان پیش‌فرض سیستم (ماندگار):</label>
+                                <div class="btn-group btn-group-sm w-100" role="group" style="direction: ltr;">
+                                    <button type="button" class="btn @(CalendarManager != null && !CalendarManager.UsePersianCalendar ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                            @onclick="() => SetCalendarType(false)" style="font-size: 11px; padding: 5px;">
+                                        Miladi Calendar 🇬🇧
+                                    </button>
+                                    <button type="button" class="btn @(CalendarManager != null && CalendarManager.UsePersianCalendar ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                            @onclick="() => SetCalendarType(true)" style="font-size: 11px; padding: 5px;">
+                                        تقویم شمسی 🇮🇷
+                                    </button>
+                                </div>
+                            </div>
+
+                            @* 🟢 بخش سوم: تعیین آستانه تهاتر کسری کار با اضافه کاری پرسنل *@
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">⚠️ آستانه تهاتر کسری موظفی با اضافه کاری (دقیقه):</label>
+                                <input type="number" @bind="AdminState.CurrentSettings.DeficitThresholdMinutes" class="form-control form-control-sm text-center fw-bold" placeholder="15" min="0" max="120" style="font-size: 12px; max-width: 100%;" />
+                                <div class="form-text text-muted" style="font-size: 9.5px; margin-top: 4px; text-align: justify; line-height: 1.4;">
+                                    * اگر مجموع کسری کار عادی پرسنل در ماه مساوی یا بیشتر از این مقدار باشد، کسری موظفی از اضافه کاری کسر و جبران خواهد شد.
+                                </div>
+                            </div>
+
                             <div class="border-top pt-2 mb-2">
                                 <h6 class="fw-bold text-dark mb-2" style="font-size: 12px;">📅 تعیین روزهای تعطیل هفته (۱۰۰٪ اضافه کاری):</h6>
                             </div>
-                            @* بخش ب: چک‌باکس‌های ۷ روز هفته جهت تعیین روزهای تعطیل سیستم *@
+
+                            @* بخش چهارم: چک‌باکس‌های ۷ روز هفته جهت تعیین روزهای تعطیل سیستم *@
                             <div class="p-2.5 border rounded bg-light mb-3">
                                 <div class="row g-2">
-
                                     <div class="col-6">
                                         <div class="form-check mb-1">
                                             <input class="form-check-input" type="checkbox" id="offSat" checked="@selectedOffDays.Contains("Saturday")" @onchange='(e) => ToggleOffDaySelection("Saturday", e.Value)' />
@@ -637,7 +686,6 @@
                                             <label class="form-check-label small pr-1" for="offFri">جمعه (Friday)</label>
                                         </div>
                                     </div>
-
                                 </div>
                             </div>
 
