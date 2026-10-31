@@ -23,7 +23,8 @@ namespace sqlite_web.Components.Pages
 
         // 📅 نمونه‌سازی از کلاس مستقل و جدید مدیریت تقویم و ویژگی‌های داینامیک
         protected sqlite_web.Components.Models.Calendar.PCalendar CalendarManager { get; set; } = new();
-
+        // 🟢 خصوصیت جدید جهت مهار زبان فعال در کل لایه منطق برنامه (fa، en، tr)
+        protected string CurrentLanguage { get; set; } = "fa";
         // 👑 پرچم‌های هوشمند بررسی سطوح دسترسی ادمین آنلاین
         protected bool canAddPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false);
         protected bool canEditPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false);
@@ -161,31 +162,41 @@ namespace sqlite_web.Components.Pages
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ خطا در متد OnInitializedAsync: {ex.Message}");
-            }        
+            }
         }
         // متد رندر تعاملی جهت فعال کردن رویدادها و بازیابی خودکار وضعیت تقویم ذخیره‌شده کاربر
+        // متد چرخه حیات رندر تعاملی جهت بازیابی خودکار وضعیت تقویم و زبان ذخیره‌شده کاربر
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
                 try
                 {
-                    // 🟢 واکشی وضعیت ذخیره شده تقویم از حافظه مرورگر کلاینت
-                    var result = await LocalStorage.GetAsync<bool>("UsePersianCalendarSetting");
-
-                    // در صورت وجود تنظیمات قبلی، آن را روی شیء مدیریت تقویم اعمال می‌کند
-                    if (result.Success)
+                    // بازیابی وضعیت ذخیره شده تقویم از حافظه مرورگر کلاینت
+                    var calendarResult = await LocalStorage.GetAsync<bool>("UsePersianCalendarSetting");
+                    if (calendarResult.Success)
                     {
                         if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
+                        CalendarManager.UsePersianCalendar = calendarResult.Value;
+                        this.CalendarManager.UsePersianCalendar = calendarResult.Value;
+                    }
 
-                        CalendarManager.UsePersianCalendar = result.Value;
-
-                        // بازسازی فوری اطلاعات کارنامه بر اساس تقویم لود شده
-                        if (selectedEmployee != null)
+                    // 🟢 واکشی وضعیت زبان انتخابی ذخیره شده از حافظه مرورگر کلاینت
+                    var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
+                    if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
+                    {
+                        CurrentLanguage = langResult.Value;
+                        // تزریق زبان لود شده به فیلد زبانی کلاس کپسوله شده تقویم شما
+                        if (CalendarManager != null)
                         {
-                            LoadAvailableMonths(selectedEmployee.Id);
-                            CalculateFilteredHours(selectedEmployee.Id);
+                            CalendarManager.GetType().GetProperty("CurrentLanguage")?.SetValue(CalendarManager, CurrentLanguage);
                         }
+                    }
+
+                    if (selectedEmployee != null)
+                    {
+                        LoadAvailableMonths(selectedEmployee.Id);
+                        CalculateFilteredHours(selectedEmployee.Id);
                     }
                 }
                 catch
@@ -193,9 +204,34 @@ namespace sqlite_web.Components.Pages
                     // مهار خطاهای احتمالی ارتباط اولیه با مرورگر
                 }
 
-                // بیدار کردن کامپوننت و فعال‌سازی قطعی رویداد دکمه‌ها در مرورگر
                 await InvokeAsync(StateHasChanged);
             }
+        }
+        // 🟢 متد جدید جهت تغییر نوع زبان فعال سیستم به همراه ذخیره‌سازی ماندگار در مرورگر
+        protected async Task SetSystemLanguage(string lang)
+        {
+            CurrentLanguage = lang;
+
+            if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
+            CalendarManager.GetType().GetProperty("CurrentLanguage")?.SetValue(CalendarManager, lang);
+
+            try
+            {
+                // ذخیره قطعی زبان انتخابی کاربر در سشن حافظه کلاینت
+                await LocalStorage.SetAsync("SystemLanguageSetting", lang);
+            }
+            catch
+            {
+                // مهار خطای عدم دسترسی کلاینت
+            }
+
+            if (selectedEmployee != null)
+            {
+                LoadAvailableMonths(selectedEmployee.Id);
+                CalculateFilteredHours(selectedEmployee.Id);
+            }
+
+            await InvokeAsync(StateHasChanged);
         }
         // متد تغییر نوع تقویم به همراه ذخیره‌سازی ماندگار و همیشگی در سیستم
         protected async Task SetCalendarType(bool isPersian)
@@ -308,6 +344,15 @@ namespace sqlite_web.Components.Pages
             if (isEmpEditMode && _editingEmployeeId.HasValue)
             {
                 if (!canEditPerm && !AdminState.isCurrentUserSuperAdmin) return;
+
+                // 🛑 گارد بررسی کد ملی تکراری در حالت ویرایش: کدملی نباید متعلق به کارمند دیگری باشد
+                bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode && e.Id != _editingEmployeeId.Value);
+                if (isCodeDuplicate)
+                {
+                    SystemMessage = "❌ خطا: این کد ملی قبلاً برای کارمند دیگری در سیستم ثبت شده است! کد ملی باید منحصربه‌فرد باشد.";
+                    return;
+                }
+
                 var emp = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _editingEmployeeId.Value);
                 if (emp != null)
                 {
@@ -316,15 +361,25 @@ namespace sqlite_web.Components.Pages
                     emp.PersonnelCode = newEmpCode;
                     emp.ImagePath = previewImageUrl;
                     DbContext.Employees.Update(emp);
-                    SystemMessage = $"✅ مشخصات کارمند ویرایش شد.";
+                    SystemMessage = $"✅ مشخصات کارمند با موفقیت ویرایش شد.";
                 }
             }
             else
             {
                 if (!canAddPerm && !AdminState.isCurrentUserSuperAdmin) return;
+
+                // 🛑 گارد بررسی کد ملی تکراری در حالت ثبت کارمند جدید
+                bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode);
+                if (isCodeDuplicate)
+                {
+                    SystemMessage = "❌ خطا: کارمندی با این کد ملی قبلاً در سیستم تعریف شده است! ورود کد ملی تکراری مجاز نیست.";
+                    return;
+                }
+
                 DbContext.Employees.Add(new Employee { FullName = newEmpName, Phone = newEmpPhone, PersonnelCode = newEmpCode, ImagePath = previewImageUrl });
-                SystemMessage = $"✅ کارمند جدید ثبت شد.";
+                SystemMessage = $"✅ کارمند جدید با موفقیت ثبت شد.";
             }
+
             await DbContext.SaveChangesAsync();
             await RefreshDataAsync();
             CloseEmpFormModal();
@@ -531,7 +586,8 @@ namespace sqlite_web.Components.Pages
             if (CalendarManager.UsePersianCalendar)
             {
                 System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
-                var pDates = allRecords.Select(a => new {
+                var pDates = allRecords.Select(a => new
+                {
                     Year = pc.GetYear(a.ClockInTime!.Value),
                     Month = pc.GetMonth(a.ClockInTime!.Value)
                 }).Distinct().OrderByDescending(d => d.Year).ThenByDescending(d => d.Month).ToList();
@@ -544,7 +600,8 @@ namespace sqlite_web.Components.Pages
             }
             else
             {
-                var mDates = allRecords.Select(a => new {
+                var mDates = allRecords.Select(a => new
+                {
                     Year = a.ClockInTime!.Value.Year,
                     Month = a.ClockInTime!.Value.Month
                 }).Distinct().OrderByDescending(d => d.Year).ThenByDescending(d => d.Month).ToList();

@@ -6,7 +6,7 @@
         <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 450px !important; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;" @onclick:stopPropagation>
 
             <div class="bg-danger text-white p-3 fw-bold" style="font-size: 14px; text-align: right; direction: rtl;">
-                ⚠️ @Title
+                @Title
             </div>
 
             <div class="p-3 text-right" style="direction: rtl; text-align: right; font-family: Tahoma;">
@@ -14,7 +14,8 @@
                 @if (!string.IsNullOrEmpty(TargetName))
                 {
                     <div class="alert alert-warning text-center p-2 mb-2 fw-bold text-dark" style="font-size: 13.5px; border-radius: 6px;">
-                        🎯 آیتم انتخابی: @TargetName
+                        <span class="fw-bold">@SelectedItemLabel @TargetName</span>
+
                     </div>
                 }
                 <p class="fw-bold text-danger" style="font-size: 12.5px; margin-bottom: 6px;">@Message</p>
@@ -22,9 +23,15 @@
             </div>
 
             <div class="p-3 bg-light d-flex justify-content-end gap-2 border-top" style="direction: ltr;">
-                <button type="button" class="btn btn-danger btn-sm px-3 fw-bold" style="font-size: 12px;" @onclick="HandleConfirmClick">بله، حذف شود</button>
-                <button type="button" class="btn btn-secondary btn-sm px-3" style="font-size: 12px;" @onclick="HandleCancelClick">انصراف</button>
+                <button type="button" class="btn btn-danger btn-sm px-3 fw-bold" style="font-size: 12px;" @onclick="HandleConfirmClick">@DeleteConfirmBtn</button>
+                <button type="button" class="btn btn-secondary btn-sm px-3" style="font-size: 12px;" @onclick="HandleCancelClick">@kancelBtn</button>
             </div>
         </div>
     </div>
+}
+@code {
+    // 🟢 تعریف فیلد پارامتر جدید جهت دریافت متن ترجمه‌شده از صفحه اصلی
+    [Parameter] public string SelectedItemLabel { get; set; } = "آیتم انتخابی:";
+    [Parameter] public string DeleteConfirmBtn { get; set; } = "بله حذف شود";
+    [Parameter] public string kancelBtn { get; set; } = "انصراف";
 }
