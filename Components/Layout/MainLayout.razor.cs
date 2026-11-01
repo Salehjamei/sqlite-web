@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.JSInterop;
 using sqlite_web.Services;
-
 namespace sqlite_web.Components.Layout
 {
     public partial class MainLayout : LayoutComponentBase, IDisposable
@@ -12,6 +11,12 @@ namespace sqlite_web.Components.Layout
         [Inject] public AdminStateService AdminState { get; set; } = default!;
         [Inject] public NavigationManager NavigationManager { get; set; } = default!;
         [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
+        // 💾 تزریق سرویس حافظه محلی مرورگر در بالای کلاس لایوت برای لود زبان
+        [Inject] public Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage LocalStorage { get; set; } = default!;    
+        // 📅 نمونه‌سازی از کلاس مستقل و جدید مدیریت تقویم و ویژگی‌های داینامیک
+        protected sqlite_web.Components.Models.Calendar.PCalendar CalendarManager { get; set; } = new();
+        // 🟢 خصوصیت جدید جهت مهار زبان فعال در کل لایه منطق برنامه (fa، en، tr)
+        protected string CurrentLanguage { get; set; } = "fa";
 
         protected bool ShowAccessDeniedModal { get; set; } = false;
         protected bool ShowUrlHijackModal { get; set; } = false;
@@ -62,14 +67,35 @@ namespace sqlite_web.Components.Layout
         {
             if (firstRender)
             {
+                // 🟢 گام اول: بازیابی خودکار و ماندگار زبان ذخیره‌شده کاربر از حافظه مرورگر کلاینت
+                try
+                {
+                    var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
+                    if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
+                    {
+                        CurrentLanguage = langResult.Value;
+
+                        if (CalendarManager != null)
+                        {
+                            CalendarManager.CurrentLanguage = CurrentLanguage;
+                        }
+                    }
+                }
+                catch
+                {
+                    // مهار خطاهای احتمالی ارتباط اولیه سشن بلیزور
+                }
+
+                // 🛡️ گام دوم: اجرای گارد دسترسی و پایش امنیتی آدرس بومی پروژه شما
                 await AdminState.CheckAccessAndRedirectAsync();
                 EvaluateUrlSecurity(NavigationManager.Uri);
 
-                // 🟢 تازه‌سازی مجدد وضعیت دکمه‌ها پس از اولین رندر فیزیکی لایوت در مرورگر کلاینت
+                // 🔄 گام سوم: تازه‌سازی مجدد وضعیت دکمه‌ها و فعال‌سازی تعاملی رویدادها در مرورگر
                 UpdateActivePageIndicator(NavigationManager.Uri);
                 await InvokeAsync(StateHasChanged);
             }
         }
+
 
         private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
         {
@@ -119,11 +145,36 @@ namespace sqlite_web.Components.Layout
 
         protected void CloseAccessModal() => ShowAccessDeniedModal = false;
 
-        private void OnAdminStateChanged()
+        // متد گوش دادن بومی به تغییرات وضعیت سرویس مرکزی جهت به‌روزرسانی آنی زبان و دکمه‌های هدر
+        private async void OnAdminStateChanged()
         {
+            try
+            {
+                // 🟢 واکشی آنی آخرین زبان ذخیره شده از حافظه مرورگر به محض دریافت سیگنال از پنل تنظیمات
+                var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
+                if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
+                {
+                    CurrentLanguage = langResult.Value;
+
+                    // اعمال تغییر زبان روی موتور مترجم کپسوله‌شده در هدر لایوت
+                    if (CalendarManager != null)
+                    {
+                        CalendarManager.CurrentLanguage = CurrentLanguage;
+                    }
+                }
+            }
+            catch
+            {
+                // مهار خطاهای احتمالی ارتباط با سشن مرورگر
+            }
+
+            // 🔄 اجرای منطق بومی قدیمی شما جهت به‌روزرسانی وضعیت دکمه فعال صفحه
             UpdateActivePageIndicator(NavigationManager.Uri);
-            InvokeAsync(StateHasChanged);
+
+            // بازرندر آنی و لحظه‌ای کل هدر برنامه بدون نیاز به رفرش فیزیکی صفحه
+            await InvokeAsync(StateHasChanged);
         }
+
 
         /// <summary>
         /// 🟢 بازنویسی متد پایش آدرس فعال با حذف کامل تداخل حروف کوچک و بزرگ برای تثبیت حاشیه سبز دکمه‌ها
@@ -157,6 +208,6 @@ namespace sqlite_web.Components.Layout
             IsMobileMenuOpen = false; // منوی همبرگری موبایل را در صورت باز بودن ببند
             NavigationManager.NavigateTo(targetUrl, forceLoad: false); // تغییر آدرس زنده صفحه بدون لود مجدد کل مرورگر
         }
-
+          
     }
 }

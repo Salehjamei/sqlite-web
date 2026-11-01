@@ -32,19 +32,19 @@
                     <div class="nav-management-group nav-grid-mobile">
                         @* 🏠 دکمه بازگشت به کیوسک تردد *@
                         <button type="button" class="btn-modern btn-modern-secondary @(ActivePage == "home" ? "active-custom" : "")" @onclick='() => NavigateToPage("/")'>
-                            🏠 کیوسک تردد
+                             @CalendarManager.Translate("KioskBtn")
                         </button>
 
                         @* 👥 دکمه مدیریت پرسنل *@
                         <button type="button" class="btn-modern btn-modern-primary @(ActivePage == "panel" ? "active-custom" : "")" @onclick='() => NavigateToPage("/admin/panel")'>
-                            👥 مدیریت پرسنل
+                            @CalendarManager.Translate("PersonnelManagementBtn")
                         </button>
 
                         @* 👑 دکمه سطوح دسترسی مخصوص سوپر ادمین *@
                         @if (AdminState.isCurrentUserSuperAdmin)
                         {
                             <button type="button" class="btn-modern btn-modern-warning @(ActivePage == "manage" ? "active-custom" : "")" @onclick='() => NavigateToPage("/admin/manage-admins")'>
-                                👑 سطوح دسترسی
+                                👑 @CalendarManager.Translate("UserPermissionsBtn")
                             </button>
                         }
                     </div>
@@ -53,7 +53,7 @@
                 {
                     <div class="nav-management-group">
                         <button type="button" class="btn-modern btn-modern-primary" @onclick="NavigateToDashboardSafe">
-                            💼 داشبورد مدیریت
+                            @CalendarManager.Translate("AdminDashboard")
                         </button>
                     </div>
                 }
@@ -62,7 +62,7 @@
                 <div class="logout-left-zone">
                     <span class="user-welcome-text desktop-only">👤 @AdminState.adminUsername</span>
                     <button type="button" class="btn-modern btn-modern-danger" @onclick="OpenLogoutModal">
-                        🏃‍♂️ خروج از پنل
+                        @CalendarManager.Translate("LogoutBtn")
                     </button>
                 </div>
 

@@ -13,18 +13,13 @@ namespace sqlite_web.Components.Pages
     /// <summary>
     /// کلاس جزئی مدیریت منطق پشت‌صحنه پنل پرسنل و کارکردها
     /// </summary>
-    public partial class AdminPanel : ComponentBase
+    public partial class AdminPanel : AppBaseComponent
     {
         // 💾 تزریق کانتکست دیتابیس بومی پروژه برای ارتباط با SQLite
         [Inject] public AppDbContext DbContext { get; set; } = default!;
 
         // 🛡️ تزریق سرویس پایش اصالت سشن و متغیرهای هویت آنلاین ادمین
         [Inject] public AdminStateService AdminState { get; set; } = default!;
-
-        // 📅 نمونه‌سازی از کلاس مستقل و جدید مدیریت تقویم و ویژگی‌های داینامیک
-        protected sqlite_web.Components.Models.Calendar.PCalendar CalendarManager { get; set; } = new();
-        // 🟢 خصوصیت جدید جهت مهار زبان فعال در کل لایه منطق برنامه (fa، en، tr)
-        protected string CurrentLanguage { get; set; } = "fa";
         // 👑 پرچم‌های هوشمند بررسی سطوح دسترسی ادمین آنلاین
         protected bool canAddPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false);
         protected bool canEditPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false);
@@ -207,7 +202,7 @@ namespace sqlite_web.Components.Pages
                 await InvokeAsync(StateHasChanged);
             }
         }
-        // 🟢 متد جدید جهت تغییر نوع زبان فعال سیستم به همراه ذخیره‌سازی ماندگار در مرورگر
+        // متد تغییر نوع زبان فعال سیستم به همراه ذخیره‌سازی ماندگار و به‌روزرسانی آنی هدر لایوت
         protected async Task SetSystemLanguage(string lang)
         {
             CurrentLanguage = lang;
@@ -225,12 +220,40 @@ namespace sqlite_web.Components.Pages
                 // مهار خطای عدم دسترسی کلاینت
             }
 
+            // 🟢 ارسال سیگنال تغییر وضعیت به سرویس متمرکز جهت به‌روزرسانی آنی هدر لایوت بدون نیاز به رفرش
+            // 🟢 اصلاح خط ۲۳۱: فراخوانی متد عمومی و مجاز سرویس متمرکز شما جهت اطلاع‌رسانی به هدر
+            if (AdminState != null)
+            {
+                // این متد بومی شما در لایه سرویس به طور خودکار سیگنال بازرندر را به لایوت شلیک می‌کند
+                await AdminState.SaveWorkSettingsAsync(settingsStartTime, settingsEndTime, selectedOffDays);
+            }
             if (selectedEmployee != null)
             {
                 LoadAvailableMonths(selectedEmployee.Id);
                 CalculateFilteredHours(selectedEmployee.Id);
             }
 
+            await InvokeAsync(StateHasChanged);
+        }
+        // 🟢 این متد را در فایل MainLayout.razor.cs پیدا کرده یا کدهای داخل بلاک آن را اضافه کنید
+        private async Task OnAdminStateChanged()
+        {
+            try
+            {
+                // واکشی آنی آخرین زبان ذخیره شده از حافظه مرورگر
+                var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
+                if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
+                {
+                    CurrentLanguage = langResult.Value;
+                    if (CalendarManager != null)
+                    {
+                        CalendarManager.CurrentLanguage = CurrentLanguage;
+                    }
+                }
+            }
+            catch { }
+
+            // بازرندر آنی هدر بدون نیاز به رفرش صفحه
             await InvokeAsync(StateHasChanged);
         }
         // متد تغییر نوع تقویم به همراه ذخیره‌سازی ماندگار و همیشگی در سیستم

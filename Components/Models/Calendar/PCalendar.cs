@@ -25,7 +25,15 @@ namespace sqlite_web.Components.Models.Calendar
         public string Translate(string key)
         {
             var translations = new Dictionary<string, Dictionary<string, string>>
-    {
+        {
+        //لایوت هدر سایت
+        { "KioskBtn", new Dictionary<string, string> { { "fa", "کیوسک تردد" }, { "en", "Attendance Kiosk" }, { "tr", "Geçiş Kiosku" } } },
+        { "PersonnelManagementBtn", new Dictionary<string, string> { { "fa", "مدیریت پرسنل" }, { "en", "Personnel Management" }, { "tr", "Personel Yönetimi" } } },
+        { "LogoutBtn", new Dictionary<string, string> { { "fa", "خروج از پنل" }, { "en", "Logout Panel" }, { "tr", "Panelden Çıkış" } } },
+        { "AdminDashboard", new Dictionary<string, string> { { "fa", "داشبورد مدیریت" }, { "en", "Admin Dashboard" }, { "tr", "Yönetim Paneli" } } },
+        { "UserPermissionsBtn", new Dictionary<string, string> { { "fa", "سطوح دسترسی" }, { "en", "User Permissions" }, { "tr", "Kullanıcı Yetkileri" } } },
+
+
         // عناوین ریشه صفحه و جدول اصلی پرسنل
         { "AppTitle", new Dictionary<string, string> { { "fa", "مدیریت پرسنل و کارکردها" }, { "en", "Personnel Management" }, { "tr", "Personel Yönetimi" } } },
         { "ThPhoto", new Dictionary<string, string> { { "fa", "عکس" }, { "en", "Photo" }, { "tr", "Fotoğraf" } } },
@@ -63,32 +71,55 @@ namespace sqlite_web.Components.Models.Calendar
         { "DeleteConfirmBtn", new Dictionary<string, string> { { "fa", "بله، حذف شود" }, { "en", "Yes, Delete" }, { "tr", "Evet, Silinsin" } } },
         { "kancelBtn", new Dictionary<string, string> { { "fa", "انصراف" }, { "en", "Cancel" }, { "tr", "İptal" } } },
         // دکمه‌های عملیاتی تردد سریع جدول ریشه صفحه
-{ "BtnClockIn", new Dictionary<string, string> { { "fa", "ثبت ورود" }, { "en", "Clock In" }, { "tr", "Giriş" } } },
-{ "BtnClockOut", new Dictionary<string, string> { { "fa", "ثبت خروج" }, { "en", "Clock Out" }, { "tr", "Çıkış" } } },
+        { "BtnClockIn", new Dictionary<string, string> { { "fa", "ثبت ورود" }, { "en", "Clock In" }, { "tr", "Giriş" } } },
+        { "BtnClockOut", new Dictionary<string, string> { { "fa", "ثبت خروج" }, { "en", "Clock Out" }, { "tr", "Çıkış" } } },
 
-{ "BtnReportView", new Dictionary<string, string> { { "fa", "کارنامه" }, { "en", "Record" }, { "tr", "İş geçmişi" } } },
-{ "TitleTAble", new Dictionary<string, string> { { "fa", "مدیریت پرسنل" }, { "en", "Personnel Management" }, { "tr", "Personel yönetimi" } } },
-{ "SearchBar", new Dictionary<string, string> { { "fa", "نام یا کد ملی..." }, { "en", "Name or National ID..." }, { "tr", "İsim veya Kimlik No..." } } },
-{ "Search", new Dictionary<string, string> { { "fa", "جستجو" }, { "en", "Search" }, { "tr", "Aramak" } } },
-{ "session", new Dictionary<string, string> { { "fa", "نام یا کد ملی..." }, { "en", "Your session has expired or you do not have access. Redirecting to the login page..." }, { "tr", "Oturumunuzun süresi doldu veya erişiminiz yok. Giriş sayfasına yönlendiriliyorsunuz..." } } },
+        { "BtnReportView", new Dictionary<string, string> { { "fa", "کارنامه" }, { "en", "Record" }, { "tr", "İş geçmişi" } } },
+        { "TitleTAble", new Dictionary<string, string> { { "fa", "مدیریت پرسنل" }, { "en", "Personnel Management" }, { "tr", "Personel yönetimi" } } },
+        { "SearchBar", new Dictionary<string, string> { { "fa", "نام یا کد ملی..." }, { "en", "Name or National ID..." }, { "tr", "İsim veya Kimlik No..." } } },
+        { "Search", new Dictionary<string, string> { { "fa", "جستجو" }, { "en", "Search" }, { "tr", "Aramak" } } },
+        { "session", new Dictionary<string, string> { { "fa", "نام یا کد ملی..." }, { "en", "Your session has expired or you do not have access. Redirecting to the login page..." }, { "tr", "Oturumunuzun süresi doldu veya erişiminiz yok. Giriş sayfasına yönlendiriliyorsunuz..." } } },
+        
+        // متون پاپ‌آپ مودال تعریف و ویرایش کارمندان
+        { "EmpFormAddTitle", new Dictionary<string, string> { { "fa", "کارمند جدید" }, { "en", "New Employee" }, { "tr", "Yeni Personel" } } },
+        { "EmpFormEditTitle", new Dictionary<string, string> { { "fa", "✏️ ویرایش اطلاعات کارمند" }, { "en", "✏️ Edit Employee Info" }, { "tr", "✏️ Personel Bilgilerini Düzenle" } } },
+        { "EmpLabelName", new Dictionary<string, string> { { "fa", "نام و نام خانوادگی:" }, { "en", "Full Name:" }, { "tr", "Adı Soyadı:" } } },
+        { "EmpLabelCode", new Dictionary<string, string> { { "fa", "کد ملی (۱۰ رقم):" }, { "en", "National Code (10 Digits):" }, { "tr", "T.C. Kimlik No (10 Haneli):" } } },
+        { "EmpLabelPhone", new Dictionary<string, string> { { "fa", "شماره تماس:" }, { "en", "Phone Number:" }, { "tr", "Telefon Numarası:" } } },
+        { "EmpLabelUpload", new Dictionary<string, string> { { "fa", "آپلود عکس:" }, { "en", "Upload Photo:" }, { "tr", "Fotoğraf Yükle:" } } },
+        { "EmpBtnSave", new Dictionary<string, string> { { "fa", "💾 ذخیره اطلاعات" }, { "en", "💾 Save Information" }, { "tr", "💾 Bilgileri Kaydet" } } },
+        { "EmpBtnSaveChanges", new Dictionary<string, string> { { "fa", "💾 ثبت تغییرات" }, { "en", "Work Settings" }, { "tr", "💾 Değişiklikleri Kaydet" } } },
 
-// متون پاپ‌آپ مودال تعریف و ویرایش کارمندان
-{ "EmpFormAddTitle", new Dictionary<string, string> { { "fa", "کارمند جدید" }, { "en", "New Employee" }, { "tr", "Yeni Personel" } } },
-{ "EmpFormEditTitle", new Dictionary<string, string> { { "fa", "✏️ ویرایش اطلاعات کارمند" }, { "en", "✏️ Edit Employee Info" }, { "tr", "✏️ Personel Bilgilerini Düzenle" } } },
-{ "EmpLabelName", new Dictionary<string, string> { { "fa", "نام و نام خانوادگی:" }, { "en", "Full Name:" }, { "tr", "Adı Soyadı:" } } },
-{ "EmpLabelCode", new Dictionary<string, string> { { "fa", "کد ملی (۱۰ رقم):" }, { "en", "National Code (10 Digits):" }, { "tr", "T.C. Kimlik No (10 Haneli):" } } },
-{ "EmpLabelPhone", new Dictionary<string, string> { { "fa", "شماره تماس:" }, { "en", "Phone Number:" }, { "tr", "Telefon Numarası:" } } },
-{ "EmpLabelUpload", new Dictionary<string, string> { { "fa", "آپلود عکس:" }, { "en", "Upload Photo:" }, { "tr", "Fotoğraf Yükle:" } } },
-{ "EmpBtnSave", new Dictionary<string, string> { { "fa", "💾 ذخیره اطلاعات" }, { "en", "💾 Save Information" }, { "tr", "💾 Bilgileri Kaydet" } } },
-{ "EmpBtnSaveChanges", new Dictionary<string, string> { { "fa", "💾 ثبت تغییرات" }, { "en", "Work Settings" }, { "tr", "💾 Değişiklikleri Kaydet" } } },
+        { "WorkSet", new Dictionary<string, string> { { "fa", "تنظیمات کاری" }, { "en", "Work Setting" }, { "tr", "Çalışma ayarları" } } },
+        
+        // متون کمکی پاپ‌آپ حذف پرسنل
+        { "DeleteSelectedItem", new Dictionary<string, string> { { "fa", "آیتم انتخابی:" }, { "en", "Selected Item:" }, { "tr", "Seçilen Öğe:" } } },
 
-{ "WorkSet", new Dictionary<string, string> { { "fa", "تنظیمات کاری" }, { "en", "Work Setting" }, { "tr", "Çalışma ayarları" } } },
+        //صفحه ی مدیریت مدیران
+        // 🟢 واژگان اختصاصی صفحه مدیریت سطوح دسترسی و مدیران
+        { "AccessPageTitle", new Dictionary<string, string> { { "fa", "مدیریت سطوح دسترسی و مدیران" }, { "en", "Access Levels & Admins Management" }, { "tr", "Yetkilendirme Seviyeleri & Yönetici Yönetimi" } } },
+        { "NewAdminBtn", new Dictionary<string, string> { { "fa", "➕ مدیر جدید" }, { "en", "➕ New Admin" }, { "tr", "➕ Yeni Yönetici" } } },
+        { "SearchAdminPlaceholder", new Dictionary<string, string> { { "fa", "جستجوی نام کاربری..." }, { "en", "Search username..." }, { "tr", "Kullanıcı adı ara..." } } },
+        // عناوین ستون‌های جدول سطوح دسترسی
+        { "ThAdminUsername", new Dictionary<string, string> { { "fa", "نام کاربری مدیر" }, { "en", "Admin Username" }, { "tr", "Yönetici Kullanıcı Adı" } } },
+        { "ThAccessType", new Dictionary<string, string> { { "fa", "نوع دسترسی" }, { "en", "Access Type" }, { "tr", "Yetki Türü" } } },
+        { "ThAccountStatus", new Dictionary<string, string> { { "fa", "وضعیت حساب" }, { "en", "Account Status" }, { "tr", "Hesap Durumu" } } },
+        { "ThActiveToken", new Dictionary<string, string> { { "fa", "توکن زنده عملیاتی" }, { "en", "Active Operational Token" }, { "tr", "Aktif Operasyonel Token" } } },
+        { "ThTokenExpiration", new Dictionary<string, string> { { "fa", "انقضای توکن" }, { "en", "Token Expiration" }, { "tr", "Token Süresi" } } },
+        { "ThSessionStatus", new Dictionary<string, string> { { "fa", "وضعیت سشن" }, { "en", "Session Status" }, { "tr", "Oturum Durumu" } } },
+        { "ThAdminActions", new Dictionary<string, string> { { "fa", "عملیات پرونده" }, { "en", "Actions" }, { "tr", "İşlemler" } } },
+        // مقادیر و دکمه‌های داینامیک درون ردیف‌های جدول
+        { "RoleSuperAdmin", new Dictionary<string, string> { { "fa", "سوپر ادمین" }, { "en", "Super Admin" }, { "tr", "Süper Yönetici" } } },
+        { "RoleLimitedAdmin", new Dictionary<string, string> { { "fa", "مدیر محدود" }, { "en", "Limited Admin" }, { "tr", "Kısıtlı Yönetici" } } },
+        { "StatusActive", new Dictionary<string, string> { { "fa", "فعال" }, { "en", "Active" }, { "tr", "Aktif" } } },
+        { "StatusInactive", new Dictionary<string, string> { { "fa", "غیرفعال" }, { "en", "Inactive" }, { "tr", "Pasif" } } },
+        { "BtnLogoutRevoke", new Dictionary<string, string> { { "fa", "خروج و ابطال" }, { "en", "Logout & Revoke" }, { "tr", "Çıkış Yap & İptal Et" } } },
+        { "TokenRevoked", new Dictionary<string, string> { { "fa", "ابطال شده" }, { "en", "Revoked" }, { "tr", "İptal Edildi" } } },
+        { "NoSession", new Dictionary<string, string> { { "fa", "فاقد سشن" }, { "en", "No Session" }, { "tr", "Oturum Yok" } } },
+        { "SessionOnline", new Dictionary<string, string> { { "fa", "آنلاین" }, { "en", "Online" }, { "tr", "Çevrimiçi" } } },
+        { "SearchBBtn", new Dictionary<string, string> { { "fa", "جستجو" }, { "en", "Search" }, { "tr", "Aramak" } } }
 
-// متون کمکی پاپ‌آپ حذف پرسنل
-{ "DeleteSelectedItem", new Dictionary<string, string> { { "fa", "آیتم انتخابی:" }, { "en", "Selected Item:" }, { "tr", "Seçilen Öğe:" } } }
-
-
-    };
+        };
 
             if (translations.ContainsKey(key) && translations[key].ContainsKey(CurrentLanguage))
                 return translations[key][CurrentLanguage];

@@ -9,10 +9,11 @@ using System.Threading.Tasks;
 
 namespace sqlite_web.Components.Pages.Admin
 {
+    // 🟢 اصلاح ساختار ارث‌بری: جایگزینی کامپوننت پایه اختصاصی خودمان با حفظ اینترفیس IDisposable
     /// <summary>
     /// کلاس منطق پشت‌صحنه (Code-Behind) مدیریت سطوح دسترسی، متصل به متدهای بومی سرویس مرکزی
     /// </summary>
-    public partial class ManageAdmins : ComponentBase, IDisposable
+    public partial class ManageAdmins : AppBaseComponent, IDisposable    
     {
         // 🛡️ تزریق مستقیم هسته متمرکز سرویس مدیریت ادمین‌ها
         [Inject] public AdminStateService AdminState { get; set; } = default!;
@@ -204,9 +205,17 @@ namespace sqlite_web.Components.Pages.Admin
             targetDeleteAdminId = 0;
             await InvokeAsync(StateHasChanged);
         }
+        // متد چرخه حیات رندر تعاملی صفحه مدیریت مدیران جهت بارگذاری خودکار زبان سیستم
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (firstRender)
+            {
+                // 🟢 فراخوانی مینی‌مال متد لود زبان و تقویم از کلاس پایه اختصاصی شما
+                await LoadStoredLanguageAndCalendarAsync();
 
-
-
+                await InvokeAsync(StateHasChanged);
+            }
+        }
 
     }
 }
