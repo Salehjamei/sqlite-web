@@ -11,7 +11,7 @@
     @if (AdminState.IsChecked && !AdminState.isCurrentUserSuperAdmin)
     {
         <div class="alert alert-danger text-center fw-bold p-3 my-3 shadow-sm mx-1" role="alert" style="font-size: 13px;">
-            🛑 خطای دسترسی: حساب کاربری شما فاقد مجوزهای ارشد جهت مدیریت سطوح دسترسی مدیران است!
+            @CalendarManager.Translate("PCal_AdminModal_AccessDeniedError")
         </div>
     }
     else if (AdminState.IsChecked && AdminState.isCurrentUserSuperAdmin)
@@ -181,8 +181,8 @@
 
                                             @* عملیات پرونده دسکتاپ *@
                                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
-                                                <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => TriggerStartEdit(admin)" title="ویرایش">✏️</button>
-                                                <button type="button" class="btn btn-sm text-danger p-0" disabled="@(admin.IsSuperAdmin || isOnline)" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)" title="حذف">🗑️</button>
+                                                <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => TriggerStartEdit(admin)" title="@CalendarManager.Translate("EditBBtn")">✏️</button>
+                                                <button type="button" class="btn btn-sm text-danger p-0" disabled="@(admin.IsSuperAdmin || isOnline)" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)" title="@CalendarManager.Translate("DeleteBBtn")">🗑️</button>
                                             </td>
 
                                             @* منوی عملیات موبایل چندزبانه و ریسپانسیو *@
@@ -227,7 +227,12 @@
                                 }
                                 else
                                 {
-                                    <tr><td colspan="8" class="text-muted py-3" style="font-size: 12.5px;">هیچ رکوردی در جدول مدیران سرور وجود ندارد.</td></tr>
+                                    <tr>
+                                        <td colspan="8" class="text-muted py-3" style="font-size: 12.5px;">
+                                            @CalendarManager.Translate("PCal_AdminModal_NoRecordsFound")
+                                        </td>
+                                    </tr>
+
                                 }
                             </tbody>
 
@@ -237,7 +242,7 @@
                 </div>
             </div>
         </div>
-        @* 🔒 ۳. مودال تعاملی و ماژولار فرم ثبت و ویرایش مجوزها متصل به پروپرتی‌های رسمی سرویس شما *@
+        @* 🔒 ۳. مودال فرم ثبت و ویرایش مجوزها متصل به پروپرتی‌ها *@
         @if (showFormModal)
         {
             @* بک‌دراپ تیره مهار کلیک بیرون: لمس این فضا مودال فرم را غیب می‌کند *@
@@ -247,7 +252,9 @@
                 <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation>
 
                     <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
-                        <h5 class="m-0" style="font-size: 14.5px; font-weight: bold;">@(AdminState.IsEditMode ? "✏️ ویرایش کامل مشخصات و مجوزهای مدیر" : "➕ ثبت و تعریف مدیر سیستم جدید")</h5>
+                        <h5 class="m-0" style="font-size: 14.5px; font-weight: bold;">
+                            @(AdminState.IsEditMode ? CalendarManager.Translate("PCal_AdminModal_EditTitle") : CalendarManager.Translate("PCal_AdminModal_AddTitle"))
+                        </h5>
                         <button type="button" class="btn-close btn-close-white" @onclick="CloseFormModal"></button>
                     </div>
 
@@ -255,47 +262,51 @@
                         <form @onsubmit="HandleSaveAdmin" @onsubmit:preventDefault>
 
                             <div class="mb-2.5">
-                                <label class="form-label text-muted small mb-1">نام کاربری ادمین:</label>
+                                <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminModal_UsernameLabel")</label>
                                 <input type="text" @bind="AdminState.FormAdminUsername" class="form-control form-control-sm" style="font-size: 13px; font-family: Tahoma;" />
                             </div>
 
                             <div class="mb-2.5">
-                                <label class="form-label text-muted small mb-1">رمز عبور ادمین @(AdminState.IsEditMode ? "(جهت حفظ قبلی خالی بگذارید)" : ""):</label>
+                                <label class="form-label text-muted small mb-1">
+                                    @CalendarManager.Translate("PCal_AdminModal_PasswordLabel")@(AdminState.IsEditMode ? CalendarManager.Translate("PCal_AdminModal_PasswordHint") : ":")
+                                </label>
                                 <input type="password" @bind="AdminState.FormAdminPassword" class="form-control form-control-sm font-monospace" style="font-size: 13px;" placeholder="••••••••" />
                             </div>
 
                             @* 👑 زون سوییچ سوپر ادمین متصل به سرویس مرکزی *@
                             <div class="form-check form-switch mb-3 mt-3 border-top pt-2">
                                 <input class="form-check-input" type="checkbox" id="flexSwitchSuper" @bind="AdminState.FormIsSuperAdmin" />
-                                <label class="form-check-label fw-bold text-danger small pr-2" for="flexSwitchSuper">👑 اعطای دسترسی سوپر ادمین (مدیریت مدیران)</label>
+                                <label class="form-check-label fw-bold text-danger small pr-2" for="flexSwitchSuper">@CalendarManager.Translate("PCal_AdminModal_SuperAdminLabel")</label>
                             </div>
 
                             @* 🔒 بخش تفکیکی تعیین سطوح دسترسی کارمندان متصل به متغیرهای FormCanAdd و... در سرویس *@
                             @if (!AdminState.FormIsSuperAdmin)
                             {
                                 <div class="p-2.5 border rounded bg-light" style="border-right: 4px solid #17a2b8 !important;">
-                                    <h6 class="fw-bold mb-2 text-info" style="font-size: 12px;">📌 تعیین سطوح دسترسی پرسنلی:</h6>
+                                    <h6 class="fw-bold mb-2 text-info" style="font-size: 12px;">@CalendarManager.Translate("PCal_AdminModal_PermissionsSectionTitle")</h6>
 
                                     <div class="form-check mb-1.5">
                                         <input class="form-check-input" type="checkbox" id="chkAddEmp" @bind="AdminState.FormCanAdd" />
-                                        <label class="form-check-label small pr-1" for="chkAddEmp">توانایی افزودن پرسنل جدید</label>
+                                        <label class="form-check-label small pr-1" for="chkAddEmp">@CalendarManager.Translate("PCal_AdminModal_CanAddLabel")</label>
                                     </div>
                                     <div class="form-check mb-1.5">
                                         <input class="form-check-input" type="checkbox" id="chkEditEmp" @bind="AdminState.FormCanEdit" />
-                                        <label class="form-check-label small pr-1" for="chkEditEmp">توانایی ویرایش مشخصات و تردد پرسنل</label>
+                                        <label class="form-check-label small pr-1" for="chkEditEmp">@CalendarManager.Translate("PCal_AdminModal_CanEditLabel")</label>
                                     </div>
                                     <div class="form-check mb-0">
                                         <input class="form-check-input" type="checkbox" id="chkDelEmp" @bind="AdminState.FormCanDelete" />
-                                        <label class="form-check-label small pr-1" for="chkDelEmp">توانایی حذف کامل پرسنل و رکوردها</label>
+                                        <label class="form-check-label small pr-1" for="chkDelEmp">@CalendarManager.Translate("PCal_AdminModal_CanDeleteLabel")</label>
                                     </div>
                                 </div>
                             }
 
                             <div class="d-flex gap-2 mt-3 border-top pt-3">
                                 <button type="submit" class="btn @(AdminState.IsEditMode ? "btn-warning text-dark" : "btn-success") btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">
-                                    💾 ذخیره اطلاعات مدیر
+                                    @CalendarManager.Translate("PCal_AdminModal_SaveBtn")
                                 </button>
-                                <button type="button" @onclick="CloseFormModal" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">انصراف</button>
+                                <button type="button" @onclick="CloseFormModal" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">
+                                    @CalendarManager.Translate("PCal_AdminModal_CancelBtn")
+                                </button>
                             </div>
 
                         </form>
@@ -303,16 +314,17 @@
                 </div>
             </div>
         }
-
-        @* 📅 🔒 فراخوانی هوشمند ماژول تفکیک‌شده و مستقل DeleteModal مجهز به نام پویا *@
-        <DeleteModal Show="@showDeleteModal"
-                     Title="تاییدیه حذف قطعی اطلاعات مدیر سیستم"
-                     TargetName="@(AdminState.AdminList?.FirstOrDefault(a => a.Id == targetDeleteAdminId)?.Username ?? "مدیر انتخاب شده")"
-                     Message="@deleteTargetMessage"
-                     SubMessage="توجه: با تایید نهایی حذف، کلیه دسترسی‌ها، مجوزها و سشن‌های فعال این ادمین فوراً ابطال و پاک خواهد شد."
-                     OnConfirm="ExecuteConfirmedAdminDelete"
-                     OnCancel="CancelDeleteModal" />
-
     }
     @* 🔒 پایان بلاک سوپر ادمین *@
 </div> @* پایان کانتینر ریشه کامپوننت *@
+@* 📅 🔒 فراخوانی هوشمند ماژول تفکیک‌شده و مستقل DeleteModal مجهز به نام پویا *@
+<DeleteModal Show="@showDeleteModal"
+             Title="@CalendarManager.Translate("PCal_AdminDelete_Title")"
+             SelectedItemLabel="@CalendarManager.Translate("DeleteSelectedItem")"
+             TargetName="@(AdminState.AdminList?.FirstOrDefault(a => a.Id == targetDeleteAdminId)?.Username ?? CalendarManager.Translate("PCal_AdminDelete_DefaultTargetName"))"
+             Message="@(CalendarManager.Translate("DeleteMsgAdmin") )"
+             SubMessage="@CalendarManager.Translate("PCal_AdminDelete_SubMessage")"
+             DeleteConfirmBtn="@CalendarManager.Translate("DeleteConfirmBtn")"
+             kancelBtn="@CalendarManager.Translate("kancelBtn")"
+             OnConfirm="ExecuteConfirmedAdminDelete"
+             OnCancel="CancelDeleteModal" />

@@ -67,9 +67,17 @@ namespace sqlite_web.Components.Models.Calendar
         // مودال حذف پرسنل
         { "DeleteTitle", new Dictionary<string, string> { { "fa", "⚠️ تاییدیه حذف قطعی پرونده پرسنلی" }, { "en", "⚠️ Confirm Permanent File Deletion" }, { "tr", "⚠️ Kalıcı Dosya Silme Onayı" } } },
         { "DeleteMsg", new Dictionary<string, string> { { "fa", "آیا از حذف کامل پرونده پرسنلی کارمند مطمئن هستید؟" }, { "en", "Are you sure you want to permanently delete this employee's file?" }, { "tr", "Bu personelin dosyasını kalıcı olarak silmek istediğinizden emin misiniz?" } } },
+        { "DeleteMsgAdmin", new Dictionary<string, string> { { "fa", "آیا از حذف ادمین مطمئن هستید؟" }, { "en", "Are you sure about removing the admin?" }, { "tr", "Yöneticiyi silmek istediğinizden emin misiniz?" } } },
         { "DeleteSubMsg", new Dictionary<string, string> { { "fa", "توجه: کلیه سوابق تردد این کارمند فوراً و به صورت غیرقابل بازگشت پاک خواهد شد." }, { "en", "Note: All attendance history will be permanently deleted and cannot be recovered." }, { "tr", "Not: Tüm giriş-çıkış geçmişi kalıcı olarak silinecek ve geri alınamayacaktır." } } },
         { "DeleteConfirmBtn", new Dictionary<string, string> { { "fa", "بله، حذف شود" }, { "en", "Yes, Delete" }, { "tr", "Evet, Silinsin" } } },
         { "kancelBtn", new Dictionary<string, string> { { "fa", "انصراف" }, { "en", "Cancel" }, { "tr", "İptal" } } },
+        // ==========================================
+        // 🗑️ PCalendar - Admin Deletion Confirmation Modal
+        // --- Modal Layout & Structural Text ---
+        { "PCal_AdminDelete_Title", new Dictionary<string, string> { { "fa", "تاییدیه حذف قطعی اطلاعات مدیر سیستم" }, { "en", "Confirmation of Permanent System Admin Deletion" }, { "tr", "Sistem Yöneticisi Bilgilerinin Kalıcı Olarak Silinmesi Onayı" } } },
+        { "PCal_AdminDelete_DefaultTargetName", new Dictionary<string, string> { { "fa", "مدیر انتخاب شده" }, { "en", "Selected Admin" }, { "tr", "Seçilen Yönetici" } } },
+        { "PCal_AdminDelete_SubMessage", new Dictionary<string, string> { { "fa", "توجه: با تایید نهایی حذف، کلیه دسترسی‌ها، مجوزها و سشن‌های فعال این ادمین فوراً ابطال و پاک خواهد شد." }, { "en", "Note: Upon final deletion approval, all access rights, permissions, and active sessions of this admin will be immediately revoked and wiped." }, { "tr", "Not: Nihai silme onayı ile birlikte, bu yöneticinin tüm erişim hakları, izinleri ve aktif oturumları derhal iptal edilecek ve silinecektir." } } },
+
         // دکمه‌های عملیاتی تردد سریع جدول ریشه صفحه
         { "BtnClockIn", new Dictionary<string, string> { { "fa", "ثبت ورود" }, { "en", "Clock In" }, { "tr", "Giriş" } } },
         { "BtnClockOut", new Dictionary<string, string> { { "fa", "ثبت خروج" }, { "en", "Clock Out" }, { "tr", "Çıkış" } } },
@@ -96,6 +104,11 @@ namespace sqlite_web.Components.Models.Calendar
         { "DeleteSelectedItem", new Dictionary<string, string> { { "fa", "آیتم انتخابی:" }, { "en", "Selected Item:" }, { "tr", "Seçilen Öğe:" } } },
 
         //صفحه ی مدیریت مدیران
+        // --- Empty State Messages ---
+        { "PCal_AdminModal_NoRecordsFound", new Dictionary<string, string> { { "fa", "هیچ رکوردی در جدول مدیران سرور وجود ندارد." }, { "en", "No records found in the server admins table." }, { "tr", "Sunucu yöneticileri tablosunda hiçbir kayıt bulunamadı." } } },
+        // --- Error & Access Restriction Messages ---
+        { "PCal_AdminModal_AccessDeniedError", new Dictionary<string, string> { { "fa", "🛑 خطای دسترسی: حساب کاربری شما فاقد مجوزهای ارشد جهت مدیریت سطوح دسترسی مدیران است!" }, { "en", "🛑 Access Denied: Your account lacks senior permissions to manage admin access levels!" }, { "tr", "🛑 Erişim Reddedildi: Hesabınız, yönetici erişim seviyelerini yönetmek için kıdemli izinlere sahip değil!" } } },
+
         // 🟢 واژگان اختصاصی صفحه مدیریت سطوح دسترسی و مدیران
         { "AccessPageTitle", new Dictionary<string, string> { { "fa", "مدیریت سطوح دسترسی و مدیران" }, { "en", "Access Levels & Admins Management" }, { "tr", "Yetkilendirme Seviyeleri & Yönetici Yönetimi" } } },
         { "NewAdminBtn", new Dictionary<string, string> { { "fa", "➕ مدیر جدید" }, { "en", "➕ New Admin" }, { "tr", "➕ Yeni Yönetici" } } },
@@ -117,7 +130,27 @@ namespace sqlite_web.Components.Models.Calendar
         { "TokenRevoked", new Dictionary<string, string> { { "fa", "ابطال شده" }, { "en", "Revoked" }, { "tr", "İptal Edildi" } } },
         { "NoSession", new Dictionary<string, string> { { "fa", "فاقد سشن" }, { "en", "No Session" }, { "tr", "Oturum Yok" } } },
         { "SessionOnline", new Dictionary<string, string> { { "fa", "آنلاین" }, { "en", "Online" }, { "tr", "Çevrimiçi" } } },
-        { "SearchBBtn", new Dictionary<string, string> { { "fa", "جستجو" }, { "en", "Search" }, { "tr", "Aramak" } } }
+        { "SearchBBtn", new Dictionary<string, string> { { "fa", "جستجو" }, { "en", "Search" }, { "tr", "Aramak" } } },
+        { "EditBBtn", new Dictionary<string, string> { { "fa", "ویرایش" }, { "en", "edit" }, { "tr", "düzenle" } } },
+        { "DeleteBBtn", new Dictionary<string, string> { { "fa", "حذف" }, { "en", "delete" }, { "tr", "sil" } } },
+        //مودال افزودن و ویرایش
+        // مودال افزودن و ویرایش - پیشوند اختصاصی PCal_AdminModal
+        { "PCal_AdminModal_EditTitle", new Dictionary<string, string> { { "fa", "✏️ ویرایش کامل مشخصات و مجوزهای مدیر" }, { "en", "✏️ Edit Admin Permissions & Details" }, { "tr", "✏️ Yönetici İzinlerini ve Bilgilerini Düzenle" } } },
+        { "PCal_AdminModal_AddTitle", new Dictionary<string, string> { { "fa", "➕ ثبت و تعریف مدیر سیستم جدید" }, { "en", "➕ Register New System Admin" }, { "tr", "➕ Yeni Sistem Yöneticisi Tanımla" } } },
+
+        { "PCal_AdminModal_UsernameLabel", new Dictionary<string, string> { { "fa", "نام کاربری ادمین:" }, { "en", "Admin Username:" }, { "tr", "Yönetici Kullanıcı Adı:" } } },
+        { "PCal_AdminModal_PasswordLabel", new Dictionary<string, string> { { "fa", "رمز عبور ادمین" }, { "en", "Admin Password" }, { "tr", "Yönetici Şifresi" } } },
+        { "PCal_AdminModal_PasswordHint", new Dictionary<string, string> { { "fa", "(جهت حفظ قبلی خالی بگذارید):" }, { "en", "(leave blank to keep current):" }, { "tr", "(mevcut olanı korumak için boş bırakın):" } } },
+
+        { "PCal_AdminModal_SuperAdminLabel", new Dictionary<string, string> { { "fa", "👑 اعطای دسترسی سوپر ادمین (مدیریت مدیران)" }, { "en", "👑 Grant Super Admin Privileges (Manage Admins)" }, { "tr", "👑 Süper Yönetici Yetkileri Ver (Yöneticileri Yönet)" } } },
+
+        { "PCal_AdminModal_PermissionsSectionTitle", new Dictionary<string, string> { { "fa", "📌 تعیین سطوح دسترسی پرسنلی:" }, { "en", "📌 Determine Personnel Access Levels:" }, { "tr", "📌 Personel Erişim Seviyelerini Belirle:" } } },
+        { "PCal_AdminModal_CanAddLabel", new Dictionary<string, string> { { "fa", "توانایی افزودن پرسنل جدید" }, { "en", "Ability to add new personnel" }, { "tr", "Yeni personel ekleme yetkisi" } } },
+        { "PCal_AdminModal_CanEditLabel", new Dictionary<string, string> { { "fa", "توانایی ویرایش مشخصات و تردد پرسنل" }, { "en", "Ability to edit personnel details & traffic" }, { "tr", "Personel bilgilerini ve trafiğini düzenleme yetkisi" } } },
+        { "PCal_AdminModal_CanDeleteLabel", new Dictionary<string, string> { { "fa", "توانایی حذف کامل پرسنل و رکوردها" }, { "en", "Ability to completely delete personnel & records" }, { "tr", "Personel ve kayıtları tamamen silme yetkisi" } } },
+
+        { "PCal_AdminModal_SaveBtn", new Dictionary<string, string> { { "fa", "💾 ذخیره اطلاعات مدیر" }, { "en", "💾 Save Admin Information" }, { "tr", "💾 Yönetici Bilgilerini Kaydet" } } },
+        { "PCal_AdminModal_CancelBtn", new Dictionary<string, string> { { "fa", "انصراف" }, { "en", "Cancel" }, { "tr", "İptal" } } }
 
         };
 

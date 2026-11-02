@@ -32,7 +32,6 @@ namespace sqlite_web.Components.Pages.Admin
         // پرچم‌های بولین مدیریت باز یا بسته بودن پنجره‌های مودال فرم و حذف تعاملی ماژولار
         protected bool showFormModal { get; set; } = false;
         protected bool showDeleteModal { get; set; } = false;
-        protected string deleteTargetMessage { get; set; } = string.Empty;
         protected int targetDeleteAdminId = 0;
 
         /// <summary>
@@ -182,7 +181,6 @@ namespace sqlite_web.Components.Pages.Admin
             if (AdminState.CurrentOnlineAdmin?.Id == id) return;
 
             targetDeleteAdminId = id;
-            deleteTargetMessage = $"آیا از حذف کامل حساب کاربری مدیر سیستم با نام {name} مطمئن هستید(؟";
             CloseAllMobileDropdowns();
             showDeleteModal = true;
         }
