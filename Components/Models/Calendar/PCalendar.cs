@@ -71,6 +71,8 @@ namespace sqlite_web.Components.Models.Calendar
         { "DeleteSubMsg", new Dictionary<string, string> { { "fa", "توجه: کلیه سوابق تردد این کارمند فوراً و به صورت غیرقابل بازگشت پاک خواهد شد." }, { "en", "Note: All attendance history will be permanently deleted and cannot be recovered." }, { "tr", "Not: Tüm giriş-çıkış geçmişi kalıcı olarak silinecek ve geri alınamayacaktır." } } },
         { "DeleteConfirmBtn", new Dictionary<string, string> { { "fa", "بله، حذف شود" }, { "en", "Yes, Delete" }, { "tr", "Evet, Silinsin" } } },
         { "kancelBtn", new Dictionary<string, string> { { "fa", "انصراف" }, { "en", "Cancel" }, { "tr", "İptal" } } },
+         // متون کمکی پاپ‌آپ حذف پرسنل
+        { "DeleteSelectedItem", new Dictionary<string, string> { { "fa", "آیتم انتخابی:" }, { "en", "Selected Item:" }, { "tr", "Seçilen Öğe:" } } },
         // ==========================================
         // 🗑️ PCalendar - Admin Deletion Confirmation Modal
         // --- Modal Layout & Structural Text ---
@@ -90,7 +92,6 @@ namespace sqlite_web.Components.Models.Calendar
         
         // متون پاپ‌آپ مودال تعریف و ویرایش کارمندان
         { "EmpFormAddTitle", new Dictionary<string, string> { { "fa", "کارمند جدید" }, { "en", "New Employee" }, { "tr", "Yeni Personel" } } },
-        { "EmpFormEditTitle", new Dictionary<string, string> { { "fa", "✏️ ویرایش اطلاعات کارمند" }, { "en", "✏️ Edit Employee Info" }, { "tr", "✏️ Personel Bilgilerini Düzenle" } } },
         { "EmpLabelName", new Dictionary<string, string> { { "fa", "نام و نام خانوادگی:" }, { "en", "Full Name:" }, { "tr", "Adı Soyadı:" } } },
         { "EmpLabelCode", new Dictionary<string, string> { { "fa", "کد ملی (۱۰ رقم):" }, { "en", "National Code (10 Digits):" }, { "tr", "T.C. Kimlik No (10 Haneli):" } } },
         { "EmpLabelPhone", new Dictionary<string, string> { { "fa", "شماره تماس:" }, { "en", "Phone Number:" }, { "tr", "Telefon Numarası:" } } },
@@ -100,8 +101,7 @@ namespace sqlite_web.Components.Models.Calendar
 
         { "WorkSet", new Dictionary<string, string> { { "fa", "تنظیمات کاری" }, { "en", "Work Setting" }, { "tr", "Çalışma ayarları" } } },
         
-        // متون کمکی پاپ‌آپ حذف پرسنل
-        { "DeleteSelectedItem", new Dictionary<string, string> { { "fa", "آیتم انتخابی:" }, { "en", "Selected Item:" }, { "tr", "Seçilen Öğe:" } } },
+       
 
         //صفحه ی مدیریت مدیران
         // --- Empty State Messages ---
@@ -121,10 +121,7 @@ namespace sqlite_web.Components.Models.Calendar
         { "ThTokenExpiration", new Dictionary<string, string> { { "fa", "انقضای توکن" }, { "en", "Token Expiration" }, { "tr", "Token Süresi" } } },
         { "ThSessionStatus", new Dictionary<string, string> { { "fa", "وضعیت سشن" }, { "en", "Session Status" }, { "tr", "Oturum Durumu" } } },
         { "ThAdminActions", new Dictionary<string, string> { { "fa", "عملیات پرونده" }, { "en", "Actions" }, { "tr", "İşlemler" } } },
-        { "MenuBBtn", new Dictionary<string, string> { { "fa", "ابزار" }, { "en", "Tools" }, { "tr", "Araçlar" } } },
-
-        { "BtnEditTime", new Dictionary<string, string> { { "fa", "ویرایش" }, { "en", "Edit" }, { "tr", "düzenle" } } },
-        { "BtnDDlete", new Dictionary<string, string> { { "fa", "حذف" }, { "en", "Delete" }, { "tr", "Sil" } } },
+        { "MenuBBtn", new Dictionary<string, string> { { "fa", "عملیات" }, { "en", "Operations" }, { "tr", "Operasyon" } } },
 
         // مقادیر و دکمه‌های داینامیک درون ردیف‌های جدول
         { "RoleSuperAdmin", new Dictionary<string, string> { { "fa", "سوپر ادمین" }, { "en", "Super Admin" }, { "tr", "Süper Yönetici" } } },
@@ -136,6 +133,7 @@ namespace sqlite_web.Components.Models.Calendar
         { "NoSession", new Dictionary<string, string> { { "fa", "فاقد سشن" }, { "en", "No Session" }, { "tr", "Oturum Yok" } } },
         { "SessionOnline", new Dictionary<string, string> { { "fa", "آنلاین" }, { "en", "Online" }, { "tr", "Çevrimiçi" } } },
         { "SearchBBtn", new Dictionary<string, string> { { "fa", "جستجو" }, { "en", "Search" }, { "tr", "Aramak" } } },
+
         { "EditBBtn", new Dictionary<string, string> { { "fa", "ویرایش" }, { "en", "Edit" }, { "tr", "düzenle" } } },
         { "DeleteBBtn", new Dictionary<string, string> { { "fa", "حذف" }, { "en", "Delete" }, { "tr", "Silmek" } } },
         //مودال افزودن و ویرایش
@@ -176,7 +174,50 @@ namespace sqlite_web.Components.Models.Calendar
         // --- ۳. مودال تغییر دستی آدرس (URL Hijacking Modal) ---
         { "PCal_Security_HijackTitle", new Dictionary<string, string> { { "fa", "⚠️ هشدار عدم سطح دسترسی" }, { "en", "⚠️ Access Level Warning" }, { "tr", "⚠️ Erişim Seviyesi Uyarısı" } } },
         { "PCal_Security_HijackMsg", new Dictionary<string, string> { { "fa", "دسترسی غیرمجاز از طریق تغییر لینک!" }, { "en", "Unauthorized access via URL modification!" }, { "tr", "Bağlantı değişikliği yoluyla yetkisiz erişim!" } } },
-        { "PCal_Security_HijackSubMsg", new Dictionary<string, string> { { "fa", "کاربر محترم، حساب شما مجوز ورود مستقیم به صفحه درخواستی را ندارد. سیستم به صورت خودکار شما را به مسیر مجاز بازگرداند." }, { "en", "Dear user, your account does not have permission to directly access the requested page. The system has automatically redirected you to an authorized path." }, { "tr", "Sayın kullanıcı, hesabınız talep edilen sayfaya doğrudan erişim iznine sahip değildir. Sistem sizi otomatik olarak yetkilendirilmiş yola yönlendirdi." } } }
+        { "PCal_Security_HijackSubMsg", new Dictionary<string, string> { { "fa", "کاربر محترم، حساب شما مجوز ورود مستقیم به صفحه درخواستی را ندارد. سیستم به صورت خودکار شما را به مسیر مجاز بازگرداند." }, { "en", "Dear user, your account does not have permission to directly access the requested page. The system has automatically redirected you to an authorized path." }, { "tr", "Sayın kullanıcı, hesabınız talep edilen sayfaya doğrudan erişim iznine sahip değildir. Sistem sizi otomatik olarak yetkilendirilmiş yola yönlendirdi." } } },
+        // --- متون دکمه‌های ناوبری موبایل ---
+        { "PCal_Security_CloseMenuTitle", new Dictionary<string, string> { { "fa", "بستن منو" }, { "en", "Close Menu" }, { "tr", "Menüyü Kapat" } } },
+        // ==========================================
+
+        // 🏠 PCalendar - کدهای صفحه اصلی سیستم تردد
+        // ==========================================
+        { "PCal_MainHome_PageTitle", new Dictionary<string, string> { { "fa", "لیست پرسنل و ثبت تردد" }, { "en", "Personnel List & Attendance Log" }, { "tr", "Personel Listesi ve Giriş-Çıkış Kaydı" } } },
+        { "PCal_MainHome_SearchPlaceholder", new Dictionary<string, string> { { "fa", "جستجوی نام یا کد..." }, { "en", "Search name or code..." }, { "tr", "İsim veya kod ara..." } } },
+        { "PCal_MainHome_SearchBtnText", new Dictionary<string, string> { { "fa", "جستجو 🔍" }, { "en", "Search 🔍" }, { "tr", "Ara 🔍" } } },
+        { "PCal_MainHome_ClearBtnTitle", new Dictionary<string, string> { { "fa", "پاک کردن" }, { "en", "Clear" }, { "tr", "Temizle" } } },
+        
+        // وضعیت‌ها و پیغام‌های قفل سیستم
+        { "PCal_MainHome_LockedTitle", new Dictionary<string, string> { { "fa", "🔒 سیستم ثبت تردد غیرفعال است" }, { "en", "🔒 Attendance System is Disabled" }, { "tr", "🔒 Giriş-Çıkış Sistemi Devre Dışı" } } },
+        { "PCal_MainHome_LockedSub", new Dictionary<string, string> { { "fa", "این دستگاه مجاز به ثبت تردد نیست. لطفا از ادمین مجموعه بخواهید ابتدا سیستم را فعال کند." }, { "en", "This device is not authorized for attendance tracking. Please ask the administrator to activate the system." }, { "tr", "Bu cihaz giriş-çıkış kaydı için yetkilendirilmemiştir. Lütfen yöneticiden sistemi aktif etmesini isteyin." } } },
+        { "PCal_MainHome_AdminLoginBtn", new Dictionary<string, string> { { "fa", "🔑 ورود ادمین" }, { "en", "🔑 Admin Login" }, { "tr", "🔑 Yönetici Girişi" } } },
+        
+        // عناوین جدول
+        { "PCal_MainHome_ThAvatar", new Dictionary<string, string> { { "fa", "عکس" }, { "en", "Photo" }, { "tr", "Fotoğraf" } } },
+        { "PCal_MainHome_ThName", new Dictionary<string, string> { { "fa", "نام کارمند" }, { "en", "Employee Name" }, { "tr", "Personel Adı" } } },
+        { "PCal_MainHome_ThStatus", new Dictionary<string, string> { { "fa", "وضعیت فعلی" }, { "en", "Current Status" }, { "tr", "Mevcut Durum" } } },
+        { "PCal_MainHome_ThActions", new Dictionary<string, string> { { "fa", "عملیات تردد سریع" }, { "en", "Quick Action" }, { "tr", "Hızlı İşlem" } } },
+        { "PCal_MainHome_NoPersonnel", new Dictionary<string, string> { { "fa", "هیچ پرسنلی مطابق جستجو یافت نشد." }, { "en", "No personnel found matching the search." }, { "tr", "Aramaya uygun personel bulunamadı." } } },
+        
+        // نشان‌ها و دکمه‌های تردد
+        { "PCal_MainHome_StatusAbsent", new Dictionary<string, string> { { "fa", "خارج / غایب" }, { "en", "Absent / Out" }, { "tr", "Dışarıda / Yok" } } },
+        { "PCal_MainHome_StatusPresent", new Dictionary<string, string> { { "fa", "حاضر" }, { "en", "Present" }, { "tr", "İçeride / Mevcut" } } },
+        { "PCal_MainHome_BtnClockIn", new Dictionary<string, string> { { "fa", "ورود" }, { "en", "Clock In" }, { "tr", "Giriş" } } },
+        { "PCal_MainHome_BtnClockOut", new Dictionary<string, string> { { "fa", "خروج" }, { "en", "Clock Out" }, { "tr", "Çıkış" } } },
+        
+        // بخش اعلان‌ها (Toast)
+        { "PCal_MainHome_Notification", new Dictionary<string, string> { { "fa", "اطلاع‌رسانی" }, { "en", "Notification" }, { "tr", "Bildirim" } } },
+        { "PCal_MainHome_Now", new Dictionary<string, string> { { "fa", "اکنون" }, { "en", "Now" }, { "tr", "Şimdi" } } },
+        { "PCal_MainHome_CloseBtn", new Dictionary<string, string> { { "fa", "بستن" }, { "en", "Close" }, { "tr", "Kapat" } } },
+        
+        // متون پویای بک‌اِند
+        { "PCal_MainHome_DefaultUser", new Dictionary<string, string> { { "fa", "کاربر" }, { "en", "User" }, { "tr", "Kullanıcı" } } },
+        { "PCal_MainHome_ClockInSuccess", new Dictionary<string, string> { { "fa", "{0} ورود ثبت شد." }, { "en", "{0} checked in successfully." }, { "tr", "{0} giriş kaydı yapıldı." } } },
+        { "PCal_MainHome_ClockOutSuccess", new Dictionary<string, string> { { "fa", "{0} خروج ثبت شد." }, { "en", "{0} checked out successfully." }, { "tr", "{0} çıkış kaydı yapıldı." } } },
+        { "PCal_MainHome_LoadError", new Dictionary<string, string> { { "fa", "خطا در بارگذاری داده‌ها: {0}" }, { "en", "Error loading data: {0}" }, { "tr", "Veri yükleme hatası: {0}" } } },
+        { "PCal_MainHome_ClockInError", new Dictionary<string, string> { { "fa", "خطا در ثبت ورود: {0}" }, { "en", "Error during clock-in: {0}" }, { "tr", "Giriş kaydı hatası: {0}" } } },
+        { "PCal_MainHome_ClockOutError", new Dictionary<string, string> { { "fa", "خطا در ثبت خروج: {0}" }, { "en", "Error during clock-out: {0}" }, { "tr", "Çıkış kaydı hatası: {0}" } } },
+        { "PCal_MainHome_KioskLocked", new Dictionary<string, string> { { "fa", "🔒 سیستم مدیریت خارج شد و کیوسک تردد قفل گردید." }, { "en", "🔒 Management system logged out and kiosk locked." }, { "tr", "🔒 Yönetim sisteminden çıkış yapıldı ve kiosk kilitlendi." } } }
+
 
 
         };

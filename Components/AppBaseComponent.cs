@@ -11,11 +11,10 @@ namespace sqlite_web.Components
     public class AppBaseComponent : ComponentBase
     {
         // تزریق حافظه محلی مرورگر
-        [Inject] public ProtectedLocalStorage LocalStorage { get; set; } = default!;    
+        [Inject] public ProtectedLocalStorage LocalStorage { get; set; } = default!;
 
         // نمونه‌سازی واحد از کلاس مدیریت تقویم و ویژگی‌های چندزبانه
         protected PCalendar CalendarManager { get; set; } = new();
-
         // متغیر کنترل زبان فعال
         protected string CurrentLanguage { get; set; } = "fa";
 
@@ -36,7 +35,7 @@ namespace sqlite_web.Components
                 if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
                 {
                     CurrentLanguage = langResult.Value;
-                    CalendarManager.CurrentLanguage = CurrentLanguage;
+                    CurrentLanguage = CurrentLanguage;
                 }
             }
             catch
@@ -44,5 +43,6 @@ namespace sqlite_web.Components
                 // مهار خطای لود اولیه در Blazor Server
             }
         }
+    
     }
 }

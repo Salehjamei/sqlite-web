@@ -236,26 +236,26 @@ namespace sqlite_web.Components.Pages
             await InvokeAsync(StateHasChanged);
         }
         // 🟢 این متد را در فایل MainLayout.razor.cs پیدا کرده یا کدهای داخل بلاک آن را اضافه کنید
-        private async Task OnAdminStateChanged()
-        {
-            try
-            {
-                // واکشی آنی آخرین زبان ذخیره شده از حافظه مرورگر
-                var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
-                if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
-                {
-                    CurrentLanguage = langResult.Value;
-                    if (CalendarManager != null)
-                    {
-                        CalendarManager.CurrentLanguage = CurrentLanguage;
-                    }
-                }
-            }
-            catch { }
+        //private async Task OnAdminStateChanged()
+        //{
+        //    try
+        //    {
+        //        // واکشی آنی آخرین زبان ذخیره شده از حافظه مرورگر
+        //        var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
+        //        if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
+        //        {
+        //            CurrentLanguage = langResult.Value;
+        //            if (CalendarManager != null)
+        //            {
+        //                CalendarManager.CurrentLanguage = CurrentLanguage;
+        //            }
+        //        }
+        //    }
+        //    catch { }
 
-            // بازرندر آنی هدر بدون نیاز به رفرش صفحه
-            await InvokeAsync(StateHasChanged);
-        }
+        //    // بازرندر آنی هدر بدون نیاز به رفرش صفحه
+        //    await InvokeAsync(StateHasChanged);
+        //}
         // متد تغییر نوع تقویم به همراه ذخیره‌سازی ماندگار و همیشگی در سیستم
         protected async Task SetCalendarType(bool isPersian)
         {

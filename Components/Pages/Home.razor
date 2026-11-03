@@ -1,17 +1,43 @@
 ﻿@page "/"
+@inherits sqlite_web.Components.AppBaseComponent
 @rendermode InteractiveServer
 
-<div class="container home-container" dir="rtl" style="text-align: right; font-family: Tahoma;">
+<div class="container home-container" dir="@(CurrentLanguage == "fa" ? "rtl" : "ltr")" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left"); font-family: Tahoma;">
     <div class="card mb-3 shadow-sm">
-        <div class="card-header bg-primary text-white fw-bold d-flex align-items-center justify-content-between">
-            <span class="page-title">📋 لیست پرسنل و ثبت تردد</span>
+        <div class="card-header bg-primary text-white fw-bold d-flex align-items-center justify-content-between gap-2" style="padding: 0.5rem 0.75rem;">
+            <span class="page-title text-truncate">📋 @CalendarManager.Translate("PCal_MainHome_PageTitle")</span>
 
             @if (isAnyAdminLoggedIn)
             {
                 <div class="d-flex align-items-center">
-                    <div class="input-group input-group-sm search-box" style="min-width:220px;">
-                        <input class="form-control form-control-sm" placeholder="جستجوی نام یا کد پرسنلی..." @bind="searchQuery" @bind:event="oninput" />
-                        <button class="btn btn-outline-light" type="button" @onclick="ClearSearch" title="پاک کردن">✖</button>
+                    <div class="input-group input-group-sm mobile-responsive-search">
+                        <input class="form-control form-control-sm" 
+                               placeholder="@CalendarManager.Translate("PCal_MainHome_SearchPlaceholder")" 
+                               @bind="searchQuery" 
+                               @bind:event="oninput"
+                               style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");
+                                      border-radius: @(CurrentLanguage == "fa" ? "0 4px 4px 0" : "4px 0 0 4px") !important;" />
+                        
+                        @if (string.IsNullOrEmpty(searchQuery))
+                        {
+                            <button class="btn btn-light text-primary fw-bold btn-search-indicator" 
+                                    type="button" 
+                                    style="border-radius: @(CurrentLanguage == "fa" ? "4px 0 0 4px" : "0 4px 4px 0") !important;
+                                           border-@(CurrentLanguage == "fa" ? "right" : "left"): 0;">
+                                @CalendarManager.Translate("PCal_MainHome_SearchBtnText")
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-outline-light d-flex align-items-center justify-content-center" 
+                                    type="button" 
+                                    @onclick="ClearSearch" 
+                                    title="@CalendarManager.Translate("PCal_MainHome_ClearBtnTitle")"
+                                    style="border-radius: @(CurrentLanguage == "fa" ? "4px 0 0 4px" : "0 4px 4px 0") !important;
+                                           border-@(CurrentLanguage == "fa" ? "right" : "left"): 0; min-width: 40px;">
+                                ✖
+                            </button>
+                        }
                     </div>
                 </div>
             }
@@ -19,11 +45,11 @@
 
         @if (!isAnyAdminLoggedIn)
         {
-            <div class="alert alert-warning text-center mt-3 p-3 shadow border-warning">
-                <h5 class="fw-bold text-dark">🔒 سیستم ثبت تردد غیرفعال است</h5>
-                <p class="m-0 mt-1 text-muted small">این دستگاه مجاز به ثبت تردد نیست. لطفا از ادمین مجموعه بخواهید ابتدا سیستم را فعال کند.</p>
+            <div class="alert alert-warning text-center mt-3 p-3 shadow border-warning mx-3">
+                <h5 class="fw-bold text-dark">@CalendarManager.Translate("PCal_MainHome_LockedTitle")</h5>
+                <p class="m-0 mt-1 text-muted small">@CalendarManager.Translate("PCal_MainHome_LockedSub")</p>
                 <div class="mt-2">
-                    <a href="/admin" class="btn btn-sm btn-dark fw-bold px-3">🔑 ورود ادمین</a>
+                    <a href="/admin" class="btn btn-sm btn-dark fw-bold px-3">@CalendarManager.Translate("PCal_MainHome_AdminLoginBtn")</a>
                 </div>
             </div>
         }
@@ -31,20 +57,20 @@
         {
             <!-- Desktop: table (large screens) -->
             <div class="table-responsive d-none d-lg-block">
-                <table class="table table-bordered table-striped text-center align-middle mb-0">
+                <table class="table table-bordered table-striped text-center align-middle mb-0" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
                     <thead class="table-dark">
                         <tr>
-                            <th style="width: 10%;">عکس</th>
-                            <th>نام کارمند</th>
-                            <th>وضعیت فعلی</th>
-                            <th>عملیات تردد سریع</th>
+                            <th style="width: 10%;">@CalendarManager.Translate("PCal_MainHome_ThAvatar")</th>
+                            <th>@CalendarManager.Translate("PCal_MainHome_ThName")</th>
+                            <th>@CalendarManager.Translate("PCal_MainHome_ThStatus")</th>
+                            <th>@CalendarManager.Translate("PCal_MainHome_ThActions")</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if (DisplayEmployees == null || !DisplayEmployees.Any())
                         {
                             <tr>
-                                <td colspan="4" class="text-muted">هیچ پرسنلی مطابق جستجو یافت نشد.</td>
+                                <td colspan="4" class="text-muted py-3">@CalendarManager.Translate("PCal_MainHome_NoPersonnel")</td>
                             </tr>
                         }
                         else
@@ -57,7 +83,7 @@
 
                                 <tr>
                                     <td class="align-middle">
-                                        <div class="avatar-wrapper" style="width:45px;height:45px;">
+                                        <div class="avatar-wrapper" style="width:45px;height:45px; margin: 0 auto;">
                                             @if (!string.IsNullOrEmpty(emp.ImagePath))
                                             {
                                                 <img src="@emp.ImagePath" class="avatar-img border border-2 shadow-sm" />
@@ -73,21 +99,21 @@
                                     <td class="align-middle">
                                         @if (!isPresent)
                                         {
-                                            <span class="badge bg-danger p-1 px-2 rounded-pill small">خارج / غایب</span>
+                                            <span class="badge bg-danger p-1 px-2 rounded-pill small">@CalendarManager.Translate("PCal_MainHome_StatusAbsent")</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-success p-1 px-2 rounded-pill small">حاضر</span>
+                                            <span class="badge bg-success p-1 px-2 rounded-pill small">@CalendarManager.Translate("PCal_MainHome_StatusPresent")</span>
                                         }
                                     </td>
                                     <td class="align-middle">
                                         @if (!isPresent)
                                         {
-                                            <button type="button" @onclick="() => ClockIn(emp.Id)" class="btn btn-success btn-sm px-3 rounded-pill">ورود</button>
+                                            <button type="button" @onclick="() => ClockIn(emp.Id)" class="btn btn-success btn-sm px-3 rounded-pill">@CalendarManager.Translate("PCal_MainHome_BtnClockIn")</button>
                                         }
                                         else
                                         {
-                                            <button type="button" @onclick="() => ClockOut(lastRecord.Id)" class="btn btn-danger btn-sm px-3 rounded-pill">خروج</button>
+                                            <button type="button" @onclick="() => ClockOut(lastRecord.Id)" class="btn btn-danger btn-sm px-3 rounded-pill">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
                                         }
                                     </td>
                                 </tr>
@@ -102,7 +128,7 @@
                 <div class="row g-2 p-2">
                     @if (DisplayEmployees == null || !DisplayEmployees.Any())
                     {
-                        <div class="col-12 text-muted small">هیچ پرسنلی مطابق جستجو یافت نشد.</div>
+                        <div class="col-12 text-muted small py-2">@CalendarManager.Translate("PCal_MainHome_NoPersonnel")</div>
                     }
                     else
                     {
@@ -115,28 +141,28 @@
                             <div class="col-md-6">
                                 <div class="card h-100 shadow-sm small">
                                     <div class="card-body d-flex gap-2 align-items-center py-2 px-3">
-                                        <div style="width:56px; position:relative;">
+                                        <div class="avatar-wrapper-container" style="width:56px; position:relative;">
                                             @if (!string.IsNullOrEmpty(emp.ImagePath))
                                             {
-                                                <img src="@emp.ImagePath" class="avatar-img-md" />
+                                                <img src="@emp.ImagePath" class="avatar-img-md border" />
                                             }
                                             else
                                             {
                                                 <div class="avatar-img-md bg-secondary text-white d-flex align-items-center justify-content-center">👤</div>
                                             }
-                                            <span class="status-dot" style="background:@(isPresent ? "#28a745" : "#dc3545"); left: -4px;"></span>
+                                            <span class="status-dot" style="background:@(isPresent ? "#28a745" : "#dc3545");"></span>
                                         </div>
-                                        <div class="flex-grow-1">
+                                        <div class="flex-grow-1 text-start-dynamic">
                                             <div class="fw-bold">@emp.FullName</div>
                                         </div>
-                                        <div class="text-end">
+                                        <div class="text-end-dynamic">
                                             @if (!isPresent)
                                             {
-                                                <button class="btn btn-success btn-sm" @onclick="() => ClockIn(emp.Id)">ورود</button>
+                                                <button class="btn btn-success btn-sm px-3 rounded-pill" @onclick="() => ClockIn(emp.Id)">@CalendarManager.Translate("PCal_MainHome_BtnClockIn")</button>
                                             }
                                             else
                                             {
-                                                <button class="btn btn-danger btn-sm" @onclick="() => ClockOut(lastRecord.Id)">خروج</button>
+                                                <button class="btn btn-danger btn-sm px-3 rounded-pill" @onclick="() => ClockOut(lastRecord.Id)">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
                                             }
                                         </div>
                                     </div>
@@ -146,12 +172,11 @@
                     }
                 </div>
             </div>
-
             <!-- Mobile: stacked cards -->
             <div class="d-block d-md-none p-1">
                 @if (DisplayEmployees == null || !DisplayEmployees.Any())
                 {
-                    <div class="text-muted small">هیچ پرسنلی مطابق جستجو یافت نشد.</div>
+                    <div class="text-muted small py-2">@CalendarManager.Translate("PCal_MainHome_NoPersonnel")</div>
                 }
                 else
                 {
@@ -163,28 +188,28 @@
 
                         <div class="card mb-2 shadow-sm">
                             <div class="card-body d-flex align-items-center gap-2 py-2 px-3">
-                                <div style="width:48px; position:relative;">
+                                <div class="avatar-wrapper-container" style="width:48px; position:relative;">
                                     @if (!string.IsNullOrEmpty(emp.ImagePath))
                                     {
-                                        <img src="@emp.ImagePath" class="avatar-img-sm" />
+                                        <img src="@emp.ImagePath" class="avatar-img-sm border" />
                                     }
                                     else
                                     {
                                         <div class="avatar-img-sm bg-secondary text-white d-flex align-items-center justify-content-center">👤</div>
                                     }
-                                    <span class="status-dot" style="background:@(isPresent ? "#28a745" : "#dc3545"); left: -4px;"></span>
+                                    <span class="status-dot" style="background:@(isPresent ? "#28a745" : "#dc3545");"></span>
                                 </div>
-                                <div class="flex-grow-1">
+                                <div class="flex-grow-1 text-start-dynamic">
                                     <div class="fw-bold small">@emp.FullName</div>
                                 </div>
-                                <div class="text-end">
+                                <div class="text-end-dynamic">
                                     @if (!isPresent)
                                     {
-                                        <button class="btn btn-success btn-sm" @onclick="() => ClockIn(emp.Id)">ورود</button>
+                                        <button class="btn btn-success btn-sm px-3 rounded-pill" @onclick="() => ClockIn(emp.Id)">@CalendarManager.Translate("PCal_MainHome_BtnClockIn")</button>
                                     }
                                     else
                                     {
-                                        <button class="btn btn-danger btn-sm" @onclick="() => ClockOut(lastRecord.Id)">خروج</button>
+                                        <button class="btn btn-danger btn-sm px-3 rounded-pill" @onclick="() => ClockOut(lastRecord.Id)">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
                                     }
                                 </div>
                             </div>
@@ -195,16 +220,19 @@
         }
     </div>
 
-    <div class="toast-container position-fixed end-0 p-2" role="status" aria-live="polite" aria-atomic="true">
+    @* --- بخش توست نوتیفیکیشن تفکیک شده و چندزبانه --- *@
+    <div class="toast-container position-fixed p-2" role="status" aria-live="polite" aria-atomic="true" style="top: calc(var(--app-header-height, 56px) + 0.5rem); @(CurrentLanguage == "fa" ? "right: 1rem; left: auto;" : "left: 1rem; right: auto;"); z-index: 1200;">
         @if (showToast)
         {
             <div class="toast show">
-                <div class="toast-header">
-                    <strong class="me-auto">اطلاع‌رسانی</strong>
-                    <small class="text-muted">اکنون</small>
-                    <button type="button" class="btn-close ms-2 mb-1" @onclick="() => showToast = false" aria-label="بستن"></button>
+                <div class="toast-header d-flex justify-content-between w-100" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
+                    <div class="d-flex align-items-center gap-1">
+                        <strong class="me-auto">@CalendarManager.Translate("PCal_MainHome_Notification")</strong>
+                        <small class="text-muted">@CalendarManager.Translate("PCal_MainHome_Now")</small>
+                    </div>
+                    <button type="button" class="btn-close" @onclick="() => showToast = false" aria-label="@CalendarManager.Translate("PCal_MainHome_CloseBtn")"></button>
                 </div>
-                <div class="toast-body small">
+                <div class="toast-body small" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
                     @toastMessage
                 </div>
             </div>

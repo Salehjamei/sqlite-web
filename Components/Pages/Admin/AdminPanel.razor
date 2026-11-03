@@ -175,17 +175,17 @@
 
                             @* ✏️ دکمه‌های ویرایش و حذف پرونده در دسکتاپ *@
                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
-                                <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => StartEmpEdit(emp)" title="Edit">✏️</button>
-                                <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)" title="Delete">🗑️</button>
+                                <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => StartEmpEdit(emp)" title="@CalendarManager.Translate("EditBBtn")">✏️</button>
+                                <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)" title="@CalendarManager.Translate("DeleteBBtn")">🗑️</button>
                             </td>
 
                             @* 📱 منوی هندل کشویی اختصاصی موبایل با جهت‌دهی و تراز تراز کاملاً پویا *@
                             <td class="d-md-none" style="padding: 4px 2px; position: relative;">
-                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10.5px; padding: 2px 6px;" @onclick="() => ToggleMobileMenuDropdown(emp.Id)" @onclick:stopPropagation>@CalendarManager.Translate("ThActions")</button>
+                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10.5px; padding: 2px 6px;" @onclick="() => ToggleMobileMenuDropdown(emp.Id)" @onclick:stopPropagation>@CalendarManager.Translate("MenuBBtn")</button>
                                 @if (ActiveMobileDropdownId == emp.Id)
                                 {
                                     <div style="position: absolute; top: 100%; @(CurrentLanguage == "fa" ? "left: 0;" : "right: 0;"); background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999999 !important; min-width: 150px; padding: 4px 0; text-align: @(CurrentLanguage == "fa" ? "right" : "left");" @onclick:stopPropagation>
-                                        <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");" @onclick="() => StartEmpEdit(emp)">@CalendarManager.Translate("EmpFormEditTitle")</button>
+                                        <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");" @onclick="() => StartEmpEdit(emp)">@CalendarManager.Translate("EditBBtn")</button>
 
                                         @if (isPresent)
                                         {
@@ -196,7 +196,7 @@
                                             <button type="button" class="dropdown-item text-success fw-bold small py-2 w-100 border-0 bg-transparent" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");" @onclick="() => StartAttendanceNow(emp.Id)">@CalendarManager.Translate("BtnClockIn")</button>
                                         }
                                         <div class="dropdown-divider m-1"></div>
-                                        <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)">@CalendarManager.Translate("BtnDelete")</button>
+                                        <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)">@CalendarManager.Translate("DeleteBBtn")</button>
                                     </div>
                                 }
                             </td>
@@ -526,7 +526,7 @@
                 <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation>
 
                     <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
-                        <h5 class="m-0" style="font-size: 15px;">@(isEmpEditMode ? CalendarManager.Translate("EmpFormEditTitle") : CalendarManager.Translate("EmpFormAddTitle"))</h5>
+                        <h5 class="m-0" style="font-size: 15px;">@(isEmpEditMode ? CalendarManager.Translate("EditBBtn") : CalendarManager.Translate("EmpFormAddTitle"))</h5>
                         <button type="button" class="btn-close btn-close-white" @onclick="CloseEmpFormModal"></button>
                     </div>
 

@@ -9,7 +9,7 @@ using sqlite_web.Services;
 
 namespace sqlite_web.Components.Pages
 {
-    public partial class Home
+    public partial class Home : AppBaseComponent
     {
         [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
@@ -24,12 +24,9 @@ namespace sqlite_web.Components.Pages
         // Toast
         private bool showToast = false;
         private string toastMessage = "";
+        private System.Threading.CancellationTokenSource? _toastCts;
 
         private bool isAnyAdminLoggedIn => AdminState.IsAuthorized;
-        private bool isCurrentUserSuperAdmin => AdminState.isCurrentUserSuperAdmin;
-        private bool canAddPerm => AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false;
-        private bool canEditPerm => AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false;
-        private bool canDeletePerm => AdminState.CurrentOnlineAdmin?.CanDeleteEmployee ?? false;
 
         private IEnumerable<Employee> DisplayEmployees
         {
@@ -49,15 +46,45 @@ namespace sqlite_web.Components.Pages
         {
             if (firstRender)
             {
+                // ۱. بررسی دسترسی و لایه امنیتی ادمین به صفحه اصلی
                 await AdminState.CheckAccessAndRedirectAsync();
 
+                try
+                {
+                    // ۲. فراخوانی متد لود زبان و تقویم از کلاس پایه اختصاصی
+                    await LoadStoredLanguageAndCalendarAsync();
+
+                    // ۳. 🟢 تزریق مستقیم و اجباری زبان و تنظیمات تقویم به شیء مدیریت تقویم شما
+                    if (CalendarManager != null)
+                    {
+                        // همگام‌سازی زبان جاری با موتور مترجم
+                        CalendarManager.GetType().GetProperty("CurrentLanguage")?.SetValue(CalendarManager, CurrentLanguage);
+
+                        // بازیابی وضعیت فعال بودن تقویم فارسی از حافظه مرورگر
+                        var calendarResult = await LocalStorage.GetAsync<bool>("UsePersianCalendarSetting");
+                        if (calendarResult.Success)
+                        {
+                            CalendarManager.UsePersianCalendar = calendarResult.Value;
+                        }
+                    }
+                }
+                catch
+                {
+                    // مهار خطاهای احتمالی ارتباط اولیه با لوکال استوریج در رندر اولیه
+                }
+
+                // ۴. بارگذاری اطلاعات کارمندان و رکوردها پس از همگام‌سازی کامل زبان
                 if (AdminState.IsAuthorized)
                 {
                     await LoadData();
                 }
-                StateHasChanged();
+
+                // ۵. اجبار کامل کامپوننت به بازرندری و رندر متون ترجمه‌شده جدید
+                await InvokeAsync(StateHasChanged);
             }
         }
+
+
 
         private async Task LoadData()
         {
@@ -71,7 +98,8 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                message = $"خطا در بارگذاری داده‌ها: {ex.Message}";
+                string errorFormat = CalendarManager.Translate("PCal_MainHome_LoadError");
+                message = string.Format(errorFormat, ex.Message);
             }
         }
 
@@ -87,15 +115,18 @@ namespace sqlite_web.Components.Pages
                 if (string.IsNullOrEmpty(empName))
                 {
                     var emp = await DbContext.Employees.FindAsync(employeeId);
-                    empName = emp?.FullName ?? "کاربر";
+                    empName = emp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                 }
 
                 await LoadData();
-                await ShowToastAsync($"{empName} ورود ثبت شد.");
+
+                string successFormat = CalendarManager.Translate("PCal_MainHome_ClockInSuccess");
+                await ShowToastAsync(string.Format(successFormat, empName));
             }
             catch (Exception ex)
             {
-                message = $"خطا در ثبت ورود: {ex.InnerException?.Message ?? ex.Message}";
+                string errFormat = CalendarManager.Translate("PCal_MainHome_ClockInError");
+                message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
             }
         }
 
@@ -113,23 +144,26 @@ namespace sqlite_web.Components.Pages
                     if (string.IsNullOrEmpty(empName))
                     {
                         var emp = await DbContext.Employees.FindAsync(record.EmployeeId);
-                        empName = emp?.FullName ?? "کاربر";
+                        empName = emp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                     }
 
                     await LoadData();
-                    await ShowToastAsync($"{empName} خروج ثبت شد.");
+
+                    string successFormat = CalendarManager.Translate("PCal_MainHome_ClockOutSuccess");
+                    await ShowToastAsync(string.Format(successFormat, empName));
                 }
             }
             catch (Exception ex)
             {
-                message = $"خطا در ثبت خروج: {ex.InnerException?.Message ?? ex.Message}";
+                string errFormat = CalendarManager.Translate("PCal_MainHome_ClockOutError");
+                message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
             }
         }
 
         private async Task AdminLogoutFromHome()
         {
             await AdminState.LogoutAsync();
-            message = "🔒 سیستم مدیریت خارج شد و کیوسک تردد قفل گردید.";
+            message = CalendarManager.Translate("PCal_MainHome_KioskLocked");
             StateHasChanged();
         }
 
@@ -140,12 +174,38 @@ namespace sqlite_web.Components.Pages
 
         private async Task ShowToastAsync(string text, int milliseconds = 3500)
         {
-            toastMessage = text;
-            showToast = true;
-            StateHasChanged();
-            await Task.Delay(milliseconds);
-            showToast = false;
-            StateHasChanged();
+            try
+            {
+                // ۱. اگر از قبل تایمری در حال اجراست، آن را متوقف و ابطال کن
+                if (_toastCts != null)
+                {
+                    _toastCts.Cancel();
+                    _toastCts.Dispose();
+                }
+
+                // ۲. ساخت یک توکن اختصاصی جدید برای پیام فعلی
+                _toastCts = new System.Threading.CancellationTokenSource();
+                var currentToken = _toastCts.Token;
+
+                toastMessage = text;
+                showToast = true;
+                StateHasChanged();
+
+                // ۳. صبر کردن با قابلیت لغو شدن؛ اگر دکمه دیگری زده شود، این خط خطای لغو صادر می‌کند
+                await Task.Delay(milliseconds, currentToken);
+
+                // ۴. اگر تا پایان زمان تعیین‌شده لغو نشد، کادر را ببند
+                if (!currentToken.IsCancellationRequested)
+                {
+                    showToast = false;
+                    StateHasChanged();
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // این بخش زمانی اجرا می‌شود که عملیات قبلی لغو شده است؛ عمداً خالی می‌گذاریم تا پیام جدید مدیریت را به دست بگیرد
+            }
         }
+
     }
 }

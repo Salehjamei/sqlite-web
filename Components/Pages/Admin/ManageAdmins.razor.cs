@@ -50,8 +50,7 @@ namespace sqlite_web.Components.Pages.Admin
 
             // ۳. فراخوانی متد رسمی بومی سرویس شما جهت واکشی اطلاعات از SQLite
             await AdminState.LoadAdminsDataAsync();
-        }
-
+        }        
 
         private void OnAdminStateChanged()
         {

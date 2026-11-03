@@ -109,3 +109,66 @@
   .page-title { font-size: 0.95rem; }
   .search-box { min-width: 180px !important; }
 }
+/* کادر جستجوی منعطف هدر کارت */
+.mobile-responsive-search {
+    min-width: 220px;
+    display: flex !important;
+}
+
+.btn-search-indicator {
+    background-color: #ffffff !important;
+    border-color: #ffffff !important;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* تراز پویای متن کارت‌های تبلت و موبایل بدون وابستگی به بوت‌استرپ */
+[dir="rtl"] .text-start-dynamic {
+    text-align: right;
+}
+
+[dir="ltr"] .text-start-dynamic {
+    text-align: left;
+}
+
+[dir="rtl"] .text-end-dynamic {
+    text-align: left;
+}
+
+[dir="ltr"] .text-end-dynamic {
+    text-align: right;
+}
+
+/* مدیریت و اورراید هوشمند پوزیشن مطلق نقطه‌های وضعیت تصویر */
+.avatar-wrapper-container {
+    display: inline-block;
+}
+
+[dir="rtl"] .status-dot {
+    left: -2px;
+    right: auto;
+}
+
+[dir="ltr"] .status-dot {
+    right: -2px;
+    left: auto;
+}
+
+/* 📱 مینی‌مال‌سازی هوشمند کادر جستجو در موبایل‌های باریک */
+@media (max-width: 575.98px) {
+    .mobile-responsive-search {
+        min-width: 140px !important;
+        max-width: 165px !important;
+    }
+
+        .mobile-responsive-search .form-control {
+            font-size: 11px !important;
+            padding: 0.25rem 0.4rem !important;
+        }
+
+    .btn-search-indicator {
+        font-size: 10px !important;
+        padding: 0.25rem 0.35rem !important;
+    }
+}
+
