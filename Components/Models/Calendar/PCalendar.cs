@@ -121,6 +121,11 @@ namespace sqlite_web.Components.Models.Calendar
         { "ThTokenExpiration", new Dictionary<string, string> { { "fa", "انقضای توکن" }, { "en", "Token Expiration" }, { "tr", "Token Süresi" } } },
         { "ThSessionStatus", new Dictionary<string, string> { { "fa", "وضعیت سشن" }, { "en", "Session Status" }, { "tr", "Oturum Durumu" } } },
         { "ThAdminActions", new Dictionary<string, string> { { "fa", "عملیات پرونده" }, { "en", "Actions" }, { "tr", "İşlemler" } } },
+        { "MenuBBtn", new Dictionary<string, string> { { "fa", "ابزار" }, { "en", "Tools" }, { "tr", "Araçlar" } } },
+
+        { "BtnEditTime", new Dictionary<string, string> { { "fa", "ویرایش" }, { "en", "Edit" }, { "tr", "düzenle" } } },
+        { "BtnDDlete", new Dictionary<string, string> { { "fa", "حذف" }, { "en", "Delete" }, { "tr", "Sil" } } },
+
         // مقادیر و دکمه‌های داینامیک درون ردیف‌های جدول
         { "RoleSuperAdmin", new Dictionary<string, string> { { "fa", "سوپر ادمین" }, { "en", "Super Admin" }, { "tr", "Süper Yönetici" } } },
         { "RoleLimitedAdmin", new Dictionary<string, string> { { "fa", "مدیر محدود" }, { "en", "Limited Admin" }, { "tr", "Kısıtlı Yönetici" } } },
@@ -131,8 +136,8 @@ namespace sqlite_web.Components.Models.Calendar
         { "NoSession", new Dictionary<string, string> { { "fa", "فاقد سشن" }, { "en", "No Session" }, { "tr", "Oturum Yok" } } },
         { "SessionOnline", new Dictionary<string, string> { { "fa", "آنلاین" }, { "en", "Online" }, { "tr", "Çevrimiçi" } } },
         { "SearchBBtn", new Dictionary<string, string> { { "fa", "جستجو" }, { "en", "Search" }, { "tr", "Aramak" } } },
-        { "EditBBtn", new Dictionary<string, string> { { "fa", "ویرایش" }, { "en", "edit" }, { "tr", "düzenle" } } },
-        { "DeleteBBtn", new Dictionary<string, string> { { "fa", "حذف" }, { "en", "delete" }, { "tr", "sil" } } },
+        { "EditBBtn", new Dictionary<string, string> { { "fa", "ویرایش" }, { "en", "Edit" }, { "tr", "düzenle" } } },
+        { "DeleteBBtn", new Dictionary<string, string> { { "fa", "حذف" }, { "en", "Delete" }, { "tr", "Silmek" } } },
         //مودال افزودن و ویرایش
         // مودال افزودن و ویرایش - پیشوند اختصاصی PCal_AdminModal
         { "PCal_AdminModal_EditTitle", new Dictionary<string, string> { { "fa", "✏️ ویرایش کامل مشخصات و مجوزهای مدیر" }, { "en", "✏️ Edit Admin Permissions & Details" }, { "tr", "✏️ Yönetici İzinlerini ve Bilgilerini Düzenle" } } },
@@ -150,7 +155,29 @@ namespace sqlite_web.Components.Models.Calendar
         { "PCal_AdminModal_CanDeleteLabel", new Dictionary<string, string> { { "fa", "توانایی حذف کامل پرسنل و رکوردها" }, { "en", "Ability to completely delete personnel & records" }, { "tr", "Personel ve kayıtları tamamen silme yetkisi" } } },
 
         { "PCal_AdminModal_SaveBtn", new Dictionary<string, string> { { "fa", "💾 ذخیره اطلاعات مدیر" }, { "en", "💾 Save Admin Information" }, { "tr", "💾 Yönetici Bilgilerini Kaydet" } } },
-        { "PCal_AdminModal_CancelBtn", new Dictionary<string, string> { { "fa", "انصراف" }, { "en", "Cancel" }, { "tr", "İptal" } } }
+        { "PCal_AdminModal_CancelBtn", new Dictionary<string, string> { { "fa", "انصراف" }, { "en", "Cancel" }, { "tr", "İptal" } } },
+        // ==========================================
+        // 🔒 PCalendar - مودال‌های امنیتی و سیستم
+        // ==========================================
+        
+        // --- ۱. مودال خروج (Logout Modal) ---
+        { "PCal_Security_LogoutTitle", new Dictionary<string, string> { { "fa", "🚪 تاییدیه خروج از سیستم" }, { "en", "🚪 Logout Confirmation" }, { "tr", "🚪 Sistemden Çıkış Onayı" } } },
+        { "PCal_Security_LogoutMsg", new Dictionary<string, string> { { "fa", "آیا برای خروج از پنل مدیریت سیستم مطمئن هستید؟" }, { "en", "Are you sure you want to log out of the system administration panel?" }, { "tr", "Sistem yönetim panelinden çıkış yapmak istediğinizden emin misiniz?" } } },
+        { "PCal_Security_LogoutSubMsg", new Dictionary<string, string> { { "fa", "با خروج شما، سشن فعلی باطل شده و نیاز به ورود مجدد خواهید داشت." }, { "en", "Upon logging out, your current session will be invalidated, and you will need to log in again." }, { "tr", "Çıkış yaptığınızda mevcut oturumunuz sonlandırılacak ve tekrar giriş yapmanız gerekecektir." } } },
+        { "PCal_Security_LogoutConfirmBtn", new Dictionary<string, string> { { "fa", "بله، خارج می‌شوم" }, { "en", "Yes, Log Out" }, { "tr", "Evet, Çıkış Yapıyorum" } } },
+        { "PCal_Security_CancelBtn", new Dictionary<string, string> { { "fa", "انصراف" }, { "en", "Cancel" }, { "tr", "İptal" } } },
+        
+        // --- ۲. مودال عدم دسترسی (Access Denied Modal) ---
+        { "PCal_Security_AccessTitle", new Dictionary<string, string> { { "fa", "⚠️ خطای دسترسی سیستم" }, { "en", "⚠️ System Access Error" }, { "tr", "⚠️ Sistem Erişim Hatası" } } },
+        { "PCal_Security_AccessMsg", new Dictionary<string, string> { { "fa", "حساب کاربری شما فاقد مجوز ورود است!" }, { "en", "Your account lacks login permissions!" }, { "tr", "Hesabınızın giriş yetkisi bulunmuyor!" } } },
+        { "PCal_Security_AccessSubMsg", new Dictionary<string, string> { { "fa", "شما اجازه ورود به پنل مدیریت پرسنل را ندارید. جهت اعطای دسترسی‌های لازم، لطفاً با مدیر ارشد سیستم تماس حاصل فرمایید." }, { "en", "You are not allowed to enter the personnel management panel. Please contact the senior system administrator to grant the necessary permissions." }, { "tr", "Personel yönetim paneline giriş izniniz yoktur. Gerekli yetkilerin verilmesi için lütfen kıdemli sistem yöneticisi ile iletişime geçin." } } },
+        { "PCal_Security_IUnderstandBtn", new Dictionary<string, string> { { "fa", "متوجه شدم" }, { "en", "I Understand" }, { "tr", "Anladım" } } },
+        
+        // --- ۳. مودال تغییر دستی آدرس (URL Hijacking Modal) ---
+        { "PCal_Security_HijackTitle", new Dictionary<string, string> { { "fa", "⚠️ هشدار عدم سطح دسترسی" }, { "en", "⚠️ Access Level Warning" }, { "tr", "⚠️ Erişim Seviyesi Uyarısı" } } },
+        { "PCal_Security_HijackMsg", new Dictionary<string, string> { { "fa", "دسترسی غیرمجاز از طریق تغییر لینک!" }, { "en", "Unauthorized access via URL modification!" }, { "tr", "Bağlantı değişikliği yoluyla yetkisiz erişim!" } } },
+        { "PCal_Security_HijackSubMsg", new Dictionary<string, string> { { "fa", "کاربر محترم، حساب شما مجوز ورود مستقیم به صفحه درخواستی را ندارد. سیستم به صورت خودکار شما را به مسیر مجاز بازگرداند." }, { "en", "Dear user, your account does not have permission to directly access the requested page. The system has automatically redirected you to an authorized path." }, { "tr", "Sayın kullanıcı, hesabınız talep edilen sayfaya doğrudan erişim iznine sahip değildir. Sistem sizi otomatik olarak yetkilendirilmiş yola yönlendirdi." } } }
+
 
         };
 

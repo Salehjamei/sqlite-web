@@ -91,14 +91,14 @@
 {
     <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 9999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
         <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 440px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;">
-            <div class="bg-dark text-white p-3 fw-bold" style="text-align: right; direction: rtl; font-size: 15px;">🚪 تاییدیه خروج از سیستم</div>
+            <div class="bg-dark text-white p-3 fw-bold" style="text-align: right; direction: rtl; font-size: 15px;">@CalendarManager.Translate("PCal_Security_LogoutTitle")</div>
             <div class="p-3 text-right" style="direction: rtl; background: #ffffff;">
-                <p class="fw-bold text-dark" style="font-size: 14px; margin-bottom: 8px;">آیا برای خروج از پنل مدیریت سیستم مطمئن هستید؟</p>
-                <p class="text-muted small m-0" style="line-height: 1.6;">با خروج شما، سشن فعلی باطل شده و نیاز به ورود مجدد خواهید داشت.</p>
+                <p class="fw-bold text-dark" style="font-size: 14px; margin-bottom: 8px;">@CalendarManager.Translate("PCal_Security_LogoutMsg")</p>
+                <p class="text-muted small m-0" style="line-height: 1.6;">@CalendarManager.Translate("PCal_Security_LogoutSubMsg")</p>
             </div>
             <div class="p-3 bg-light d-flex justify-content-end gap-2 border-top" style="direction: ltr;">
-                <button type="button" class="btn btn-danger btn-sm px-3 fw-bold" @onclick="ExecuteConfirmedLogout">بله، خارج می‌شوم</button>
-                <button type="button" class="btn btn-secondary btn-sm px-3" @onclick="CloseLogoutModal">انصراف</button>
+                <button type="button" class="btn btn-danger btn-sm px-3 fw-bold" @onclick="ExecuteConfirmedLogout">@CalendarManager.Translate("PCal_Security_LogoutConfirmBtn")</button>
+                <button type="button" class="btn btn-secondary btn-sm px-3" @onclick="CloseLogoutModal">@CalendarManager.Translate("PCal_Security_CancelBtn")</button>
             </div>
         </div>
     </div>
@@ -111,15 +111,15 @@
     <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 9999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
         <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;">
 
-            <div class="bg-danger text-white p-3 fw-bold" style="text-align: right; direction: rtl;">⚠️ خطای دسترسی سیستم</div>
+            <div class="bg-danger text-white p-3 fw-bold" style="text-align: right; direction: rtl;">@CalendarManager.Translate("PCal_Security_AccessTitle")</div>
 
             <div class="p-3 text-right" style="direction: rtl; background: #ffffff;">
-                <p class="fw-bold text-danger" style="font-size: 14px;">حساب کاربری شما فاقد مجوز ورود است!</p>
-                <p class="text-muted small m-0" style="line-height: 1.6;">شما اجازه ورود به پنل مدیریت پرسنل را ندارید. جهت اعطای دسترسی‌های لازم، لطفاً با مدیر ارشد سیستم تماس حاصل فرمایید.</p>
+                <p class="fw-bold text-danger" style="font-size: 14px;">@CalendarManager.Translate("PCal_Security_AccessMsg")</p>
+                <p class="text-muted small m-0" style="line-height: 1.6;">@CalendarManager.Translate("PCal_Security_AccessSubMsg")</p>
             </div>
 
             <div class="p-3 bg-light d-flex justify-content-end border-top">
-                <button type="button" class="btn btn-secondary btn-sm px-4" @onclick="CloseAccessModal">متوجه شدم</button>
+                <button type="button" class="btn btn-secondary btn-sm px-4" @onclick="CloseAccessModal">@CalendarManager.Translate("PCal_Security_IUnderstandBtn")</button>
             </div>
 
         </div>
@@ -132,19 +132,20 @@
     <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 9999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;">
         <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;">
 
-            <div class="bg-warning text-dark p-3 fw-bold" style="text-align: right; direction: rtl;">⚠️ هشدار عدم سطح دسترسی</div>
+            <div class="bg-warning text-dark p-3 fw-bold" style="text-align: right; direction: rtl;">@CalendarManager.Translate("PCal_Security_HijackTitle")</div>
 
             <div class="p-3 text-right" style="direction: rtl; background: #ffffff;">
-                <p class="fw-bold text-warning" style="color: #856404 !important; font-size: 14px;">دسترسی غیرمجاز از طریق تغییر لینک!</p>
-                <p class="text-muted small m-0" style="line-height: 1.6;">کاربر محترم، حساب شما مجوز ورود مستقیم به صفحه درخواستی را ندارد. سیستم به صورت خودکار شما را به مسیر مجاز بازگرداند.</p>
+                <p class="fw-bold text-warning" style="color: #856404 !important; font-size: 14px;">@CalendarManager.Translate("PCal_Security_HijackMsg")</p>
+                <p class="text-muted small m-0" style="line-height: 1.6;">@CalendarManager.Translate("PCal_Security_HijackSubMsg")</p>
             </div>
 
             <div class="p-3 bg-light d-flex justify-content-end border-top">
                 <button type="button" class="btn btn-warning btn-sm px-4 fw-bold text-dark" @onclick="CloseUrlHijackModal">
-                    متوجه شدم
+                    @CalendarManager.Translate("PCal_Security_IUnderstandBtn")
                 </button>
             </div>
 
         </div>
     </div>
 }
+

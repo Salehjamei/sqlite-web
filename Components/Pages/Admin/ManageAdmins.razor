@@ -6,7 +6,7 @@
 @using sqlite_web.Components.Models.Admin
 @inherits sqlite_web.Components.AppBaseComponent
 
-<div class="container mt-2 modal-animation-fade" dir="rtl" style="text-align: right; font-family: Tahoma; max-width: 100%; padding-left: 10px; padding-right: 10px;" @onclick="CloseAllMobileDropdowns">
+<div class="container mt-2 modal-animation-fade" dir="rtl" style="text-align: right; font-family: Tahoma; max-width: 100%; padding-left: 10px; padding-right: 10px; min-height: 100vh;" @onclick="CloseAllMobileDropdowns">
 
     @if (AdminState.IsChecked && !AdminState.isCurrentUserSuperAdmin)
     {
@@ -74,12 +74,12 @@
         <div class="row m-0" style="padding-left: 4px; padding-right: 4px;">
             <div class="col-md-12 mb-4 p-0">
                 <div class="card shadow-sm border-0" style="border-radius: 8px; overflow: visible;">
-                    <div class="table-responsive" style="border: none !important; overflow-x: auto; position: relative;">
-                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; border-collapse: separate; background-color: #ffffff;">
+                    <div class="table-responsive" style="border: none !important; overflow-x: auto; position: relative; direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
+                        <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; border-collapse: separate; background-color: #ffffff; text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
                             <thead class="table-light text-dark">
                                 <tr class="fw-bold" style="font-weight: bold !important; background-color: #f8f9fa;">
                                     @* 🟢 تراز هندسی دقیق: اختصاص ۲۵٪ عرض جدول به ستون نام کاربری جهت یکسان‌سازی با پنل پرسنل *@
-                                    <th style="text-align: right; padding-right: 12px; font-size: 12px; font-weight: bold !important; width: 25%;">@CalendarManager.Translate("ThAdminUsername")</th>
+                                    <th style="text-align: @(CurrentLanguage == "fa" ? "right" : "left"); padding-@(CurrentLanguage == "fa" ? "right" : "left"): 12px; font-size: 12px; font-weight: bold !important; width: 25%;">@CalendarManager.Translate("ThAdminUsername")</th>
                                     <th style="width: 100px; font-size: 12px; font-weight: bold !important;">@CalendarManager.Translate("ThAccessType")</th>
                                     <th class="d-none d-md-table-cell" style="width: 115px; font-size: 12px; font-weight: bold !important;">@CalendarManager.Translate("ThAccountStatus")</th>
                                     <th class="d-none d-md-table-cell" style="width: 125px; font-size: 12px; font-weight: bold !important;">@CalendarManager.Translate("ThActiveToken")</th>
@@ -100,7 +100,7 @@
 
                                         <tr>
                                             @* ستون نام کاربری مدیر *@
-                                            <td style="text-align: right; padding-right: 12px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            <td style="text-align: @(CurrentLanguage == "fa" ? "right" : "left"); padding-@(CurrentLanguage == "fa" ? "right" : "left"): 12px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                                 <strong style="color: #212529;">
                                                     @(admin.Username?.Length > 40 ? admin.Username.Substring(0, 37) + "..." : admin.Username)
                                                 </strong>
@@ -182,12 +182,12 @@
                                             @* عملیات پرونده دسکتاپ *@
                                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
                                                 <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => TriggerStartEdit(admin)" title="@CalendarManager.Translate("EditBBtn")">✏️</button>
-                                                <button type="button" class="btn btn-sm text-danger p-0" disabled="@(admin.IsSuperAdmin || isOnline)" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)" title="@CalendarManager.Translate("DeleteBBtn")">🗑️</button>
+                                                <button type="button" class="btn btn-sm text-danger p-0" disabled="@(admin.IsSuperAdmin || isOnline)" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)" title="@CalendarManager.Translate("DeleteBBtn")">🗑️</button>      
                                             </td>
 
                                             @* منوی عملیات موبایل چندزبانه و ریسپانسیو *@
                                             <td class="d-md-none" style="padding: 4px 2px; position: relative;">
-                                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10px; padding: 2px 5px;" @onclick="() => ToggleMobileMenuDropdown(admin.Id)" @onclick:stopPropagation>@CalendarManager.Translate("ThAdminActions")</button>
+                                                <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10px; padding: 2px 5px;" @onclick="() => ToggleMobileMenuDropdown(admin.Id)" @onclick:stopPropagation>@CalendarManager.Translate("MenuBBtn")</button>
                                                 @if (ActiveMobileDropdownId == admin.Id)
                                                 {
                                                     <div style="position: absolute; top: 100%; left: 0; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999999 !important; min-width: 165px; padding: 4px 0; text-align: right;" @onclick:stopPropagation>
@@ -217,7 +217,7 @@
                                                             }
 
                                                             <div class="dropdown-divider m-1"></div>
-                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)">@CalendarManager.Translate("BtnDelete")</button>
+                                                            <button type="button" class="dropdown-item text-danger fw-bold small py-2 w-100 border-0 bg-transparent text-start" style="text-align: right;" @onclick="() => TriggerDeleteAdmin(admin.Id, admin.Username)">@CalendarManager.Translate("BtnDDlete")</button>
                                                         }
                                                     </div>
                                                 }
@@ -237,7 +237,6 @@
                             </tbody>
 
                         </table>
-
                     </div>
                 </div>
             </div>
@@ -299,7 +298,6 @@
                                     </div>
                                 </div>
                             }
-
                             <div class="d-flex gap-2 mt-3 border-top pt-3">
                                 <button type="submit" class="btn @(AdminState.IsEditMode ? "btn-warning text-dark" : "btn-success") btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">
                                     @CalendarManager.Translate("PCal_AdminModal_SaveBtn")
