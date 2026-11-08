@@ -456,13 +456,26 @@ namespace sqlite_web.Components.Pages
         {
             try
             {
-                DbContext.Attendances.Add(new Attendance { EmployeeId = employeeId, ClockInTime = DateTime.Now, ClockOutTime = null });
+                // دریافت شناسه ادمین آنلاین سیستم برای رهگیری منبع
+                int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
+
+                var attendance = new Attendance
+                {
+                    EmployeeId = employeeId,
+                    ClockInTime = DateTime.Now,
+                    ClockOutTime = null,
+                    CreationDate = DateTime.Now,
+                    EntrySource = "AdminFast", // تعیین منبع به عنوان ثبت سریع توسط ادمین
+                    CreatedByAdminId = currentAdminId
+                };
+
+                DbContext.Attendances.Add(attendance);
                 await DbContext.SaveChangesAsync();
                 await RefreshDataAsync();
             }
             catch (Exception ex)
             {
-                AdminState.FeedbackMessage = $"❌ خطا در ثبت ورود: {ex.Message}";
+                SystemMessage = $"خطا در ثبت ورود سریع: {ex.Message}";
             }
             await InvokeAsync(StateHasChanged);
         }
@@ -474,7 +487,12 @@ namespace sqlite_web.Components.Pages
                 var attendance = await DbContext.Attendances.FindAsync(attendanceId);
                 if (attendance != null)
                 {
+                    // ثبت شناسه ادمین به عنوان آخرین ویرایش‌کننده
+                    int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
+
                     attendance.ClockOutTime = DateTime.Now;
+                    attendance.LastModifiedByAdminId = currentAdminId;
+
                     DbContext.Attendances.Update(attendance);
                     await DbContext.SaveChangesAsync();
                     await RefreshDataAsync();
@@ -482,7 +500,7 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                AdminState.FeedbackMessage = $"❌ خطا در ثبت خروج: {ex.Message}";
+                SystemMessage = $"خطا در ثبت خروج سریع: {ex.Message}";
             }
             await InvokeAsync(StateHasChanged);
         }
@@ -496,41 +514,76 @@ namespace sqlite_web.Components.Pages
 
             try
             {
-                // 🟢 همگام‌سازی آنی متغیرهای بومی تاریخ از روی منوهای آبشاری فرم کلاینت قبل از شروع عملیات پارس
+                // تبدیل مقادیر دریافتی از منوهای آبشاری فرم به ساختار DateTime
                 manualDate = CalendarManager.ParseFormFieldsToDateTime(CalendarManager.ManualInYear, CalendarManager.ManualInMonth, CalendarManager.ManualInDay, "00:00");
                 manualOutDate = CalendarManager.ParseFormFieldsToDateTime(CalendarManager.ManualOutYear, CalendarManager.ManualOutMonth, CalendarManager.ManualOutDay, "00:00");
 
-                // ترکیب کردن فیلدهای مستقل تاریخ روز ورود و خروج با فیلدهای متنی ساعت با حفظ ساختار بومی شما
                 var inTime = DateTime.Parse($"{manualDate:yyyy-MM-dd} {manualInTime}");
                 var outTime = DateTime.Parse($"{manualOutDate:yyyy-MM-dd} {manualOutTime}");
 
-                // گارد اول: تاریخ روز خروج باید دقیقاً مساوی با تاریخ روز ورود باشد
+                // کنترل انطباق روز ورود و خروج
                 if (inTime.Date != outTime.Date)
                 {
-                    CalendarManager.GetType().GetProperty("AttendanceValidationMessage")?.SetValue(CalendarManager, "❌ خطا: تاریخ خروج باید دقیقاً همان روز تاریخ ورود باشد! امکان ثبت تردد در روزهای متفاوت وجود ندارد.");
+                    CalendarManager.AttendanceValidationMessage = "خطا: تاریخ خروج باید دقیقاً همان روز تاریخ ورود باشد!";
                     return;
                 }
 
-                // گارد دوم: ساعت خروج نباید قبل‌تر یا جلوتر از ساعت ورود تنظیم شده باشد
+                // کنترل تقدم زمان ورود نسبت به خروج
                 if (outTime < inTime)
                 {
-                    CalendarManager.GetType().GetProperty("AttendanceValidationMessage")?.SetValue(CalendarManager, "❌ خطا: ساعت خروج نمی‌تواند قبل‌تر از ساعت ورود تنظیم شود!");
+                    CalendarManager.AttendanceValidationMessage = "خطا: ساعت خروج نمی‌تواند قبل‌تر از ساعت ورود تنظیم شود!";
                     return;
                 }
+
+                int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
+                string currentAdminName = AdminState.CurrentOnlineAdmin?.Username ?? "Admin";
 
                 if (isAttEditMode && _editingAttendanceId.HasValue)
                 {
-                    var att = await DbContext.Attendances.FindAsync(_editingAttendanceId.Value);
+                    var att = await DbContext.Attendances
+                        .Include(a => a.EditLogs)
+                        .FirstOrDefaultAsync(a => a.Id == _editingAttendanceId.Value);
+
                     if (att != null)
                     {
+                        // ایجاد و ثبت ردیف تاریخچه ویرایش قبل از تغییر مقادیر اصلی رکورد (Audit Log)
+                        var log = new AttendanceEditLog
+                        {
+                            AttendanceId = att.Id,
+                            AdminId = currentAdminId ?? 0,
+                            AdminUsername = currentAdminName,
+                            EditDate = DateTime.Now,
+                            OldClockInTime = att.ClockInTime,
+                            OldClockOutTime = att.ClockOutTime,
+                            NewClockInTime = inTime,
+                            NewClockOutTime = outTime,
+                            Reason = "اصلاح ساعت کارکرد توسط ادمین در پنل کارنامه پرسنل"
+                        };
+
+                        DbContext.AttendanceEditLogs.Add(log);
+
+                        // جایگذاری مقادیر زمانی جدید و ثبت ادمین ویرایش کننده
                         att.ClockInTime = inTime;
                         att.ClockOutTime = outTime;
+                        att.LastModifiedByAdminId = currentAdminId;
+
                         DbContext.Attendances.Update(att);
                     }
                 }
                 else
                 {
-                    DbContext.Attendances.Add(new Attendance { EmployeeId = selectedEmployee.Id, ClockInTime = inTime, ClockOutTime = outTime });
+                    // ایجاد یک رکورد تردد جدید با شناسه ادمین ثبت کننده و تفکیک منبع به عنوان ثبت دستی
+                    var newAtt = new Attendance
+                    {
+                        EmployeeId = selectedEmployee.Id,
+                        ClockInTime = inTime,
+                        ClockOutTime = outTime,
+                        CreationDate = DateTime.Now,
+                        EntrySource = "AdminManual",
+                        CreatedByAdminId = currentAdminId,
+                        LastModifiedByAdminId = currentAdminId
+                    };
+                    DbContext.Attendances.Add(newAtt);
                 }
 
                 await DbContext.SaveChangesAsync();
@@ -542,11 +595,9 @@ namespace sqlite_web.Components.Pages
             }
             catch
             {
-                CalendarManager.GetType().GetProperty("AttendanceValidationMessage")?.SetValue(CalendarManager, "❌ فرمت زمان وارد شده اشتباه است (مثال معتبر: 07:00 یا 17:30)");
+                CalendarManager.AttendanceValidationMessage = "فرمت زمان وارد شده اشتباه است (مثال معتبر: 07:00 یا 17:30)";
             }
         }
-
-
         protected void CloseModal() { showModal = false; selectedEmployee = null; }
         protected void ClearSystemMessage() => SystemMessage = string.Empty;
         // محاسبه تفاضل ورود و خروج به رشته متنی فرمت شده استاندارد HH:mm

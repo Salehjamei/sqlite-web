@@ -101,64 +101,7 @@ namespace sqlite_web.Components.Pages
                 string errorFormat = CalendarManager.Translate("PCal_MainHome_LoadError");
                 message = string.Format(errorFormat, ex.Message);
             }
-        }
-
-        private async Task ClockIn(int employeeId)
-        {
-            try
-            {
-                var attendance = new Attendance { EmployeeId = employeeId, ClockInTime = DateTime.Now };
-                DbContext.Attendances.Add(attendance);
-                await DbContext.SaveChangesAsync();
-
-                var empName = employees.FirstOrDefault(e => e.Id == employeeId)?.FullName;
-                if (string.IsNullOrEmpty(empName))
-                {
-                    var emp = await DbContext.Employees.FindAsync(employeeId);
-                    empName = emp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
-                }
-
-                await LoadData();
-
-                string successFormat = CalendarManager.Translate("PCal_MainHome_ClockInSuccess");
-                await ShowToastAsync(string.Format(successFormat, empName));
-            }
-            catch (Exception ex)
-            {
-                string errFormat = CalendarManager.Translate("PCal_MainHome_ClockInError");
-                message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
-            }
-        }
-
-        private async Task ClockOut(int attendanceId)
-        {
-            try
-            {
-                var record = await DbContext.Attendances.FindAsync(attendanceId);
-                if (record != null)
-                {
-                    record.ClockOutTime = DateTime.Now;
-                    await DbContext.SaveChangesAsync();
-
-                    var empName = employees.FirstOrDefault(e => e.Id == record.EmployeeId)?.FullName;
-                    if (string.IsNullOrEmpty(empName))
-                    {
-                        var emp = await DbContext.Employees.FindAsync(record.EmployeeId);
-                        empName = emp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
-                    }
-
-                    await LoadData();
-
-                    string successFormat = CalendarManager.Translate("PCal_MainHome_ClockOutSuccess");
-                    await ShowToastAsync(string.Format(successFormat, empName));
-                }
-            }
-            catch (Exception ex)
-            {
-                string errFormat = CalendarManager.Translate("PCal_MainHome_ClockOutError");
-                message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
-            }
-        }
+        }       
 
         private async Task AdminLogoutFromHome()
         {
@@ -204,6 +147,97 @@ namespace sqlite_web.Components.Pages
             catch (TaskCanceledException)
             {
                 // این بخش زمانی اجرا می‌شود که عملیات قبلی لغو شده است؛ عمداً خالی می‌گذاریم تا پیام جدید مدیریت را به دست بگیرد
+            }
+        }
+        private async Task ClockIn(int employeeId)
+        {
+            try
+            {
+                // ۱. بررسی وضعیت و بستن خودکار ترددهای باز روزهای گذشته بر اساس تنظیمات سیستم
+                var settings = AdminState.CurrentSettings;
+                bool applyAutoLogout = settings?.ApplyAutoLogout ?? true;
+                string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
+
+                var unfinishedRecords = await DbContext.Attendances
+                    .Where(a => a.EmployeeId == employeeId && a.ClockOutTime == null)
+                    .ToListAsync();
+
+                foreach (var oldRecord in unfinishedRecords)
+                {
+                    if (oldRecord.ClockInTime.HasValue && oldRecord.ClockInTime.Value.Date < DateTime.Today)
+                    {
+                        if (applyAutoLogout)
+                        {
+                            var parsedTime = TimeSpan.Parse(autoTimeStr);
+                            oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(parsedTime);
+                        }
+                        else
+                        {
+                            oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(TimeSpan.Parse("23:59"));
+                        }
+                        oldRecord.EntrySource = "AutoClose";
+                        DbContext.Attendances.Update(oldRecord);
+                    }
+                }
+
+                // ۲. ثبت رکورد ورود جدید با تفکیک منبع کیوسک دستگاه
+                var attendance = new Attendance
+                {
+                    EmployeeId = employeeId,
+                    ClockInTime = DateTime.Now,
+                    CreationDate = DateTime.Now,
+                    EntrySource = "Kiosk"
+                };
+
+                DbContext.Attendances.Add(attendance);
+                await DbContext.SaveChangesAsync();
+
+                var empName = employees.FirstOrDefault(e => e.Id == employeeId)?.FullName;
+                if (string.IsNullOrEmpty(empName))
+                {
+                    var emp = await DbContext.Employees.FindAsync(employeeId);
+                    empName = emp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
+                }
+
+                await LoadData();
+                string successFormat = CalendarManager.Translate("PCal_MainHome_ClockInSuccess");
+                await ShowToastAsync(string.Format(successFormat, empName));
+            }
+            catch (Exception ex)
+            {
+                string errFormat = CalendarManager.Translate("PCal_MainHome_ClockInError");
+                message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
+            }
+        }
+
+        private async Task ClockOut(int attendanceId)
+        {
+            try
+            {
+                var record = await DbContext.Attendances.FindAsync(attendanceId);
+                if (record != null)
+                {
+                    record.ClockOutTime = DateTime.Now;
+
+                    DbContext.Attendances.Update(record);
+                    await DbContext.SaveChangesAsync();
+
+                    var empName = employees.FirstOrDefault(e => e.Id == record.EmployeeId)?.FullName;
+                    if (string.IsNullOrEmpty(empName))
+                    {
+                        var emp = await DbContext.Employees.FindAsync(record.EmployeeId);
+                        empName = emp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
+                    }
+
+                    await LoadData();
+                    string successFormat = CalendarManager.Translate("PCal_MainHome_ClockOutSuccess");
+                    await ShowToastAsync(string.Format(successFormat, empName));
+                }
+            }
+            catch (Exception ex)
+            {
+                string errFormat = CalendarManager.Translate("PCal_MainHome_ClockOutError");
+                message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
             }
         }
 

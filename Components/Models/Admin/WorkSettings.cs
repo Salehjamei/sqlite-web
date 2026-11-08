@@ -15,7 +15,14 @@ namespace sqlite_web.Components.Models.Admin
 
         // روزهای تعطیل هفته که به صورت کاملاً اضافه کاری محاسبه می‌شوند (با کاما تفکیک می‌شوند: "Saturday,Sunday")
         public string OffDaysOfWeek { get; set; } = "Saturday,Sunday";
-        // 🟢 فیلد جدید: آستانه دقیقه جهت انتقال اضافه کاری به موظفی (پیش‌فرض ۱۵ دقیقه)
+
+        // آستانه دقیقه جهت انتقال اضافه کاری به موظفی (پیش‌فرض ۱۵ دقیقه)
         public int DeficitThresholdMinutes { get; set; } = 15;
+
+        // تعیین وضعیت فعال بودن خروج خودکار سیستم برای ترددهای ناقص همان روز
+        public bool ApplyAutoLogout { get; set; } = true;
+
+        // ساعت دقیق خروج خودکار سیستم در صورت تایید ادمین (پیش‌فرض "23:59")
+        public string AutoLogoutTime { get; set; } = "23:59";
     }
 }

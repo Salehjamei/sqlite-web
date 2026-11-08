@@ -100,8 +100,6 @@ namespace sqlite_web.Components.Models.Calendar
         { "EmpBtnSaveChanges", new Dictionary<string, string> { { "fa", "💾 ثبت تغییرات" }, { "en", "Work Settings" }, { "tr", "💾 Değişiklikleri Kaydet" } } },
 
         { "WorkSet", new Dictionary<string, string> { { "fa", "تنظیمات کاری" }, { "en", "Work Setting" }, { "tr", "Çalışma ayarları" } } },
-        
-       
 
         //صفحه ی مدیریت مدیران
         // --- Empty State Messages ---
@@ -216,7 +214,16 @@ namespace sqlite_web.Components.Models.Calendar
         { "PCal_MainHome_LoadError", new Dictionary<string, string> { { "fa", "خطا در بارگذاری داده‌ها: {0}" }, { "en", "Error loading data: {0}" }, { "tr", "Veri yükleme hatası: {0}" } } },
         { "PCal_MainHome_ClockInError", new Dictionary<string, string> { { "fa", "خطا در ثبت ورود: {0}" }, { "en", "Error during clock-in: {0}" }, { "tr", "Giriş kaydı hatası: {0}" } } },
         { "PCal_MainHome_ClockOutError", new Dictionary<string, string> { { "fa", "خطا در ثبت خروج: {0}" }, { "en", "Error during clock-out: {0}" }, { "tr", "Çıkış kaydı hatası: {0}" } } },
-        { "PCal_MainHome_KioskLocked", new Dictionary<string, string> { { "fa", "🔒 سیستم مدیریت خارج شد و کیوسک تردد قفل گردید." }, { "en", "🔒 Management system logged out and kiosk locked." }, { "tr", "🔒 Yönetim sisteminden çıkış yapıldı ve kiosk kilitlendi." } } }
+        { "PCal_MainHome_KioskLocked", new Dictionary<string, string> { { "fa", "🔒 سیستم مدیریت خارج شد و کیوسک تردد قفل گردید." }, { "en", "🔒 Management system logged out and kiosk locked." }, { "tr", "🔒 Yönetim sisteminden çıkış yapıldı ve kiosk kilitlendi." } } },
+        // اضافه کردن کلمات کلیدی برای تفکیک منابع ثبت تردد کارمندان
+        { "PCal_MainHome_SourceManual", new Dictionary<string, string> { { "fa", "ثبت دستی ادمین" }, { "en", "Manual Admin" }, { "tr", "Manuel Yönetici" } } },
+        { "PCal_MainHome_SourceFast", new Dictionary<string, string> { { "fa", "سریع ادمین" }, { "en", "Fast Admin" }, { "tr", "Hızlı Yönetici" } } },
+        { "PCal_MainHome_SourceKiosk", new Dictionary<string, string> { { "fa", "دستگاه کیوسک" }, { "en", "Kiosk Device" }, { "tr", "Kiosk Cihazı" } } },
+        { "PCal_MainHome_SourceAuto", new Dictionary<string, string> { { "fa", "خروج خودکار" }, { "en", "Auto Logout" }, { "tr", "Otomatik Çıkış" } } },
+        { "PCal_MainHome_AutoLabel", new Dictionary<string, string> { { "fa", "سیستم" }, { "en", "System" }, { "tr", "Sistem" } } },
+        { "PCal_AdminPanel_ReportModalTitle", new Dictionary<string, string> { { "fa", "کارنامه تفکیکی و مدیریت ساعت کاری:" }, { "en", "Detailed Report & Work Hours Management:" }, { "tr", "Detaylı Karne ve Çalışma Saatleri Yönetimi:" } } }
+
+
 
 
 

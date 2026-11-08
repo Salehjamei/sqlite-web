@@ -217,14 +217,19 @@
             <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 10px !important;" @onclick="CloseAllMobileDropdowns">
 
                 @* جلوگیری از بسته شدن مودال هنگام کلیک روی خود کادر سفید *@
+                @* اتصال استایل‌های هندسی بدنه مودال کارنامه به متغیر زبان جاری سیستم *@
                 <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 850px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; max-height: 95vh !important;" @onclick:stopPropagation>
 
-                    <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
-                        <h5 class="m-0" style="font-size: 14px; font-weight: bold;">📊 کارنامه تفکیکی و مدیریت ساعت کاری: @selectedEmployee.FullName</h5>
+                    <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
+                        @* اتصال بخش عنوان به موتور مترجم سراسری *@
+                        <h5 class="m-0" style="font-size: 14px; font-weight: bold;">
+                            📊 @CalendarManager.Translate("PCal_AdminPanel_ReportModalTitle") @selectedEmployee.FullName
+                        </h5>
                         <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
                     </div>
 
-                    <div class="card-body p-2 p-md-3" style="overflow-y: auto; direction: rtl; text-align: right;">
+                    <div class="card-body p-2 p-md-3" style="overflow-y: auto; direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
+
 
                         @* 🧮 کادر هوشمند فیلتر ماهانه و گزارش تفکیکی کارکرد موظف و اضافه کاری پرسنل *@
                         <div class="row mb-2 mb-md-3 g-2 align-items-center">
@@ -357,12 +362,32 @@
                                                         @if (isFullDayAutoExit)
                                                         {
                                                             <span class="fw-bold text-danger">خروج: 23:59 </span>
-                                                            <span class="badge bg-warning text-dark px-1.5 ms-1 fw-bold" style="font-size: 10px;">⚠️</span>
+                                                            <span class="badge bg-warning text-dark px-1.5 ms-1 fw-bold" style="font-size: 10px;" title="خروج خودکار توسط سیستم">@CalendarManager.Translate("PCal_MainHome_AutoLabel")</span>
                                                         }
                                                         else
                                                         {
-                                                            <span>خروج: @(att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "🔴 تردد")</span>
+                                                            <span>خروج: @(att.ClockOutTime.HasValue ? att.ClockOutTime.Value.ToString("HH:mm") : "🔴 در حال تردد")</span>
                                                         }
+
+                                                        <!-- رندر نشان منبع ثبت رکورد بر اساس فیلد تفکیک دیتابیس -->
+                                                        <div class="mt-1">
+                                                            @if (att.EntrySource == "AdminManual")
+                                                            {
+                                                                <span class="badge bg-secondary text-white" style="font-size: 8.5px; padding: 1px 4px;">@CalendarManager.Translate("PCal_MainHome_SourceManual")</span>
+                                                            }
+                                                            else if (att.EntrySource == "AdminFast")
+                                                            {
+                                                                <span class="badge bg-info text-dark" style="font-size: 8.5px; padding: 1px 4px;">@CalendarManager.Translate("PCal_MainHome_SourceFast")</span>
+                                                            }
+                                                            else if (att.EntrySource == "Kiosk")
+                                                            {
+                                                                <span class="badge bg-light text-muted border" style="font-size: 8.5px; padding: 1px 4px;">@CalendarManager.Translate("PCal_MainHome_SourceKiosk")</span>
+                                                            }
+                                                            else if (att.EntrySource == "AutoClose")
+                                                            {
+                                                                <span class="badge bg-danger text-white" style="font-size: 8.5px; padding: 1px 4px;">@CalendarManager.Translate("PCal_MainHome_SourceAuto")</span>
+                                                            }
+                                                        </div>
 
                                                         @if (att.ClockOutTime.HasValue && !isFullDayAutoExit && hasOvertime)
                                                         {
@@ -373,6 +398,7 @@
                                                             <span class="text-success ms-1" style="font-size: 11px; font-weight: bold;" title="حضور زنده در محدوده اضافه کاری">🟩</span>
                                                         }
                                                     </td>
+
 
                                                     <td class="@(att.ClockOutTime == null ? "text-warning fw-bold" : "text-success fw-bold")" style="font-size: 11px; padding: 4px 2px; vertical-align: middle;">
                                                         @GetSingleDuration(att)

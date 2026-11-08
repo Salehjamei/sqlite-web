@@ -439,10 +439,8 @@ namespace sqlite_web.Services
             }
         }
 
-
-
         /// <summary>
-        /// متد به روزرسانی پویا پارامترهای محاسباتی توسط سوپر ادمین ارشد
+        /// متد به روزرسانی پویا پارامترهای محاسباتی و قوانین خروج خودکار توسط سوپر ادمین ارشد
         /// </summary>
         public async Task<bool> SaveWorkSettingsAsync(string startTime, string endTime, List<string> offDays)
         {
@@ -455,6 +453,9 @@ namespace sqlite_web.Services
                     settings.RegularStartTime = startTime;
                     settings.RegularEndTime = endTime;
                     settings.OffDaysOfWeek = string.Join(",", offDays);
+
+                    // اعمال خودکار شروط جدید خروج اتوماتیک سیستم از روی مقادیر بایند شده مدل
+                    // مقادیر ApplyAutoLogout و AutoLogoutTime مستقیماً ذخیره می شوند
 
                     _dbContext.Set<WorkSettings>().Update(settings);
                     await _dbContext.SaveChangesAsync();
@@ -469,6 +470,7 @@ namespace sqlite_web.Services
                 return false;
             }
         }
+
 
         private void NotifyStateChanged() => OnChange?.Invoke();
     }

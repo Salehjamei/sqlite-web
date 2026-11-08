@@ -70,6 +70,13 @@ namespace sqlite_web.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("ApplyAutoLogout")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AutoLogoutTime")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("DeficitThresholdMinutes")
                         .HasColumnType("INTEGER");
 
@@ -102,7 +109,20 @@ namespace sqlite_web.Migrations
                     b.Property<DateTime?>("ClockOutTime")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("CreatedByAdminId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreationDate")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("EmployeeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EntrySource")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("LastModifiedByAdminId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -110,6 +130,48 @@ namespace sqlite_web.Migrations
                     b.HasIndex("EmployeeId");
 
                     b.ToTable("Attendances");
+                });
+
+            modelBuilder.Entity("sqlite_web.Components.Models.AttendanceEditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AdminId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AdminUsername")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AttendanceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("EditDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("NewClockInTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("NewClockOutTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("OldClockInTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("OldClockOutTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttendanceId");
+
+                    b.ToTable("AttendanceEditLogs");
                 });
 
             modelBuilder.Entity("sqlite_web.Components.Models.Employee", b =>
@@ -148,6 +210,22 @@ namespace sqlite_web.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("sqlite_web.Components.Models.AttendanceEditLog", b =>
+                {
+                    b.HasOne("sqlite_web.Components.Models.Attendance", "Attendance")
+                        .WithMany("EditLogs")
+                        .HasForeignKey("AttendanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Attendance");
+                });
+
+            modelBuilder.Entity("sqlite_web.Components.Models.Attendance", b =>
+                {
+                    b.Navigation("EditLogs");
                 });
 #pragma warning restore 612, 618
         }
