@@ -87,21 +87,55 @@ namespace sqlite_web.Components.Pages
 
 
         private async Task LoadData()
+{
+    try
+    {
+        if (DbContext != null)
         {
-            try
+            // بارگذاری قوانین کاری فعال سیستم از دیتابیس
+            var settings = AdminState.CurrentSettings;
+            bool applyAutoLogout = settings?.ApplyAutoLogout ?? true;
+            string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
+
+            // واکشی تمامی ترددهایی که هنوز خروج ندارند و تاریخ ورودشان قبل از امروز است
+            var overdueRecords = await DbContext.Attendances
+                .Where(a => a.ClockOutTime == null && a.ClockInTime.HasValue && a.ClockInTime.Value.Date < DateTime.Today)
+                .ToListAsync();
+
+            // بستن خودکار و فیکس کردن رکوردهای باز گذشته روی ساعت تعیین شده
+            foreach (var oldRecord in overdueRecords)
             {
-                if (DbContext != null)
+                if (applyAutoLogout)
                 {
-                    employees = await DbContext.Employees.AsNoTracking().ToListAsync();
-                    allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync();
+                    var parsedTime = TimeSpan.Parse(autoTimeStr);
+                    oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(parsedTime);
                 }
+                else
+                {
+                    oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(TimeSpan.Parse("23:59"));
+                }
+                oldRecord.EntrySource = "AutoClose";
+                DbContext.Attendances.Update(oldRecord);
             }
-            catch (Exception ex)
+
+            // ذخیره نهایی تغییرات در دیتابیس SQLite
+            if (overdueRecords.Any())
             {
-                string errorFormat = CalendarManager.Translate("PCal_MainHome_LoadError");
-                message = string.Format(errorFormat, ex.Message);
+                await DbContext.SaveChangesAsync();
             }
-        }       
+
+            // بارگذاری مجدد لیست نهایی و به روز شده برای نمایش در جدول
+            employees = await DbContext.Employees.AsNoTracking().ToListAsync();
+            allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        string errorFormat = CalendarManager.Translate("PCal_MainHome_LoadError");
+        message = string.Format(errorFormat, ex.Message);
+    }
+}
+
 
         private async Task AdminLogoutFromHome()
         {
@@ -153,34 +187,19 @@ namespace sqlite_web.Components.Pages
         {
             try
             {
-                // ۱. بررسی وضعیت و بستن خودکار ترددهای باز روزهای گذشته بر اساس تنظیمات سیستم
-                var settings = AdminState.CurrentSettings;
-                bool applyAutoLogout = settings?.ApplyAutoLogout ?? true;
-                string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
+                // گارد امنیتی: بررسی وجود هرگونه تردد باز فعال در سیستم برای این کارمند
+                bool hasOpenRecord = await DbContext.Attendances
+                    .AnyAsync(a => a.EmployeeId == employeeId && a.ClockOutTime == null);
 
-                var unfinishedRecords = await DbContext.Attendances
-                    .Where(a => a.EmployeeId == employeeId && a.ClockOutTime == null)
-                    .ToListAsync();
-
-                foreach (var oldRecord in unfinishedRecords)
+                if (hasOpenRecord)
                 {
-                    if (oldRecord.ClockInTime.HasValue && oldRecord.ClockInTime.Value.Date < DateTime.Today)
-                    {
-                        if (applyAutoLogout)
-                        {
-                            var parsedTime = TimeSpan.Parse(autoTimeStr);
-                            oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(parsedTime);
-                        }
-                        else
-                        {
-                            oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(TimeSpan.Parse("23:59"));
-                        }
-                        oldRecord.EntrySource = "AutoClose";
-                        DbContext.Attendances.Update(oldRecord);
-                    }
+                    string errFormat = CalendarManager.Translate("PCal_MainHome_ClockInError");
+                    string validationMsg = CalendarManager.Translate("PCal_MainHome_AlreadyHasOpenRecord");
+                    message = string.Format(errFormat, validationMsg);
+                    return;
                 }
 
-                // ۲. ثبت رکورد ورود جدید با تفکیک منبع کیوسک دستگاه
+                // ثبت رکورد ورود جدید با منبع کیوسک
                 var attendance = new Attendance
                 {
                     EmployeeId = employeeId,
@@ -209,6 +228,8 @@ namespace sqlite_web.Components.Pages
                 message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
             }
         }
+
+
 
         private async Task ClockOut(int attendanceId)
         {

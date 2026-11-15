@@ -50,13 +50,27 @@ namespace sqlite_web.Components.Pages.Admin
 
             // ۳. فراخوانی متد رسمی بومی سرویس شما جهت واکشی اطلاعات از SQLite
             await AdminState.LoadAdminsDataAsync();
-        }        
-
-        private void OnAdminStateChanged()
-        {
-            InvokeAsync(StateHasChanged);
         }
 
+        private async void OnAdminStateChanged()
+        {
+            await SyncLanguageFromStorageAsync();
+        }
+        private async Task SyncLanguageFromStorageAsync()
+        {
+            try
+            {
+                await LoadStoredLanguageAndCalendarAsync();
+
+                if (CalendarManager != null && !string.IsNullOrEmpty(CurrentLanguage))
+                {
+                    CalendarManager.CurrentLanguage = CurrentLanguage;
+                }
+            }
+            catch { }
+
+            await InvokeAsync(StateHasChanged);
+        }
         protected void ToggleMobileMenuDropdown(int adminId)
         {
             if (ActiveMobileDropdownId == adminId) ActiveMobileDropdownId = null;
@@ -207,10 +221,7 @@ namespace sqlite_web.Components.Pages.Admin
         {
             if (firstRender)
             {
-                // 🟢 فراخوانی مینی‌مال متد لود زبان و تقویم از کلاس پایه اختصاصی شما
-                await LoadStoredLanguageAndCalendarAsync();
-
-                await InvokeAsync(StateHasChanged);
+                await SyncLanguageFromStorageAsync();
             }
         }
 

@@ -156,10 +156,11 @@
                                             </td>
 
                                             @* ستون زمان انقضای توکن به صورت پویا *@
+                                            @* ستون زمان انقضای توکن متصل به تقویم پویای شمسی و میلادی *@
                                             <td class="d-none d-md-table-cell text-secondary" style="font-size: 11.5px; font-family: Tahoma, Arial !important;">
                                                 @if (hasActiveToken && admin.TokenExpireTime.HasValue)
                                                 {
-                                                    <span>@admin.TokenExpireTime.Value.ToString("yyyy/MM/dd HH:mm")</span>
+                                                    <span>@CalendarManager.GetDynamicFormattedDate(admin.TokenExpireTime) - @admin.TokenExpireTime.Value.ToString("HH:mm")</span>
                                                 }
                                                 else
                                                 {

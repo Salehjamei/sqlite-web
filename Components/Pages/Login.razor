@@ -2,32 +2,49 @@
 @rendermode InteractiveServer
 @using sqlite_web.Services
 @inject AdminStateService AdminState
+@inherits sqlite_web.Components.AppBaseComponent
 
-<div class="login-container" style="max-width: 400px; margin: 100px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-    <h3 style="text-align: center; margin-bottom: 20px;">ورود به پنل مدیریت</h3>
+<div class="login-container" dir="@(CurrentLanguage == "fa" ? "rtl" : "ltr")" style="max-width: 400px; margin: 60px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: Tahoma; text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
+
+    <!-- دکمه های انتخاب و سوییچ سریع زبان پیش از ورود به پنل -->
+    <div class="mb-4 d-flex justify-content-center">
+        <div class="btn-group btn-group-sm w-100" role="group" style="direction: ltr;">
+            <button type="button" class="btn @(CurrentLanguage == "tr" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")" @onclick='() => ChangeLoginLanguage("tr")' style="font-size: 11px; padding: 5px;">
+                Türkçe 🇹🇷
+            </button>
+            <button type="button" class="btn @(CurrentLanguage == "en" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")" @onclick='() => ChangeLoginLanguage("en")' style="font-size: 11px; padding: 5px;">
+                English 🇬🇧
+            </button>
+            <button type="button" class="btn @(CurrentLanguage == "fa" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")" @onclick='() => ChangeLoginLanguage("fa")' style="font-size: 11px; padding: 5px;">
+                فارسی 🇮🇷
+            </button>
+        </div>
+    </div>
+
+    <h4 style="text-align: center; margin-bottom: 20px; font-weight: bold;">@CalendarManager.Translate("PCal_Login_CardHeader")</h4>
 
     <EditForm Model="this" OnValidSubmit="HandleLogin" FormName="admin-login-form">
         <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px;">نام کاربری:</label>
-            <input type="text" class="form-control" style="width: 100%; padding: 8px; box-sizing: border-box;" @bind="Username" autocomplete="username" />
+            <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #6c757d;">@CalendarManager.Translate("PCal_Login_UsernameLabel")</label>
+            <input type="text" class="form-control" style="width: 100%; padding: 8px; box-sizing: border-box; text-align: left; direction: ltr;" @bind="Username" autocomplete="username" />
         </div>
 
         <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px;">رمز عبور:</label>
-            <input type="password" class="form-control" style="width: 100%; padding: 8px; box-sizing: border-box;" @bind="Password" autocomplete="current-password" />
+            <label style="display: block; margin-bottom: 5px; font-size: 13px; color: #6c757d;">@CalendarManager.Translate("PCal_Login_PasswordLabel")</label>
+            <input type="password" class="form-control" style="width: 100%; padding: 8px; box-sizing: border-box; text-align: left; direction: ltr;" @bind="Password" autocomplete="current-password" />
         </div>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            ورود به سیستم
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            @CalendarManager.Translate("PCal_Login_SubmitBtn")
         </button>
     </EditForm>
 
     @if (!string.IsNullOrEmpty(AdminState.FeedbackMessage))
     {
-        <div style="margin-top: 15px; padding: 10px; border-radius: 4px; text-align: center;
+        <div style="margin-top: 15px; padding: 10px; border-radius: 4px; text-align: center; font-size: 12px; font-weight: bold;
             background-color: @(AdminState.FeedbackMessage.Contains("✅") ? "#d4edda" : "#f8d7da");
             color: @(AdminState.FeedbackMessage.Contains("✅") ? "#155724" : "#721c24");">
-            @AdminState.FeedbackMessage
+            @((MarkupString)AdminState.FeedbackMessage)
         </div>
     }
 </div>

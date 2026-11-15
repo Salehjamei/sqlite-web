@@ -77,9 +77,9 @@
                         {
                             @foreach (var emp in DisplayEmployees)
                             {
-                                var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
-                                var lastRecord = empRecords.LastOrDefault();
-                                var isPresent = !(lastRecord == null || lastRecord.ClockOutTime != null);
+                                // پایش وضعیت کارمند: اگر رکوردی با خروج نال وجود داشته باشد، یعنی کاربر حاضر است
+                                var lastRecord = allAttendances.Where(a => a.EmployeeId == emp.Id).OrderBy(a => a.ClockInTime).LastOrDefault();
+                                bool isPresent = lastRecord != null && lastRecord.ClockOutTime == null;
 
                                 <tr>
                                     <td class="align-middle">
@@ -113,7 +113,7 @@
                                         }
                                         else
                                         {
-                                            <button type="button" @onclick="() => ClockOut(lastRecord.Id)" class="btn btn-danger btn-sm px-3 rounded-pill">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
+                                            <button type="button" @onclick="() => ClockOut(lastRecord!.Id)" class="btn btn-danger btn-sm px-3 rounded-pill">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
                                         }
                                     </td>
                                 </tr>
@@ -134,9 +134,9 @@
                     {
                         @foreach (var emp in DisplayEmployees)
                         {
-                            var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
-                            var lastRecord = empRecords.LastOrDefault();
-                            var isPresent = !(lastRecord == null || lastRecord.ClockOutTime != null);
+                            // واکشی آخرین رکورد ثبت شده کارمند در کل دیتابیس برای پایش وضعیت حضور
+                            var lastRecord = allAttendances.Where(a => a.EmployeeId == emp.Id).OrderBy(a => a.ClockInTime).LastOrDefault();
+                            bool isPresent = lastRecord != null && lastRecord.ClockOutTime == null;
 
                             <div class="col-md-6">
                                 <div class="card h-100 shadow-sm small">
@@ -162,7 +162,7 @@
                                             }
                                             else
                                             {
-                                                <button class="btn btn-danger btn-sm px-3 rounded-pill" @onclick="() => ClockOut(lastRecord.Id)">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
+                                                <button class="btn btn-danger btn-sm px-3 rounded-pill" @onclick="() => ClockOut(lastRecord!.Id)">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
                                             }
                                         </div>
                                     </div>
@@ -182,9 +182,9 @@
                 {
                     @foreach (var emp in DisplayEmployees)
                     {
-                        var empRecords = allAttendances.Where(a => a.EmployeeId == emp.Id).ToList();
-                        var lastRecord = empRecords.LastOrDefault();
-                        var isPresent = !(lastRecord == null || lastRecord.ClockOutTime != null);
+                        // واکشی آخرین رکورد ثبت شده کارمند در کل دیتابیس برای پایش وضعیت حضور
+                        var lastRecord = allAttendances.Where(a => a.EmployeeId == emp.Id).OrderBy(a => a.ClockInTime).LastOrDefault();
+                        bool isPresent = lastRecord != null && lastRecord.ClockOutTime == null;
 
                         <div class="card mb-2 shadow-sm">
                             <div class="card-body d-flex align-items-center gap-2 py-2 px-3">
@@ -209,12 +209,13 @@
                                     }
                                     else
                                     {
-                                        <button class="btn btn-danger btn-sm px-3 rounded-pill" @onclick="() => ClockOut(lastRecord.Id)">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
+                                        <button class="btn btn-danger btn-sm px-3 rounded-pill" @onclick="() => ClockOut(lastRecord!.Id)">@CalendarManager.Translate("PCal_MainHome_BtnClockOut")</button>
                                     }
                                 </div>
                             </div>
                         </div>
                     }
+
                 }
             </div>
         }

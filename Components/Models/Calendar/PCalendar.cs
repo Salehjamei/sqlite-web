@@ -90,17 +90,7 @@ namespace sqlite_web.Components.Models.Calendar
         { "Search", new Dictionary<string, string> { { "fa", "جستجو" }, { "en", "Search" }, { "tr", "Aramak" } } },
         { "session", new Dictionary<string, string> { { "fa", "نام یا کد ملی..." }, { "en", "Your session has expired or you do not have access. Redirecting to the login page..." }, { "tr", "Oturumunuzun süresi doldu veya erişiminiz yok. Giriş sayfasına yönlendiriliyorsunuz..." } } },
         
-        // متون پاپ‌آپ مودال تعریف و ویرایش کارمندان
-        { "EmpFormAddTitle", new Dictionary<string, string> { { "fa", "کارمند جدید" }, { "en", "New Employee" }, { "tr", "Yeni Personel" } } },
-        { "EmpLabelName", new Dictionary<string, string> { { "fa", "نام و نام خانوادگی:" }, { "en", "Full Name:" }, { "tr", "Adı Soyadı:" } } },
-        { "EmpLabelCode", new Dictionary<string, string> { { "fa", "کد ملی (۱۰ رقم):" }, { "en", "National Code (10 Digits):" }, { "tr", "T.C. Kimlik No (10 Haneli):" } } },
-        { "EmpLabelPhone", new Dictionary<string, string> { { "fa", "شماره تماس:" }, { "en", "Phone Number:" }, { "tr", "Telefon Numarası:" } } },
-        { "EmpLabelUpload", new Dictionary<string, string> { { "fa", "آپلود عکس:" }, { "en", "Upload Photo:" }, { "tr", "Fotoğraf Yükle:" } } },
-        { "EmpBtnSave", new Dictionary<string, string> { { "fa", "💾 ذخیره اطلاعات" }, { "en", "💾 Save Information" }, { "tr", "💾 Bilgileri Kaydet" } } },
-        { "EmpBtnSaveChanges", new Dictionary<string, string> { { "fa", "💾 ثبت تغییرات" }, { "en", "Work Settings" }, { "tr", "💾 Değişiklikleri Kaydet" } } },
-
-        { "WorkSet", new Dictionary<string, string> { { "fa", "تنظیمات کاری" }, { "en", "Work Setting" }, { "tr", "Çalışma ayarları" } } },
-
+       
         //صفحه ی مدیریت مدیران
         // --- Empty State Messages ---
         { "PCal_AdminModal_NoRecordsFound", new Dictionary<string, string> { { "fa", "هیچ رکوردی در جدول مدیران سرور وجود ندارد." }, { "en", "No records found in the server admins table." }, { "tr", "Sunucu yöneticileri tablosunda hiçbir kayıt bulunamadı." } } },
@@ -221,7 +211,89 @@ namespace sqlite_web.Components.Models.Calendar
         { "PCal_MainHome_SourceKiosk", new Dictionary<string, string> { { "fa", "دستگاه کیوسک" }, { "en", "Kiosk Device" }, { "tr", "Kiosk Cihazı" } } },
         { "PCal_MainHome_SourceAuto", new Dictionary<string, string> { { "fa", "خروج خودکار" }, { "en", "Auto Logout" }, { "tr", "Otomatik Çıkış" } } },
         { "PCal_MainHome_AutoLabel", new Dictionary<string, string> { { "fa", "سیستم" }, { "en", "System" }, { "tr", "Sistem" } } },
-        { "PCal_AdminPanel_ReportModalTitle", new Dictionary<string, string> { { "fa", "کارنامه تفکیکی و مدیریت ساعت کاری:" }, { "en", "Detailed Report & Work Hours Management:" }, { "tr", "Detaylı Karne ve Çalışma Saatleri Yönetimi:" } } }
+        { "PCal_AdminPanel_ReportModalTitle", new Dictionary<string, string> { { "fa", "کارنامه تفکیکی و مدیریت ساعت کاری:" }, { "en", "Detailed Report & Work Hours Management:" }, { "tr", "Detaylı Karne ve Çalışma Saatleri Yönetimi:" } } },
+
+        // کلمات کلیدی مربوط به چندزبانگی صفحه ورود ادمین سیستم
+        { "PCal_Login_CardHeader", new Dictionary<string, string> { { "fa", "ورود به پنل مدیریت" }, { "en", "Admin Panel Login" }, { "tr", "Yönetici Paneli Girişi" } } },
+        { "PCal_Login_UsernameLabel", new Dictionary<string, string> { { "fa", "نام کاربری ادمین:" }, { "en", "Admin Username:" }, { "tr", "Yönetici Kullanıcı Adı:" } } },
+        { "PCal_Login_PasswordLabel", new Dictionary<string, string> { { "fa", "رمز عبور:" }, { "en", "Password:" }, { "tr", "Şifre:" } } },
+        { "PCal_Login_SubmitBtn", new Dictionary<string, string> { { "fa", "ورود به سیستم" }, { "en", "Login to System" }, { "tr", "Sisteme Giriş Yap" } } },
+        { "PCal_Login_RequiredFields", new Dictionary<string, string> { { "fa", "لطفا نام کاربری و رمز عبور را وارد نمایید." }, { "en", "Please enter your username and password." }, { "tr", "Lütfen kullanıcı adınızı ve şifrenizi giriniz." } } },
+        // home
+        { "PCal_MainHome_AlreadyHasOpenRecord", new Dictionary<string, string> { { "fa", "شما یک تردد باز فعال در سیستم دارید. ابتدا باید خروج ثبت کنید." }, { "en", "You have an active open attendance record. You must clock out first." }, { "tr", "Sistemde aktif açık bir geçiş kaydınız var. Önce çıkış yapmalısınız." } } },
+        //AdminPanel
+        // متون خطاها و پیغام های صفحه مدیریت پرسنل (AdminPanel.cs)
+        { "PCal_AdminPanel_TotalHoursUnit", new Dictionary<string, string> { { "fa", "00:00 ساعت" }, { "en", "00:00 Hrs" }, { "tr", "00:00 Saat" } } },
+        { "PCal_AdminPanel_ImageUploadError", new Dictionary<string, string> { { "fa", "خطا در بارگذاری فایل تصویر: {0}" }, { "en", "Error uploading image file: {0}" }, { "tr", "Resim dosyası yüklenirken hata oluştu: {0}" } } },
+        { "PCal_AdminPanel_EmpRequiredFields", new Dictionary<string, string> { { "fa", "نام کارمند و کد پرسنلی الزامی است!" }, { "en", "Employee name and national ID are required!" }, { "tr", "Personel adı ve kimlik numarası zorunludur!" } } },
+        { "PCal_AdminPanel_ErrNameLength", new Dictionary<string, string> { { "fa", "خطا: طول نام و نام خانوادگی نمی‌تواند بیشتر از ۴۰ کاراکتر باشد." }, { "en", "Error: Full name cannot exceed 40 characters." }, { "tr", "Hata: Ad ve soyad 40 karakteri geçemez." } } },
+        { "PCal_AdminPanel_ErrCodeLength", new Dictionary<string, string> { { "fa", "خطا: کد ملی باید حداقل ۱۰ رقم و حداکثر ۲۰ رقم باشد." }, { "en", "Error: National ID must be between 10 and 20 digits." }, { "tr", "Hata: Kimlik numarası en az 10, en fazla 20 haneli olmalıdır." } } },
+        { "PCal_AdminPanel_ErrPhoneLength", new Dictionary<string, string> { { "fa", "خطا: شماره تماس نمی‌تواند بیشتر از ۱۵ رقم باشد." }, { "en", "Error: Phone number cannot exceed 15 digits." }, { "tr", "Hata: Telefon numarası 15 haneyi geçemez." } } },
+        { "PCal_AdminPanel_DuplicateCodeEdit", new Dictionary<string, string> { { "fa", "خطا: این کد ملی قبلاً برای کارمند دیگری در سیستم ثبت شده است! کد ملی باید منحصربه‌فرد باشد." }, { "en", "Error: This ID is already assigned to another employee! It must be unique." }, { "tr", "Hata: Bu kimlik numarası başka bir personele kayıtlı! Benzersiz olmalıdır." } } },
+        { "PCal_AdminPanel_EmpEditSuccess", new Dictionary<string, string> { { "fa", "مشخصات کارمند با موفقیت ویرایش شد." }, { "en", "Employee details updated successfully." }, { "tr", "Personel bilgileri başarıyla güncellendi." } } },
+        { "PCal_AdminPanel_DuplicateCodeAdd", new Dictionary<string, string> { { "fa", "خطا: کارمندی با این کد ملی قبلاً در سیستم تعریف شده است! ورود کد ملی تکراری مجاز نیست." }, { "en", "Error: An employee with this ID already exists! Duplicate ID is not allowed." }, { "tr", "Hata: Bu kimlik numarasına sahip bir personel zaten mevcut!" } } },
+        { "PCal_AdminPanel_EmpAddSuccess", new Dictionary<string, string> { { "fa", "کارمند جدید با موفقیت ثبت شد." }, { "en", "New employee added successfully." }, { "tr", "Yeni personel başarıyla eklendi." } } },
+        { "PCal_AdminPanel_DelEmpTitle", new Dictionary<string, string> { { "fa", "تاییدیه حذف قطعی پرونده پرسنلی" }, { "en", "Confirm Permanent Employee Deletion" }, { "tr", "Personel Dosyası Kalıcı Silme Onayı" } } },
+        { "PCal_AdminPanel_DelEmpMsg", new Dictionary<string, string> { { "fa", "آیا از حذف کامل پرونده پرسنلی کارمند با نام «{0}» مطمئن هستید؟" }, { "en", "Are you sure you want to completely delete employee '{0}'?" }, { "tr", "'{0}' adlı personelin dosyasını tamamen silmek istediğinizden emin misiniz?" } } },
+        { "PCal_AdminPanel_DelEmpSubMsg", new Dictionary<string, string> { { "fa", "توجه: کلیه سوابق تردد این کارمند فوراً و به صورت غیرقابل بازگشت پاک خواهد شد." }, { "en", "Note: All attendance records for this employee will be permanently wiped." }, { "tr", "Not: Bu personelin tüm geçiş kayıtları kalıcı olarak silinecektir." } } },
+        { "PCal_AdminPanel_FastInError", new Dictionary<string, string> { { "fa", "خطا در ثبت ورود سریع: {0}" }, { "en", "Error during quick clock-in: {0}" }, { "tr", "Hızlı giriş kaydı hatası: {0}" } } },
+        { "PCal_AdminPanel_FastOutError", new Dictionary<string, string> { { "fa", "خطا در ثبت خروج سریع: {0}" }, { "en", "Error during quick clock-out: {0}" }, { "tr", "Hızlı çıkış kaydı hatası: {0}" } } },
+        { "PCal_AdminPanel_ManualDateMismatch", new Dictionary<string, string> { { "fa", "خطا: تاریخ خروج باید دقیقاً همان روز تاریخ ورود باشد!" }, { "en", "Error: Clock-out date must match the clock-in date!" }, { "tr", "Hata: Çıkış tarihi giriş tarihi ile aynı gün olmalıdır!" } } },
+        { "PCal_AdminPanel_ManualTimeOrderError", new Dictionary<string, string> { { "fa", "خطا: ساعت خروج نمی‌تواند قبل‌تر از ساعت ورود تنظیم شود!" }, { "en", "Error: Clock-out time cannot be earlier than clock-in time!" }, { "tr", "Hata: Çıkış saati giriş saatinden önce olamaz!" } } },
+        { "PCal_AdminPanel_AuditEditReason", new Dictionary<string, string> { { "fa", "اصلاح ساعت کارکرد توسط ادمین در پنل کارنامه پرسنل" }, { "en", "Working hours adjusted by admin in report panel" }, { "tr", "Yönetici tarafından karne panelinde çalışma saatleri düzenlendi" } } },
+        { "PCal_AdminPanel_InvalidTimeFormat", new Dictionary<string, string> { { "fa", "فرمت زمان وارد شده اشتباه است (مثال معتبر: 07:00 یا 17:30)" }, { "en", "Invalid time format (valid example: 07:00 or 17:30)" }, { "tr", "Geçersiz saat formatı (örnek: 07:00 veya 17:30)" } } },
+        { "PCal_AdminPanel_ActiveAttendance", new Dictionary<string, string> { { "fa", "در حال تردد" }, { "en", "Active" }, { "tr", "Aktif Geçiş" } } },
+        { "PCal_AdminPanel_AllMonths", new Dictionary<string, string> { { "fa", "همه ماه‌های کارکرد" }, { "en", "All Working Months" }, { "tr", "Tüm Çalışma Ayları" } } },
+        { "PCal_AdminPanel_DelAttTitle", new Dictionary<string, string> { { "fa", "تاییدیه حذف قطعی رکورد تردد پرسنل" }, { "en", "Confirm Attendance Record Deletion" }, { "tr", "Geçiş Kaydı Silme Onayı" } } },
+        { "PCal_AdminPanel_DelAttTargetName", new Dictionary<string, string> { { "fa", "تردد مورخ {0} ساعت {1}" }, { "en", "Attendance on {0} at {1}" }, { "tr", "{0} tarihli saat {1} geçişi" } } },
+        { "PCal_AdminPanel_DelAttMsg", new Dictionary<string, string> { { "fa", "آیا از حذف کامل این رکورد تردد کاری پرسنل در تاریخ {0} مطمئن هستید؟" }, { "en", "Are you sure you want to delete this attendance record on {0}?" }, { "tr", "{0} tarihindeki bu çalışma geçiş kaydını silmek istediğinizden emin misiniz?" } } },
+        { "PCal_AdminPanel_DelAttSubMsg", new Dictionary<string, string> { { "fa", "توجه: با تایید نهایی، این ساعت ورود و خروج خاص به طور کامل پاک شده و در محاسبات این ماه لحاظ نخواهد شد." }, { "en", "Note: Once confirmed, this clock-in/out record will be deleted and excluded from monthly calculations." }, { "tr", "Not: Onaylandığında bu giriş-çıkış kaydı silinecek ve aylık hesaplamalara dahil edilmeyecektir." } } },
+        { "PCal_AdminPanel_EmpDeletedMsg", new Dictionary<string, string> { { "fa", "پرونده پرسنلی حذف شد." }, { "en", "Employee record deleted." }, { "tr", "Personel dosyası silindi." } } },
+        { "PCal_AdminPanel_AttDeletedMsg", new Dictionary<string, string> { { "fa", "رکورد تردد با موفقیت ابطال شد." }, { "en", "Attendance record successfully deleted." }, { "tr", "Geçiş kaydı başarıyla iptal edildi." } } },
+        { "PCal_AdminPanel_DeleteError", new Dictionary<string, string> { { "fa", "خطا در حذف: {0}" }, { "en", "Error during deletion: {0}" }, { "tr", "Silme işlemi sırasında hata: {0}" } } },
+         // متون باقی مانده فرانت اند صفحه مدیریت پرسنل و مودال کارنامه (AdminPanel.razor)
+        { "PCal_AdminPanel_NoPermissionTitle", new Dictionary<string, string> { { "fa", "شما مجوز ندارید" }, { "en", "Permission denied" }, { "tr", "Yetkiniz yok" } } },
+        { "PCal_AdminPanel_SessionExpired", new Dictionary<string, string> { { "fa", "سشن شما منقضی شده یا دسترسی ندارید. در حال انتقال به صفحه ورود..." }, { "en", "Your session has expired or access is denied. Redirecting to login..." }, { "tr", "Oturumunuz sona erdi veya erişiminiz yok. Giriş sayfasına yönlendiriliyorsunuz..." } } },
+        { "PCal_AdminPanel_NoEmployeesFound", new Dictionary<string, string> { { "fa", "هیچ رکوردی در جدول کارمندان وجود ندارد." }, { "en", "No records found in the employees table." }, { "tr", "Personel tablosunda kayıt bulunamadı." } } },
+        { "PCal_AdminPanel_SelectMonthLabel", new Dictionary<string, string> { { "fa", "انتخاب ماه کارکرد:" }, { "en", "Select Working Month:" }, { "tr", "Çalışma Ayını Seçin:" } } },
+        { "PCal_AdminPanel_RegularLabel", new Dictionary<string, string> { { "fa", "موظف:" }, { "en", "Regular:" }, { "tr", "Normal Mesai:" } } },
+        { "PCal_AdminPanel_OvertimeLabel", new Dictionary<string, string> { { "fa", "اضافه کار:" }, { "en", "Overtime:" }, { "tr", "Fazla Mesai:" } } },
+        { "PCal_AdminPanel_AddManualBtn", new Dictionary<string, string> { { "fa", "ثبت تردد دستی جدید" }, { "en", "Add Manual Attendance" }, { "tr", "Yeni Manuel Geçiş Ekle" } } },
+        { "PCal_AdminPanel_ThDate", new Dictionary<string, string> { { "fa", "تاریخ روز" }, { "en", "Date" }, { "tr", "Tarih" } } },
+        { "PCal_AdminPanel_ThTimeRange", new Dictionary<string, string> { { "fa", "ساعت تردد (ورود / خروج)" }, { "en", "Time (In / Out)" }, { "tr", "Geçiş Saati (Giriş / Çıkış)" } } },
+        { "PCal_AdminPanel_ThDuration", new Dictionary<string, string> { { "fa", "کارکرد" }, { "en", "Duration" }, { "tr", "Süre" } } },
+        { "PCal_AdminPanel_ThTimeActions", new Dictionary<string, string> { { "fa", "عملیات ساعت کاری" }, { "en", "Time Actions" }, { "tr", "Saat İşlemleri" } } },
+        { "PCal_AdminPanel_NoRecordsInRange", new Dictionary<string, string> { { "fa", "هیچ سابقه کارکردی برای بازه انتخابی وجود ندارد." }, { "en", "No attendance history found for the selected range." }, { "tr", "Seçilen aralık için çalışma geçmişi bulunamadı." } } },
+        { "PCal_AdminPanel_LabelClockIn", new Dictionary<string, string> { { "fa", "ورود:" }, { "en", "In:" }, { "tr", "Giriş:" } } },
+        { "PCal_AdminPanel_LabelClockOut", new Dictionary<string, string> { { "fa", "خروج:" }, { "en", "Out:" }, { "tr", "Çıkış:" } } },
+        { "PCal_AdminPanel_ActiveStatusDot", new Dictionary<string, string> { { "fa", "در حال تردد" }, { "en", "Active" }, { "tr", "Aktif" } } },
+        { "PCal_AdminPanel_BtnStopFast", new Dictionary<string, string> { { "fa", "توقف تردد سریع" }, { "en", "Stop Tracking" }, { "tr", "Geçişi Durdur" } } },
+        { "PCal_AdminPanel_BtnEditTime", new Dictionary<string, string> { { "fa", "ویرایش ساعت" }, { "en", "Edit Time" }, { "tr", "Saati Düzenle" } } },
+        { "PCal_AdminPanel_BtnDeleteTime", new Dictionary<string, string> { { "fa", "حذف" }, { "en", "Delete" }, { "tr", "Sil" } } },
+        { "PCal_AdminPanel_SelectEmpPrompt", new Dictionary<string, string> { { "fa", "جهت مشاهده سوابق کارکرد، کارمند مورد نظر را انتخاب کنید." }, { "en", "Select an employee to view attendance history." }, { "tr", "Çalışma geçmişini görüntülemek için bir personel seçin." } } },
+        { "PCal_AdminPanel_ManualModalEditTitle", new Dictionary<string, string> { { "fa", "ویرایش ردیف ساعت کاری" }, { "en", "Edit Working Hours" }, { "tr", "Çalışma Saatini Düzenle" } } },
+        { "PCal_AdminPanel_ManualModalAddTitle", new Dictionary<string, string> { { "fa", "ثبت دستی ساعت تردد جدید" }, { "en", "Add Manual Attendance Record" }, { "tr", "Yeni Manuel Geçiş Kaydı Ekle" } } },
+        { "PCal_AdminPanel_ManualInDateLabel", new Dictionary<string, string> { { "fa", "تاریخ روز ورود:" }, { "en", "Clock-In Date:" }, { "tr", "Giriş Tarihi:" } } },
+        { "PCal_AdminPanel_ManualInTimeLabel", new Dictionary<string, string> { { "fa", "ساعت ورود:" }, { "en", "Clock-In Time:" }, { "tr", "Giriş Saati:" } } },
+        { "PCal_AdminPanel_ManualOutDateLabel", new Dictionary<string, string> { { "fa", "تاریخ روز خروج (قفل همگام با ورود):" }, { "en", "Clock-Out Date (Synced with Clock-In):" }, { "tr", "Çıkış Tarihi (Giriş ile Senkronize):" } } },
+        { "PCal_AdminPanel_ManualOutTimeLabel", new Dictionary<string, string> { { "fa", "ساعت خروج:" }, { "en", "Clock-Out Time:" }, { "tr", "Çıkış Saati:" } } },
+        { "PCal_AdminPanel_ManualApplyChangesBtn", new Dictionary<string, string> { { "fa", "اعمال تغییرات" }, { "en", "Apply Changes" }, { "tr", "Değişiklikleri Uygula" } } },
+        { "PCal_AdminPanel_ManualSubmitBtn", new Dictionary<string, string> { { "fa", "ثبت ساعت تردد" }, { "en", "Save Attendance" }, { "tr", "Geçiş Saatini Kaydet" } } },
+        // متون پاپ‌آپ مودال تعریف و ویرایش کارمندان
+        { "EmpFormAddTitle", new Dictionary<string, string> { { "fa", "کارمند جدید" }, { "en", "New Employee" }, { "tr", "Yeni Personel" } } },
+        { "EmpLabelName", new Dictionary<string, string> { { "fa", "نام و نام خانوادگی:" }, { "en", "Full Name:" }, { "tr", "Adı Soyadı:" } } },
+        { "EmpLabelCode", new Dictionary<string, string> { { "fa", "کد ملی / شناسایی (حداقل ۱۰ رقم):" }, { "en", "National / ID Code (Min 10 Digits):" }, { "tr", "Kimlik / Personel No (En az 10 Haneli):" } } },
+        { "EmpLabelPhone", new Dictionary<string, string> { { "fa", "شماره تماس:" }, { "en", "Phone Number:" }, { "tr", "Telefon Numarası:" } } },
+        { "EmpLabelUpload", new Dictionary<string, string> { { "fa", "آپلود عکس:" }, { "en", "Upload Photo:" }, { "tr", "Fotoğraf Yükle:" } } },
+        { "EmpBtnSave", new Dictionary<string, string> { { "fa", "💾 ذخیره اطلاعات" }, { "en", "💾 Save Information" }, { "tr", "💾 Bilgileri Kaydet" } } },
+        { "EmpBtnSaveChanges", new Dictionary<string, string> { { "fa", "💾 ثبت تغییرات" }, { "en", "Work Settings" }, { "tr", "💾 Değişiklikleri Kaydet" } } },
+        { "WorkSet", new Dictionary<string, string> { { "fa", "تنظیمات کاری" }, { "en", "Work Setting" }, { "tr", "Çalışma ayarları" } } },
+        { "PCal_AdminPanel_OvertimeAchievedTitle", new Dictionary<string, string> { { "fa", "دارای اضافه کاری محقق شده" }, { "en", "Achieved overtime" }, { "tr", "Gerçekleşen fazla mesai mevcut" } } },
+        { "PCal_AdminPanel_ActiveOvertimeTitle", new Dictionary<string, string> { { "fa", "حضور زنده در محدوده اضافه کاری" }, { "en", "Active presence in overtime zone" }, { "tr", "Fazla mesai aralığında aktif bulunma" } } }
+
+
+
+
 
 
 

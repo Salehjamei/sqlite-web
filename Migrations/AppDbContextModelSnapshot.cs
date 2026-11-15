@@ -184,9 +184,15 @@ namespace sqlite_web.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime>("HireDate")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ImagePath")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsHiddenFromKiosk")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("PersonnelCode")
                         .IsRequired()

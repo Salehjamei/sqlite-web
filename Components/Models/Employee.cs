@@ -11,5 +11,10 @@
         // اختیاری فیلدهای جدید برای شماره تماس و عکس پرسنلی
         public string Phone { get; set; } = string.Empty;
         public string ImagePath { get; set; } = string.Empty;
+        // تاریخ رسمی شروع به کار کارمند در مجموعه (پیش‌فرض تاریخ روز ثبت پرونده)
+        public DateTime HireDate { get; set; } = DateTime.Today;
+
+        // پرچم عدم نمایش در کیوسک (در صورت مرخصی طولانی مد یا تعلیق، true می‌شود)
+        public bool IsHiddenFromKiosk { get; set; } = false;
     }
 }

@@ -4,66 +4,52 @@ using Microsoft.EntityFrameworkCore;
 using sqlite_web.Components.Models;
 using sqlite_web.Services;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace sqlite_web.Components.Pages
 {
-    /// <summary>
-    /// کلاس جزئی مدیریت منطق پشت‌صحنه پنل پرسنل و کارکردها
-    /// </summary>
-    public partial class AdminPanel : AppBaseComponent
+  public partial class AdminPanel : AppBaseComponent, IDisposable
     {
-        // 💾 تزریق کانتکست دیتابیس بومی پروژه برای ارتباط با SQLite
         [Inject] public AppDbContext DbContext { get; set; } = default!;
-
-        // 🛡️ تزریق سرویس پایش اصالت سشن و متغیرهای هویت آنلاین ادمین
         [Inject] public AdminStateService AdminState { get; set; } = default!;
-        // 👑 پرچم‌های هوشمند بررسی سطوح دسترسی ادمین آنلاین
+
         protected bool canAddPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false);
         protected bool canEditPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false);
         protected bool canDeletePerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanDeleteEmployee ?? false);
 
-        // 🔔 رشته متنی نگه‌داری پیام‌های زنده سیستم
         protected string SystemMessage { get; set; } = string.Empty;
 
-        // 📅 پرچم وضعیت سوییچ بین حالت ثبت جدید ساعت کاری یا ویرایش
         protected bool isAttEditMode { get; set; } = false;
         private int? _editingAttendanceId = null;
-        protected string TotalMonthlyHours { get; set; } = "00:00 ساعت";
+        protected string TotalMonthlyHours { get; set; } = "00:00";
 
-        // 🛠️ متغیرهای جدید جهت مهار مودال پویا تنظیمات ساعات موظفی و تعطیلات سرور
         protected bool showSettingsModal { get; set; } = false;
         protected string settingsStartTime { get; set; } = "07:00";
         protected string settingsEndTime { get; set; } = "17:30";
-
-        // 📅 لیست روزهای هفته انتخاب شده برای تعطیلات
         protected List<string> selectedOffDays { get; set; } = new();
 
-        // فیلدهای بایند شده به فرم ثبت و ویرایش کارمندان
         protected string newEmpName { get; set; } = string.Empty;
         protected string newEmpCode { get; set; } = string.Empty;
         protected string newEmpPhone { get; set; } = string.Empty;
         protected bool isEmpEditMode { get; set; } = false;
         private int? _editingEmployeeId = null;
 
-        // متغیرهای مدیریت پنجره‌های بازشو (Modal) و حذف
         protected bool showModal { get; set; } = false;
         protected bool showManualAddModal { get; set; } = false;
         protected bool showDeleteModal { get; set; } = false;
 
-        // فیلدهای کنترلی فرم ثبت دستی تردد پرسنل
         protected Employee? selectedEmployee { get; set; }
         protected DateTime manualDate { get; set; } = DateTime.Today;
-        protected DateTime manualOutDate { get; set; } = DateTime.Today; // 🟢 فیلد جدید ثبت روز خروج جهت بررسی ولیدیشن انطباق
+        protected DateTime manualOutDate { get; set; } = DateTime.Today;
         protected string manualInTime { get; set; } = "07:00";
         protected string manualOutTime { get; set; } = "17:30";
 
         protected List<Employee> employees { get; set; } = new();
         protected string SearchQuery { get; set; } = string.Empty;
 
-        // پروپرتی فیلتر کننده کارمندان بر اساس نام یا کد ملی
         protected List<Employee> FilteredEmployees => string.IsNullOrWhiteSpace(SearchQuery)
             ? (employees ?? new())
             : (employees ?? new()).Where(e => (e.FullName != null && e.FullName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)) ||
@@ -79,67 +65,30 @@ namespace sqlite_web.Components.Pages
         public bool showEmpFormModal { get; set; } = false;
         public string previewImageUrl { get; set; } = string.Empty;
 
-        // متغیرهای مورد نیاز برای مدیریت هر دو نوع حذف مشترک
         protected string deleteModalTitle { get; set; } = string.Empty;
         protected string targetDeleteName { get; set; } = string.Empty;
         protected string deleteTargetMessage { get; set; } = string.Empty;
         protected string deleteModalSubMessage { get; set; } = string.Empty;
         private int _targetIdToDelete = 0;
         private string _deleteType = string.Empty;
-        // 💾 تزریق سرویس حافظه محلی مرورگر جهت ذخیره‌سازی ماندگار تنظیمات کاربر
-        [Inject] public Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage LocalStorage { get; set; } = default!;
-        // متد باز کردن مودال ثبت تردد دستی و تنظیم خودکار فیلدها روی تاریخ امروز سیستم
-        protected void OpenManualAddModal()
-        {
-            CancelAttEdit();
-
-            if (CalendarManager == null)
-            {
-                CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
-            }
-
-            // 🟢 لود زنده تاریخ امروز (سال، ماه، روز جاری) درون سلکتورهای آبشاری فرم دستی
-            CalendarManager.SyncFormCalendarFields(DateTime.Today, DateTime.Today);
-            CalendarManager.AttendanceValidationMessage = string.Empty;
-
-            showManualAddModal = true;
-        }
-
-
-        // بستن مودال ثبت تردد دستی
-        protected void CloseManualAddModal()
-        {
-            showManualAddModal = false;
-            CancelAttEdit();
-        }
-
-        // متد باز و بسته کردن منوی آبشاری مستقل موبایل کارمندان
-        protected void ToggleMobileMenuDropdown(int employeeId)
-        {
-            if (ActiveMobileDropdownId == employeeId) ActiveMobileDropdownId = null;
-            else ActiveMobileDropdownId = employeeId;
-        }
-
-        // متد متمرکز پاکسازی و بستن منوهای آبشاری موبایل
-        protected void CloseAllMobileDropdowns() => ActiveMobileDropdownId = null;
 
         public class MonthOption
         {
             public string Value { get; set; } = string.Empty;
             public string Text { get; set; } = string.Empty;
         }
-        // مقداردهی اولیه و واکشی داده‌ها قبل از رندر شدن جدول
+
         protected override async Task OnInitializedAsync()
         {
+            // اتصال صفحه به رویداد تغییر وضعیت مرکزی برای همگام‌سازی لحظه‌ای زبان
+            AdminState.OnChange += HandleStateChanged;
+
             try
             {
                 await AdminState.CheckAccessAndRedirectAsync();
-
                 if (AdminState.IsAuthorized)
                 {
                     await AdminState.LoadWorkSettingsAsync();
-
-                    // 🟢 گارد امنیتی: اگر تنظیمات بانک اطلاعاتی خالی بود، مقادیر پیش‌فرض ست شود تا سرور کرش نکند
                     if (AdminState.CurrentSettings == null)
                     {
                         AdminState.CurrentSettings = new sqlite_web.Components.Models.Admin.WorkSettings
@@ -150,81 +99,71 @@ namespace sqlite_web.Components.Pages
                             DeficitThresholdMinutes = 15
                         };
                     }
-
                     await RefreshDataAsync();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ خطا در متد OnInitializedAsync: {ex.Message}");
+                Console.WriteLine($"Error in OnInitializedAsync: {ex.Message}");
             }
         }
-        // متد رندر تعاملی جهت فعال کردن رویدادها و بازیابی خودکار وضعیت تقویم ذخیره‌شده کاربر
-        // متد چرخه حیات رندر تعاملی جهت بازیابی خودکار وضعیت تقویم و زبان ذخیره‌شده کاربر
+
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
-                try
-                {
-                    // بازیابی وضعیت ذخیره شده تقویم از حافظه مرورگر کلاینت
-                    var calendarResult = await LocalStorage.GetAsync<bool>("UsePersianCalendarSetting");
-                    if (calendarResult.Success)
-                    {
-                        if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
-                        CalendarManager.UsePersianCalendar = calendarResult.Value;
-                        this.CalendarManager.UsePersianCalendar = calendarResult.Value;
-                    }
-
-                    // 🟢 واکشی وضعیت زبان انتخابی ذخیره شده از حافظه مرورگر کلاینت
-                    var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
-                    if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
-                    {
-                        CurrentLanguage = langResult.Value;
-                        // تزریق زبان لود شده به فیلد زبانی کلاس کپسوله شده تقویم شما
-                        if (CalendarManager != null)
-                        {
-                            CalendarManager.GetType().GetProperty("CurrentLanguage")?.SetValue(CalendarManager, CurrentLanguage);
-                        }
-                    }
-
-                    if (selectedEmployee != null)
-                    {
-                        LoadAvailableMonths(selectedEmployee.Id);
-                        CalculateFilteredHours(selectedEmployee.Id);
-                    }
-                }
-                catch
-                {
-                    // مهار خطاهای احتمالی ارتباط اولیه با مرورگر
-                }
-
-                await InvokeAsync(StateHasChanged);
+                await SyncLanguageFromStorageAsync();
             }
         }
-        // متد تغییر نوع زبان فعال سیستم به همراه ذخیره‌سازی ماندگار و به‌روزرسانی آنی هدر لایوت
+
+        // متد اختصاصی برای خواندن زبان از حافظه مرورگر و اعمال اجباری روی مترجم صفحه
+        private async Task SyncLanguageFromStorageAsync()
+        {
+            try
+            {
+                await LoadStoredLanguageAndCalendarAsync();
+
+                if (CalendarManager != null && !string.IsNullOrEmpty(CurrentLanguage))
+                {
+                    CalendarManager.CurrentLanguage = CurrentLanguage;
+                }
+
+                if (selectedEmployee != null)
+                {
+                    LoadAvailableMonths(selectedEmployee.Id);
+                    CalculateFilteredHours(selectedEmployee.Id);
+                }
+            }
+            catch { }
+
+            await InvokeAsync(StateHasChanged);
+        }
+
+        // واکنش لحظه‌ای به تغییر زبان از هدر یا بخش تنظیمات
+        private async void HandleStateChanged()
+        {
+            await SyncLanguageFromStorageAsync();
+        }
+
+        // آزادسازی رویداد هنگام خروج از صفحه
+        public void Dispose()
+        {
+            AdminState.OnChange -= HandleStateChanged;
+        }
+
+
+       
+
         protected async Task SetSystemLanguage(string lang)
         {
             CurrentLanguage = lang;
-
             if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
-            CalendarManager.GetType().GetProperty("CurrentLanguage")?.SetValue(CalendarManager, lang);
+            CalendarManager.CurrentLanguage = lang;
 
-            try
-            {
-                // ذخیره قطعی زبان انتخابی کاربر در سشن حافظه کلاینت
-                await LocalStorage.SetAsync("SystemLanguageSetting", lang);
-            }
-            catch
-            {
-                // مهار خطای عدم دسترسی کلاینت
-            }
+            try { await LocalStorage.SetAsync("SystemLanguageSetting", lang); } catch { }
 
-            // 🟢 ارسال سیگنال تغییر وضعیت به سرویس متمرکز جهت به‌روزرسانی آنی هدر لایوت بدون نیاز به رفرش
-            // 🟢 اصلاح خط ۲۳۱: فراخوانی متد عمومی و مجاز سرویس متمرکز شما جهت اطلاع‌رسانی به هدر
             if (AdminState != null)
             {
-                // این متد بومی شما در لایه سرویس به طور خودکار سیگنال بازرندر را به لایوت شلیک می‌کند
                 await AdminState.SaveWorkSettingsAsync(settingsStartTime, settingsEndTime, selectedOffDays);
             }
             if (selectedEmployee != null)
@@ -232,68 +171,32 @@ namespace sqlite_web.Components.Pages
                 LoadAvailableMonths(selectedEmployee.Id);
                 CalculateFilteredHours(selectedEmployee.Id);
             }
-
             await InvokeAsync(StateHasChanged);
         }
-        // 🟢 این متد را در فایل MainLayout.razor.cs پیدا کرده یا کدهای داخل بلاک آن را اضافه کنید
-        //private async Task OnAdminStateChanged()
-        //{
-        //    try
-        //    {
-        //        // واکشی آنی آخرین زبان ذخیره شده از حافظه مرورگر
-        //        var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
-        //        if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
-        //        {
-        //            CurrentLanguage = langResult.Value;
-        //            if (CalendarManager != null)
-        //            {
-        //                CalendarManager.CurrentLanguage = CurrentLanguage;
-        //            }
-        //        }
-        //    }
-        //    catch { }
 
-        //    // بازرندر آنی هدر بدون نیاز به رفرش صفحه
-        //    await InvokeAsync(StateHasChanged);
-        //}
-        // متد تغییر نوع تقویم به همراه ذخیره‌سازی ماندگار و همیشگی در سیستم
         protected async Task SetCalendarType(bool isPersian)
         {
             if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
-
-            // اعمال تغییر روی شیء مدیریت تقویم
             CalendarManager.UsePersianCalendar = isPersian;
 
-            try
-            {
-                // 🟢 ذخیره قطعی و ماندگار انتخاب کاربر در حافظه مرورگر برای دفعات بعدی
-                await LocalStorage.SetAsync("UsePersianCalendarSetting", isPersian);
-            }
-            catch
-            {
-                // مهار خطای عدم دسترسی کلاینت
-            }
+            try { await LocalStorage.SetAsync("UsePersianCalendarSetting", isPersian); } catch { }
 
-            // بازسازی گزینه‌های ماه بر اساس تقویم جدید
             if (selectedEmployee != null)
             {
                 LoadAvailableMonths(selectedEmployee.Id);
                 CalculateFilteredHours(selectedEmployee.Id);
             }
-
             await InvokeAsync(StateHasChanged);
         }
-        // تازه سازی آنی لیست کارمندان و کل ترددهای ثبت شده از دیتابیس SQLite
+
         private async Task RefreshDataAsync()
         {
             if (DbContext == null) return;
-
             try
             {
                 employees = await DbContext.Employees.AsNoTracking().ToListAsync() ?? new();
                 allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync() ?? new();
 
-                // 🟢 گارد امنیتی دوم: بازشماری کارکردها تنها در صورتی مجاز است که یک کارمند به طور واقعی انتخاب شده باشد
                 if (selectedEmployee != null && selectedEmployee.Id > 0)
                 {
                     LoadAvailableMonths(selectedEmployee.Id);
@@ -302,11 +205,10 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ خطا در متد RefreshDataAsync: {ex.Message}");
+                Console.WriteLine($"Error in RefreshDataAsync: {ex.Message}");
             }
         }
-
-        // باز کردن مودال فرم افزودن پرسنل جدید
+        // مدیریت مودال های فرم پرسنل و منوهای آبشاری
         public void OpenAddEmployeeModal()
         {
             CloseAllMobileDropdowns();
@@ -314,14 +216,36 @@ namespace sqlite_web.Components.Pages
             showEmpFormModal = true;
         }
 
-        // بستن مودال فرم پرسنل
         public void CloseEmpFormModal()
         {
             showEmpFormModal = false;
             CancelEmpEdit();
         }
 
-        // فشرده‌سازی و تبدیل آنلاین تصویر پرسنل به فرمت Base64
+        protected void OpenManualAddModal()
+        {
+            CancelAttEdit();
+            if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
+            CalendarManager.SyncFormCalendarFields(DateTime.Today, DateTime.Today);
+            CalendarManager.AttendanceValidationMessage = string.Empty;
+            showManualAddModal = true;
+        }
+
+        protected void CloseManualAddModal()
+        {
+            showManualAddModal = false;
+            CancelAttEdit();
+        }
+
+        protected void ToggleMobileMenuDropdown(int employeeId)
+        {
+            if (ActiveMobileDropdownId == employeeId) ActiveMobileDropdownId = null;
+            else ActiveMobileDropdownId = employeeId;
+        }
+
+        protected void CloseAllMobileDropdowns() => ActiveMobileDropdownId = null;
+
+        // آپلود و فشرده سازی تصویر پرسنلی
         public async Task HandleImageUpload(InputFileChangeEventArgs e)
         {
             try
@@ -346,21 +270,34 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                SystemMessage = $"❌ خطا در بارگذاری فایل تصویر: {ex.Message}";
+                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_ImageUploadError"), ex.Message);
             }
         }
 
-        // مدیریت عملیات ذخیره‌سازی اطلاعات کارمند جدید یا ثبت ویرایش مشخصات
+        // اعتبارسنجی مجزای فیلدها و ذخیره اطلاعات کارمند
         protected async Task SaveEmployeeData()
         {
             if (string.IsNullOrWhiteSpace(newEmpName) || string.IsNullOrWhiteSpace(newEmpCode))
             {
-                SystemMessage = "❌ نام کارمند و کد پرسنلی الزامی است!";
+                SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpRequiredFields");
                 return;
             }
-            if (newEmpName.Length > 40 || newEmpCode.Length != 10 || (!string.IsNullOrWhiteSpace(newEmpPhone) && newEmpPhone.Length > 15))
+
+            if (newEmpName.Length > 40)
             {
-                SystemMessage = "❌ خطای امنیتی سرور در طول کاراکترها!";
+                SystemMessage = CalendarManager.Translate("PCal_Emp_ErrNameLength");
+                return;
+            }
+
+            if (newEmpCode.Length < 10 || newEmpCode.Length > 20)
+            {
+                SystemMessage = CalendarManager.Translate("PCal_Emp_ErrCodeLength");
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(newEmpPhone) && newEmpPhone.Length > 15)
+            {
+                SystemMessage = CalendarManager.Translate("PCal_Emp_ErrPhoneLength");
                 return;
             }
 
@@ -368,11 +305,10 @@ namespace sqlite_web.Components.Pages
             {
                 if (!canEditPerm && !AdminState.isCurrentUserSuperAdmin) return;
 
-                // 🛑 گارد بررسی کد ملی تکراری در حالت ویرایش: کدملی نباید متعلق به کارمند دیگری باشد
                 bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode && e.Id != _editingEmployeeId.Value);
                 if (isCodeDuplicate)
                 {
-                    SystemMessage = "❌ خطا: این کد ملی قبلاً برای کارمند دیگری در سیستم ثبت شده است! کد ملی باید منحصربه‌فرد باشد.";
+                    SystemMessage = CalendarManager.Translate("PCal_AdminPanel_DuplicateCodeEdit");
                     return;
                 }
 
@@ -384,30 +320,29 @@ namespace sqlite_web.Components.Pages
                     emp.PersonnelCode = newEmpCode;
                     emp.ImagePath = previewImageUrl;
                     DbContext.Employees.Update(emp);
-                    SystemMessage = $"✅ مشخصات کارمند با موفقیت ویرایش شد.";
+                    SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpEditSuccess");
                 }
             }
             else
             {
                 if (!canAddPerm && !AdminState.isCurrentUserSuperAdmin) return;
 
-                // 🛑 گارد بررسی کد ملی تکراری در حالت ثبت کارمند جدید
                 bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode);
                 if (isCodeDuplicate)
                 {
-                    SystemMessage = "❌ خطا: کارمندی با این کد ملی قبلاً در سیستم تعریف شده است! ورود کد ملی تکراری مجاز نیست.";
+                    SystemMessage = CalendarManager.Translate("PCal_AdminPanel_DuplicateCodeAdd");
                     return;
                 }
 
                 DbContext.Employees.Add(new Employee { FullName = newEmpName, Phone = newEmpPhone, PersonnelCode = newEmpCode, ImagePath = previewImageUrl });
-                SystemMessage = $"✅ کارمند جدید با موفقیت ثبت شد.";
+                SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpAddSuccess");
             }
 
             await DbContext.SaveChangesAsync();
             await RefreshDataAsync();
             CloseEmpFormModal();
         }
-        // سوییچ وضعیت فرم به حالت ویرایش پرونده کارمند
+
         protected void StartEmpEdit(Employee emp)
         {
             ActiveMobileDropdownId = null;
@@ -420,7 +355,7 @@ namespace sqlite_web.Components.Pages
             previewImageUrl = emp.ImagePath;
             showEmpFormModal = true;
         }
-        // متد پاکسازی متغیرهای محلی و ریست کردن کادرهای فرم ثبت پرسنل
+
         protected void CancelEmpEdit()
         {
             isEmpEditMode = false;
@@ -430,20 +365,20 @@ namespace sqlite_web.Components.Pages
             newEmpCode = string.Empty;
             previewImageUrl = string.Empty;
         }
-        // راه‌اندازی و باز کردن مودال تایید نهایی حذف کارمند
+
         protected void TriggerDeleteEmployee(int id, string name)
         {
             if (!canDeletePerm) return;
             _targetIdToDelete = id;
             _deleteType = "Employee";
-            deleteModalTitle = "تاییدیه حذف قطعی پرونده پرسنلی";
+            deleteModalTitle = CalendarManager.Translate("PCal_AdminPanel_DelEmpTitle");
             targetDeleteName = name;
-            deleteTargetMessage = $"آیا از حذف کامل پرونده پرسنلی کارمند با نام «{name}» مطمئن هستید؟";
-            deleteModalSubMessage = "توجه: کلیه سوابق تردد این کارمند فوراً و به صورت غیرقابل بازگشت پاک خواهد شد.";
+            deleteTargetMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_DelEmpMsg"), name);
+            deleteModalSubMessage = CalendarManager.Translate("PCal_AdminPanel_DelEmpSubMsg");
             ActiveMobileDropdownId = null;
             showDeleteModal = true;
         }
-        // حاضر کردن سریع کارمند از درون جدول یا منوی موبایل
+
         protected async Task ForcePresent(int empId)
         {
             if (!canEditPerm) return;
@@ -451,21 +386,22 @@ namespace sqlite_web.Components.Pages
             await DbContext.SaveChangesAsync();
             await RefreshDataAsync();
         }
-        // متد ثبت ورود سریع پرسنل از طریق پنل ادمین
+
+        // ثبت ورود و خروج سریع از جدول پنل مدیریت همراه با ثبت شناسه ادمین
         protected async Task StartAttendanceNow(int employeeId)
         {
+            if (!canEditPerm) return;
+
             try
             {
-                // دریافت شناسه ادمین آنلاین سیستم برای رهگیری منبع
                 int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
-
                 var attendance = new Attendance
                 {
                     EmployeeId = employeeId,
                     ClockInTime = DateTime.Now,
                     ClockOutTime = null,
                     CreationDate = DateTime.Now,
-                    EntrySource = "AdminFast", // تعیین منبع به عنوان ثبت سریع توسط ادمین
+                    EntrySource = "AdminFast",
                     CreatedByAdminId = currentAdminId
                 };
 
@@ -475,21 +411,21 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                SystemMessage = $"خطا در ثبت ورود سریع: {ex.Message}";
+                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastInError"), ex.Message);
             }
             await InvokeAsync(StateHasChanged);
         }
-        // متد ثبت خروج سریع پرسنل و مهار تاریخ روز خروج
+
         protected async Task StopAttendanceNow(int attendanceId)
         {
+            if (!canEditPerm) return;
+
             try
             {
                 var attendance = await DbContext.Attendances.FindAsync(attendanceId);
                 if (attendance != null)
                 {
-                    // ثبت شناسه ادمین به عنوان آخرین ویرایش‌کننده
                     int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
-
                     attendance.ClockOutTime = DateTime.Now;
                     attendance.LastModifiedByAdminId = currentAdminId;
 
@@ -500,11 +436,11 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                SystemMessage = $"خطا در ثبت خروج سریع: {ex.Message}";
+                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastOutError"), ex.Message);
             }
             await InvokeAsync(StateHasChanged);
         }
-        // متد ثبت دستی یا ویرایش دوکاره ساعت کاری پرسنل بر اساس ولیدیشن انطباق روز و تقدم ساعت
+        // ثبت دستی یا ویرایش ساعت کاری پرسنل همراه با ذخیره تاریخچه تغییرات ادمین
         protected async Task AddManualAttendance()
         {
             if (!canEditPerm) return;
@@ -514,24 +450,21 @@ namespace sqlite_web.Components.Pages
 
             try
             {
-                // تبدیل مقادیر دریافتی از منوهای آبشاری فرم به ساختار DateTime
                 manualDate = CalendarManager.ParseFormFieldsToDateTime(CalendarManager.ManualInYear, CalendarManager.ManualInMonth, CalendarManager.ManualInDay, "00:00");
                 manualOutDate = CalendarManager.ParseFormFieldsToDateTime(CalendarManager.ManualOutYear, CalendarManager.ManualOutMonth, CalendarManager.ManualOutDay, "00:00");
 
                 var inTime = DateTime.Parse($"{manualDate:yyyy-MM-dd} {manualInTime}");
                 var outTime = DateTime.Parse($"{manualOutDate:yyyy-MM-dd} {manualOutTime}");
 
-                // کنترل انطباق روز ورود و خروج
                 if (inTime.Date != outTime.Date)
                 {
-                    CalendarManager.AttendanceValidationMessage = "خطا: تاریخ خروج باید دقیقاً همان روز تاریخ ورود باشد!";
+                    CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_ManualDateMismatch");
                     return;
                 }
 
-                // کنترل تقدم زمان ورود نسبت به خروج
                 if (outTime < inTime)
                 {
-                    CalendarManager.AttendanceValidationMessage = "خطا: ساعت خروج نمی‌تواند قبل‌تر از ساعت ورود تنظیم شود!";
+                    CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_ManualTimeOrderError");
                     return;
                 }
 
@@ -546,7 +479,6 @@ namespace sqlite_web.Components.Pages
 
                     if (att != null)
                     {
-                        // ایجاد و ثبت ردیف تاریخچه ویرایش قبل از تغییر مقادیر اصلی رکورد (Audit Log)
                         var log = new AttendanceEditLog
                         {
                             AttendanceId = att.Id,
@@ -557,12 +489,11 @@ namespace sqlite_web.Components.Pages
                             OldClockOutTime = att.ClockOutTime,
                             NewClockInTime = inTime,
                             NewClockOutTime = outTime,
-                            Reason = "اصلاح ساعت کارکرد توسط ادمین در پنل کارنامه پرسنل"
+                            Reason = CalendarManager.Translate("PCal_AdminPanel_AuditEditReason")
                         };
 
                         DbContext.AttendanceEditLogs.Add(log);
 
-                        // جایگذاری مقادیر زمانی جدید و ثبت ادمین ویرایش کننده
                         att.ClockInTime = inTime;
                         att.ClockOutTime = outTime;
                         att.LastModifiedByAdminId = currentAdminId;
@@ -572,7 +503,6 @@ namespace sqlite_web.Components.Pages
                 }
                 else
                 {
-                    // ایجاد یک رکورد تردد جدید با شناسه ادمین ثبت کننده و تفکیک منبع به عنوان ثبت دستی
                     var newAtt = new Attendance
                     {
                         EmployeeId = selectedEmployee.Id,
@@ -595,20 +525,22 @@ namespace sqlite_web.Components.Pages
             }
             catch
             {
-                CalendarManager.AttendanceValidationMessage = "فرمت زمان وارد شده اشتباه است (مثال معتبر: 07:00 یا 17:30)";
+                CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_InvalidTimeFormat");
             }
         }
+
         protected void CloseModal() { showModal = false; selectedEmployee = null; }
         protected void ClearSystemMessage() => SystemMessage = string.Empty;
-        // محاسبه تفاضل ورود و خروج به رشته متنی فرمت شده استاندارد HH:mm
+
         protected string GetSingleDuration(Attendance att)
         {
-            if (att.ClockInTime == null || att.ClockOutTime == null) return "در حال تردد";
+            if (att.ClockInTime == null || att.ClockOutTime == null)
+                return CalendarManager.Translate("PCal_AdminPanel_ActiveAttendance");
+
             var diff = att.ClockOutTime.Value - att.ClockInTime.Value;
             return $"{(int)diff.TotalHours:00}:{diff.Minutes:00}";
         }
-        // فعال‌سازی وضعیت ویرایش ساعت کاری یک ردیف
-        // فعال‌سازی ادیتور فیلدهای ساعت کاری یک ردیف خاص و همگام‌سازی سلکتورهای آبشاری تاریخ کاری
+
         protected void StartAttEdit(Attendance att)
         {
             isAttEditMode = true;
@@ -618,15 +550,12 @@ namespace sqlite_web.Components.Pages
 
             if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
 
-            // 🟢 همگام‌سازی فیلدهای داخلی منوهای آبشاری تقویم جدید کلاس با زمان‌های واقعی ردیف
             CalendarManager.SyncFormCalendarFields(att.ClockInTime ?? DateTime.Today, att.ClockOutTime ?? DateTime.Today);
             CalendarManager.AttendanceValidationMessage = string.Empty;
 
             showManualAddModal = true;
         }
 
-        // انصراف از ویرایش فیلد ردیف ساعت کاری
-        // انصراف از ویرایش یا ثبت و بازنشانی فیلدهای فرم به تاریخ امروز و ساعت پیش‌فرض
         protected void CancelAttEdit()
         {
             isAttEditMode = false;
@@ -640,23 +569,20 @@ namespace sqlite_web.Components.Pages
                 CalendarManager.AttendanceValidationMessage = string.Empty;
             }
         }
-        // متد بارگذاری لیست ماه‌ها مجهز به گزینه نمایش تمام ماه‌ها
+
         private void LoadAvailableMonths(int employeeId)
         {
             AvailableMonths.Clear();
-            var now = DateTime.Now;
 
-            // 🟢 ۱. درج گزینه نمایش کل ماه‌ها در ابتدای لیست سلکتور
             AvailableMonths.Add(new MonthOption
             {
                 Value = "ALL",
-                Text = CalendarManager.UsePersianCalendar ? "همه ماه‌های کارکرد" : "All Months"
+                Text = CalendarManager.Translate("PCal_AdminPanel_AllMonths")
             });
 
             var allRecords = allAttendances
                 .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue).ToList();
 
-            // ۲. استخراج سال و ماه دقیقاً بر اساس تقویم فعال سیستم
             if (CalendarManager.UsePersianCalendar)
             {
                 System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
@@ -690,14 +616,12 @@ namespace sqlite_web.Components.Pages
             if (string.IsNullOrEmpty(SelectedMonthFilter)) SelectedMonthFilter = "ALL";
         }
 
-
-        // تغییر فیلتر ماهانه کارکرد جدول
         protected void OnMonthSelectorChanged(ChangeEventArgs e)
         {
             SelectedMonthFilter = e.Value?.ToString() ?? string.Empty;
             if (selectedEmployee != null) CalculateFilteredHours(selectedEmployee.Id);
         }
-        // مفسر اصلاح‌شده رویدادهای منوی تفکیکی موبایل کارمندان
+
         protected async Task HandleMobileActionChanged(string actionType, Employee emp, int activeAttendanceId)
         {
             if (string.IsNullOrEmpty(actionType)) return;
@@ -722,7 +646,7 @@ namespace sqlite_web.Components.Pages
             }
             await InvokeAsync(StateHasChanged);
         }
-        // بیدار کردن مودال محاسبات کارکرد ماهانه پرسنل
+
         protected void OpenReportModal(Employee emp)
         {
             selectedEmployee = emp;
@@ -730,7 +654,7 @@ namespace sqlite_web.Components.Pages
             LoadAvailableMonths(emp.Id);
             CalculateFilteredHours(emp.Id);
         }
-        // بیدار کردن مودال حذف برای ساعت کاری
+
         protected void TriggerDeleteTimeRecord(Attendance att)
         {
             if (att == null) return;
@@ -738,19 +662,17 @@ namespace sqlite_web.Components.Pages
 
             _targetIdToDelete = att.Id;
             _deleteType = "Attendance";
-            deleteModalTitle = "تاییدیه حذف قطعی رکورد تردد پرسنل";
+            deleteModalTitle = CalendarManager.Translate("PCal_AdminPanel_DelAttTitle");
 
-            // 🟢 فراخوانی مستقیم متد مبدل تاریخ بدون سربار رفلکشن
             string dateStr = CalendarManager.GetDynamicFormattedDate(att.ClockInTime);
             string timeStr = att.ClockInTime.HasValue ? att.ClockInTime.Value.ToString("HH:mm") : "00:00";
 
-            targetDeleteName = $"تردد مورخ {dateStr} ساعت {timeStr}";
-            deleteTargetMessage = $"آیا از حذف کامل این رکورد تردد کاری پرسنل در تاریخ {dateStr} مطمئن هستید؟";
-            deleteModalSubMessage = "توجه: با تایید نهایی، این ساعت ورود و خروج خاص به طور کامل پاک شده و در محاسبات این ماه لحاظ نخواهد شد.";
+            targetDeleteName = string.Format(CalendarManager.Translate("PCal_AdminPanel_DelAttTargetName"), dateStr, timeStr);
+            deleteTargetMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_DelAttMsg"), dateStr);
+            deleteModalSubMessage = CalendarManager.Translate("PCal_AdminPanel_DelAttSubMsg");
             showDeleteModal = true;
         }
         protected void CancelDeleteModal() => showDeleteModal = false;
-        // متد نهایی اجرای حذف دیتابیس بر اساس نوع کلیک
         protected async Task ExecuteConfirmedDelete()
         {
             showDeleteModal = false;
@@ -765,7 +687,7 @@ namespace sqlite_web.Components.Pages
                         var attendances = DbContext.Attendances.Where(a => a.EmployeeId == _targetIdToDelete);
                         DbContext.Attendances.RemoveRange(attendances);
                         DbContext.Employees.Remove(employee);
-                        SystemMessage = $"✅ پرونده پرسنلی حذف شد.";
+                        SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpDeletedMsg");
                     }
                 }
                 else if (_deleteType == "Attendance")
@@ -774,33 +696,26 @@ namespace sqlite_web.Components.Pages
                     if (att != null)
                     {
                         DbContext.Attendances.Remove(att);
-                        SystemMessage = $"✅ رکورد تردد با موفقیت ابطال شد.";
+                        SystemMessage = CalendarManager.Translate("PCal_AdminPanel_AttDeletedMsg");
                     }
                 }
                 await DbContext.SaveChangesAsync();
             }
-            catch (Exception ex) { SystemMessage = $"❌ خطا در حذف: {ex.Message}"; }
+            catch (Exception ex)
+            {
+                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_DeleteError"), ex.Message);
+            }
             if (selectedEmployee != null && _deleteType == "Attendance") CalculateFilteredHours(selectedEmployee.Id);
             await RefreshDataAsync();
             await InvokeAsync(StateHasChanged);
         }
-
-
-
-
-
-
-        // موتور هوشمند محاسبه کارکرد و تفکیک کامل روزهای موظفی و اضافه کاری ماه انتخابی
-        // موتور هوشمند محاسبه کارکرد مجهز به فیلتر صحیح ماه‌های شمسی و میلادی بدون باگ جابه‌جایی ردیف‌ها
+        // محاسبه تفکیک شده ساعات موظفی و اضافه کاری بدون تداخل با رکوردهای با کارکرد صفر
         private void CalculateFilteredHours(int employeeId)
         {
-            // واکشی کل ترددهای فیلتر نشده کارمند
             var allRecords = allAttendances
-                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue).ToList();
-
+            .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue).ToList();
             List<Attendance> monthlyRecords = new List<Attendance>();
 
-            // 🟢 مهار باگ فیلتر: اگر گزینه "ALL" انتخاب نشده باشد، ردیف‌ها بر اساس نوع تقویم جاری فیلتر می‌شوند
             if (!string.IsNullOrEmpty(SelectedMonthFilter) && SelectedMonthFilter != "ALL")
             {
                 var parts = SelectedMonthFilter.Split('-');
@@ -811,94 +726,84 @@ namespace sqlite_web.Components.Pages
                 {
                     System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
                     monthlyRecords = allRecords.Where(a => pc.GetYear(a.ClockInTime!.Value) == targetYear
-                                                        && pc.GetMonth(a.ClockInTime!.Value) == targetMonth).ToList();
+                    && pc.GetMonth(a.ClockInTime!.Value) == targetMonth).ToList();
                 }
                 else
                 {
                     monthlyRecords = allRecords.Where(a => a.ClockInTime!.Value.Year == targetYear
-                                                        && a.ClockInTime!.Value.Month == targetMonth).ToList();
+                    && a.ClockInTime!.Value.Month == targetMonth).ToList();
                 }
             }
             else
             {
-                monthlyRecords = allRecords; // حالت نمایش همه ماه‌ها
+                monthlyRecords = allRecords;
             }
-
             double totalRegularMinutes = 0;
             double totalOvertimeMinutes = 0;
             double totalDeficitMinutes = 0;
-
             var settings = AdminState.CurrentSettings;
             string startTimeStr = settings?.RegularStartTime ?? "07:00";
             string endTimeStr = settings?.RegularEndTime ?? "17:30";
             string offDaysStr = settings?.OffDaysOfWeek ?? "Saturday,Sunday";
             int thresholdMinutes = settings?.DeficitThresholdMinutes ?? 15;
-
             TimeSpan regStart = TimeSpan.Parse(startTimeStr);
             TimeSpan regEnd = TimeSpan.Parse(endTimeStr);
             double maxExpectedRegularMinutes = (regEnd - regStart).TotalMinutes;
             var offDaysList = offDaysStr.Split(',').ToList();
-
             foreach (var rec in monthlyRecords)
             {
                 DateTime clockIn = rec.ClockInTime!.Value;
                 DateTime clockOut = rec.ClockOutTime ?? DateTime.Now;
-
-                if (offDaysList.Contains(clockIn.DayOfWeek.ToString()))
+                double totalDuration = (clockOut - clockIn).TotalMinutes;
+                // نادیده گرفتن ردیف های با کارکرد صفر در محاسبات
+                if (totalDuration <= 0)
                 {
-                    totalOvertimeMinutes += (clockOut - clockIn).TotalMinutes;
                     continue;
                 }
-
+                if (offDaysList.Contains(clockIn.DayOfWeek.ToString()))
+                {
+                    totalOvertimeMinutes += totalDuration;
+                    continue;
+                }
                 DateTime regularStartThreshold = clockIn.Date.Add(regStart);
                 DateTime regularEndThreshold = clockIn.Date.Add(regEnd);
-
                 if (clockIn < regularStartThreshold)
                 {
                     var endOfEarlyOvertime = clockOut < regularStartThreshold ? clockOut : regularStartThreshold;
                     totalOvertimeMinutes += (endOfEarlyOvertime - clockIn).TotalMinutes;
                 }
-
                 DateTime effectiveIn = clockIn < regularStartThreshold ? regularStartThreshold : clockIn;
                 DateTime effectiveOut = clockOut > regularEndThreshold ? regularEndThreshold : clockOut;
-
                 double dayRegularMinutes = 0;
                 if (effectiveIn < effectiveOut)
                 {
                     dayRegularMinutes = (effectiveOut - effectiveIn).TotalMinutes;
                     totalRegularMinutes += dayRegularMinutes;
                 }
-
-                if (rec.ClockOutTime.HasValue && dayRegularMinutes < maxExpectedRegularMinutes)
+                // محاسبه کسری کار تنها برای روزهایی که کارکرد واقعی انجام شده است
+                if (rec.ClockOutTime.HasValue && dayRegularMinutes > 0 && dayRegularMinutes < maxExpectedRegularMinutes)
                 {
                     totalDeficitMinutes += (maxExpectedRegularMinutes - dayRegularMinutes);
                 }
-
                 if (clockOut > regularEndThreshold)
                 {
                     DateTime effectiveOvertimeStart = clockIn > regularEndThreshold ? clockIn : regularEndThreshold;
                     totalOvertimeMinutes += (clockOut - effectiveOvertimeStart).TotalMinutes;
                 }
             }
-
             if (totalDeficitMinutes >= thresholdMinutes)
             {
                 double compensation = Math.Min(totalOvertimeMinutes, totalDeficitMinutes);
                 totalOvertimeMinutes -= compensation;
                 totalRegularMinutes += compensation;
             }
-
             int regHours = (int)(totalRegularMinutes / 60);
             int regMins = (int)(totalRegularMinutes % 60);
             TotalRegularHours = $"{regHours:00}:{regMins:00}";
-
             int overHours = (int)(totalOvertimeMinutes / 60);
             int overMins = (int)(totalOvertimeMinutes % 60);
             TotalOvertimeHours = $"{overHours:00}:{overMins:00}";
         }
-
-
-        // باز کردن پاپ‌آپ تنظیمات سرور و بارگذاری مقادیر ساعات کاری از SQLite
         protected void OpenSettingsModal()
         {
             if (!canEditPerm || !AdminState.isCurrentUserSuperAdmin) return;
@@ -909,14 +814,12 @@ namespace sqlite_web.Components.Pages
             selectedOffDays = current.OffDaysOfWeek.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).ToList();
             showSettingsModal = true;
         }
-        // متد ذخیره نهایی پارامترهای جدید محاسباتی در سرور
         protected async Task SaveSettingsData()
         {
             bool success = await AdminState.SaveWorkSettingsAsync(settingsStartTime, settingsEndTime, selectedOffDays);
             if (success) showSettingsModal = false;
             await InvokeAsync(StateHasChanged);
         }
-        // متد مدیریت روشن/خاموش کردن چک‌باکس روزهای هفته
         protected void ToggleOffDaySelection(string dayName, object? checkedValue)
         {
             bool isChecked = checkedValue is bool b && b;
