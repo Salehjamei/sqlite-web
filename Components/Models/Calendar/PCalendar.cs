@@ -225,7 +225,8 @@ namespace sqlite_web.Components.Models.Calendar
         // متون خطاها و پیغام های صفحه مدیریت پرسنل (AdminPanel.cs)
         { "PCal_AdminPanel_TotalHoursUnit", new Dictionary<string, string> { { "fa", "00:00 ساعت" }, { "en", "00:00 Hrs" }, { "tr", "00:00 Saat" } } },
         { "PCal_AdminPanel_ImageUploadError", new Dictionary<string, string> { { "fa", "خطا در بارگذاری فایل تصویر: {0}" }, { "en", "Error uploading image file: {0}" }, { "tr", "Resim dosyası yüklenirken hata oluştu: {0}" } } },
-        { "PCal_AdminPanel_EmpRequiredFields", new Dictionary<string, string> { { "fa", "نام کارمند و کد پرسنلی الزامی است!" }, { "en", "Employee name and national ID are required!" }, { "tr", "Personel adı ve kimlik numarası zorunludur!" } } },
+        { "PCal_AdminPanel_EmpNameRequired", new Dictionary<string, string> { { "fa", "خطا: وارد کردن نام و نام خانوادگی کارمند الزامی است!" }, { "en", "Error: Employee full name is required!" }, { "tr", "Hata: Personel adı ve soyadı zorunludur!" } } },
+{ "PCal_AdminPanel_EmpCodeRequired", new Dictionary<string, string> { { "fa", "خطا: وارد کردن کد ملی / شناسایی کارمند الزامی است!" }, { "en", "Error: Employee national ID code is required!" }, { "tr", "Hata: Personel kimlik numarası zorunludur!" } } },
         { "PCal_AdminPanel_ErrNameLength", new Dictionary<string, string> { { "fa", "خطا: طول نام و نام خانوادگی نمی‌تواند بیشتر از ۴۰ کاراکتر باشد." }, { "en", "Error: Full name cannot exceed 40 characters." }, { "tr", "Hata: Ad ve soyad 40 karakteri geçemez." } } },
         { "PCal_AdminPanel_ErrCodeLength", new Dictionary<string, string> { { "fa", "خطا: کد ملی باید حداقل ۱۰ رقم و حداکثر ۲۰ رقم باشد." }, { "en", "Error: National ID must be between 10 and 20 digits." }, { "tr", "Hata: Kimlik numarası en az 10, en fazla 20 haneli olmalıdır." } } },
         { "PCal_AdminPanel_ErrPhoneLength", new Dictionary<string, string> { { "fa", "خطا: شماره تماس نمی‌تواند بیشتر از ۱۵ رقم باشد." }, { "en", "Error: Phone number cannot exceed 15 digits." }, { "tr", "Hata: Telefon numarası 15 haneyi geçemez." } } },
@@ -289,8 +290,11 @@ namespace sqlite_web.Components.Models.Calendar
         { "EmpBtnSaveChanges", new Dictionary<string, string> { { "fa", "💾 ثبت تغییرات" }, { "en", "Work Settings" }, { "tr", "💾 Değişiklikleri Kaydet" } } },
         { "WorkSet", new Dictionary<string, string> { { "fa", "تنظیمات کاری" }, { "en", "Work Setting" }, { "tr", "Çalışma ayarları" } } },
         { "PCal_AdminPanel_OvertimeAchievedTitle", new Dictionary<string, string> { { "fa", "دارای اضافه کاری محقق شده" }, { "en", "Achieved overtime" }, { "tr", "Gerçekleşen fazla mesai mevcut" } } },
-        { "PCal_AdminPanel_ActiveOvertimeTitle", new Dictionary<string, string> { { "fa", "حضور زنده در محدوده اضافه کاری" }, { "en", "Active presence in overtime zone" }, { "tr", "Fazla mesai aralığında aktif bulunma" } } }
-
+        { "PCal_AdminPanel_ActiveOvertimeTitle", new Dictionary<string, string> { { "fa", "حضور زنده در محدوده اضافه کاری" }, { "en", "Active presence in overtime zone" }, { "tr", "Fazla mesai aralığında aktif bulunma" } } },
+        ///IsHiddenFromKiosk
+        { "PCal_Emp_HideFromKioskLabel", new Dictionary<string, string> { { "fa", "عدم نمایش این پرسنل در صفحه کیوسک (مرخصی طولانی / غیبت)" }, { "en", "Hide this employee from Kiosk screen (Long leave / Absent)" }, { "tr", "Bu personeli Kiosk ekranında gizle (Uzun izin / Devamsızlık)" } } },
+        { "PCal_Emp_BadgeHiddenKiosk", new Dictionary<string, string> { { "fa", "مخفی در کیوسک" }, { "en", "Hidden in Kiosk" }, { "tr", "Kiosk'ta Gizli" } } }
+        
 
 
 

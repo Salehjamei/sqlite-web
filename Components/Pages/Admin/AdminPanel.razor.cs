@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.JSInterop;
 using sqlite_web.Components.Models;
 using sqlite_web.Services;
 using System;
@@ -15,6 +16,24 @@ namespace sqlite_web.Components.Pages
     {
         [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
+        [Inject] public Microsoft.JSInterop.IJSRuntime JSRuntime { get; set; } = default!;
+
+        // نگهداری نام فیلدی که دچار خطای اعتبارسنجی شده است ("Name", "Code", "Phone")
+        protected string EmpErrorField { get; set; } = string.Empty;
+        // ثبت نام فیلد دارای خطا و فوکوس خودکار روی المنت HTML مربوطه
+        private async Task SetEmpValidationErrorAsync(string fieldName, string elementId, string errorMessage)
+{
+    EmpErrorField = fieldName;
+    SystemMessage = errorMessage;
+    await InvokeAsync(StateHasChanged);
+
+    try
+    {
+        // استفاده از تاخیر کوتاه جاوااسکریپت برای اطمینان از اتمام رندر DOM قبل از فوکوس
+        await JSRuntime.InvokeVoidAsync("eval", $"setTimeout(function() {{ var el = document.getElementById('{elementId}'); if(el) {{ el.focus(); el.select(); }} }}, 50);");
+    }
+    catch { }
+}
 
         protected bool canAddPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false);
         protected bool canEditPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false);
@@ -33,7 +52,10 @@ namespace sqlite_web.Components.Pages
 
         protected string newEmpName { get; set; } = string.Empty;
         protected string newEmpCode { get; set; } = string.Empty;
+        
+
         protected string newEmpPhone { get; set; } = string.Empty;
+        protected bool newEmpHiddenFromKiosk { get; set; } = false;
         protected bool isEmpEditMode { get; set; } = false;
         private int? _editingEmployeeId = null;
 
@@ -274,88 +296,133 @@ namespace sqlite_web.Components.Pages
             }
         }
 
-        // اعتبارسنجی مجزای فیلدها و ذخیره اطلاعات کارمند
+        // اعتبارسنجی مجزای فیلدها و ذخیره اطلاعات کارمند در دیتابیس
         protected async Task SaveEmployeeData()
         {
-            if (string.IsNullOrWhiteSpace(newEmpName) || string.IsNullOrWhiteSpace(newEmpCode))
+            // پاکسازی وضعیت خطای قبلی از روی تمام فیلدهای فرم پیش از بررسی مجدد
+            EmpErrorField = string.Empty;
+
+            // بررسی پر بودن فیلد اجباری نام و فوکوس روی آن در صورت خالی بودن
+            if (string.IsNullOrWhiteSpace(newEmpName))
             {
-                SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpRequiredFields");
+                await SetEmpValidationErrorAsync("Name", "empNameInput", CalendarManager.Translate("PCal_AdminPanel_EmpNameRequired"));
                 return;
             }
 
+            // بررسی پر بودن فیلد اجباری کد ملی و فوکوس روی آن در صورت خالی بودن
+            if (string.IsNullOrWhiteSpace(newEmpCode))
+            {
+                await SetEmpValidationErrorAsync("Code", "empCodeInput", CalendarManager.Translate("PCal_AdminPanel_EmpCodeRequired"));
+                return;
+            }
+
+
+            // کنترل سقف مجاز ۴۰ کاراکتر برای نام و نام خانوادگی همراه با قرمز کردن کادر
             if (newEmpName.Length > 40)
             {
-                SystemMessage = CalendarManager.Translate("PCal_Emp_ErrNameLength");
+                await SetEmpValidationErrorAsync("Name", "empNameInput", CalendarManager.Translate("PCal_AdminPanel_ErrNameLength"));
                 return;
             }
 
+            // کنترل بازه مجاز طول کد ملی (حداقل ۱۰ و حداکثر ۲۰ رقم) همراه با فوکوس
             if (newEmpCode.Length < 10 || newEmpCode.Length > 20)
             {
-                SystemMessage = CalendarManager.Translate("PCal_Emp_ErrCodeLength");
+                await SetEmpValidationErrorAsync("Code", "empCodeInput", CalendarManager.Translate("PCal_AdminPanel_ErrCodeLength"));
                 return;
             }
 
+            // کنترل سقف مجاز ۱۵ رقم برای شماره تماس در صورت وارد شدن همراه با فوکوس
             if (!string.IsNullOrWhiteSpace(newEmpPhone) && newEmpPhone.Length > 15)
             {
-                SystemMessage = CalendarManager.Translate("PCal_Emp_ErrPhoneLength");
+                await SetEmpValidationErrorAsync("Phone", "empPhoneInput", CalendarManager.Translate("PCal_AdminPanel_ErrPhoneLength"));
                 return;
             }
 
+            // بررسی حالت ویرایش کارمند موجود
             if (isEmpEditMode && _editingEmployeeId.HasValue)
             {
+                // کنترل سطح دسترسی مدیر برای انجام عملیات ویرایش
                 if (!canEditPerm && !AdminState.isCurrentUserSuperAdmin) return;
 
+                // جلوگیری از ثبت کد ملی تکراری متعلق به کارمند دیگر و فوکوس روی فیلد کد ملی
                 bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode && e.Id != _editingEmployeeId.Value);
                 if (isCodeDuplicate)
                 {
-                    SystemMessage = CalendarManager.Translate("PCal_AdminPanel_DuplicateCodeEdit");
+                    await SetEmpValidationErrorAsync("Code", "empCodeInput", CalendarManager.Translate("PCal_AdminPanel_DuplicateCodeEdit"));
                     return;
                 }
 
+                // واکشی رکورد کارمند از دیتابیس برای اعمال تغییرات
                 var emp = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _editingEmployeeId.Value);
                 if (emp != null)
                 {
+                    // به‌روزرسانی فیلدهای متنی، تصویر و وضعیت نمایش در کیوسک
                     emp.FullName = newEmpName;
                     emp.Phone = newEmpPhone;
                     emp.PersonnelCode = newEmpCode;
                     emp.ImagePath = previewImageUrl;
+                    emp.IsHiddenFromKiosk = newEmpHiddenFromKiosk;
+
+                    // ثبت تغییرات در بافت دیتابیس و تنظیم پیام موفقیت
                     DbContext.Employees.Update(emp);
                     SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpEditSuccess");
                 }
             }
+            // حالت ثبت کارمند جدید در سیستم
             else
             {
+                // کنترل سطح دسترسی مدیر برای افزودن کارمند جدید
                 if (!canAddPerm && !AdminState.isCurrentUserSuperAdmin) return;
 
+                // جلوگیری از ثبت کد ملی تکراری در سیستم و فوکوس روی فیلد کد ملی
                 bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode);
                 if (isCodeDuplicate)
                 {
-                    SystemMessage = CalendarManager.Translate("PCal_AdminPanel_DuplicateCodeAdd");
+                    await SetEmpValidationErrorAsync("Code", "empCodeInput", CalendarManager.Translate("PCal_AdminPanel_DuplicateCodeAdd"));
                     return;
                 }
 
-                DbContext.Employees.Add(new Employee { FullName = newEmpName, Phone = newEmpPhone, PersonnelCode = newEmpCode, ImagePath = previewImageUrl });
+                // ایجاد و افزودن رکورد جدید کارمند به جدول دیتابیس همراه با وضعیت کیوسک
+                DbContext.Employees.Add(new Employee
+                {
+                    FullName = newEmpName,
+                    Phone = newEmpPhone,
+                    PersonnelCode = newEmpCode,
+                    ImagePath = previewImageUrl,
+                    IsHiddenFromKiosk = newEmpHiddenFromKiosk
+                });
+
+                // تنظیم پیام موفقیت ثبت کارمند جدید
                 SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpAddSuccess");
             }
 
+            // ذخیره نهایی تغییرات در فایل دیتابیس SQLite
             await DbContext.SaveChangesAsync();
+
+            // بارگذاری مجدد لیست پرسنل در جدول صفحه و بستن مودال فرم
             await RefreshDataAsync();
             CloseEmpFormModal();
         }
 
+        // مقداردهی اولیه فیلدهای فرم برای ویرایش اطلاعات یک کارمند مشخص
         protected void StartEmpEdit(Employee emp)
         {
             ActiveMobileDropdownId = null;
             selectedEmployee = emp;
             isEmpEditMode = true;
             _editingEmployeeId = emp.Id;
+
+            // بارگذاری مقادیر فعلی کارمند درون متغیرهای فرم
             newEmpName = emp.FullName ?? string.Empty;
             newEmpCode = emp.PersonnelCode ?? string.Empty;
             newEmpPhone = emp.Phone ?? string.Empty;
             previewImageUrl = emp.ImagePath;
+            newEmpHiddenFromKiosk = emp.IsHiddenFromKiosk;
+
+            // نمایش پنجره مودال فرم
             showEmpFormModal = true;
         }
-
+        // بازنشانی و پاکسازی کامل متغیرهای فرم ثبت و ویرایش کارمند
         protected void CancelEmpEdit()
         {
             isEmpEditMode = false;
@@ -364,6 +431,8 @@ namespace sqlite_web.Components.Pages
             newEmpPhone = string.Empty;
             newEmpCode = string.Empty;
             previewImageUrl = string.Empty;
+            newEmpHiddenFromKiosk = false;
+            EmpErrorField = string.Empty;
         }
 
         protected void TriggerDeleteEmployee(int id, string name)

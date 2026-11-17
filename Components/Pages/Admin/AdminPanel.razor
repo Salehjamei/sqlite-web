@@ -92,14 +92,17 @@
                 </tr>
             </thead>
             <tbody>
+                @* بررسی وجود رکورد در لیست فیلتر شده کارمندان *@
                 @if (FilteredEmployees != null && FilteredEmployees.Any())
                 {
                     @foreach (var emp in FilteredEmployees)
                     {
+                        @* واکشی آخرین رکورد تردد ثبت شده برای تشخیص وضعیت حضور یا غیبت فعلی کارمند *@
                         var lastRec = allAttendances.Where(a => a.EmployeeId == emp.Id).OrderBy(a => a.ClockInTime).LastOrDefault();
                         bool isPresent = lastRec != null && lastRec.ClockOutTime == null;
 
                         <tr>
+                            @* ستون اول: نمایش تصویر پروفایل کارمند یا آواتار پیش‌فرض *@
                             <td style="padding: 4px 2px; text-align: center;">
                                 @if (!string.IsNullOrEmpty(emp.ImagePath))
                                 {
@@ -111,12 +114,20 @@
                                 }
                             </td>
 
+                            @* ستون دوم: نمایش نام کارمند همراه با برچسب قرمز رنگ در صورت مخفی بودن در کیوسک *@
                             <td style="text-align: @(CurrentLanguage == "fa" ? "right" : "left"); padding-right: @(CurrentLanguage == "fa" ? "12px" : "0"); padding-left: @(CurrentLanguage == "fa" ? "0" : "12px"); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                 <strong style="color: #212529;">
                                     @(emp.FullName?.Length > 40 ? emp.FullName.Substring(0, 37) + "..." : emp.FullName)
                                 </strong>
+
+                                @* نشانگر وضعیت پنهان‌سازی کارمند از صفحه کیوسک *@
+                                @if (emp.IsHiddenFromKiosk)
+                                {
+                                    <span class="badge bg-danger ms-1" style="font-size: 9.5px;">@CalendarManager.Translate("PCal_Emp_BadgeHiddenKiosk")</span>
+                                }
                             </td>
 
+                            @* ستون سوم: نمایش کد ملی / شناسایی (فقط در حالت دسکتاپ) *@
                             <td class="d-none d-md-table-cell text-dark" style="font-size: 12.5px; font-weight: bold; font-family: Tahoma, Arial !important;">
                                 @{
                                     var pCode = emp.PersonnelCode ?? "-";
@@ -125,6 +136,7 @@
                                 @cleanCode
                             </td>
 
+                            @* ستون چهارم: نمایش شماره تماس کارمند (فقط در حالت دسکتاپ) *@
                             <td class="d-none d-md-table-cell text-muted" style="font-size: 12px; font-family: Tahoma, Arial !important;">
                                 @{
                                     var phone = emp.Phone ?? "-";
@@ -133,14 +145,14 @@
                                 @cleanPhone
                             </td>
 
-                            @* ستون دکمه کارنامه *@
+                            @* ستون پنجم: دکمه باز کردن پنجره کارنامه و گزارش ساعات کاری *@
                             <td style="padding: 4px 2px;">
                                 <button type="button" class="btn btn-xs btn-outline-dark fw-bold px-2" style="font-size: 11px; padding: 3px 6px;" @onclick="() => OpenReportModal(emp)">
                                     @CalendarManager.Translate("BtnReportView")
                                 </button>
                             </td>
 
-                            @* ستون دکمه تردد سریع دسکتاپ *@
+                            @* ستون ششم: دکمه ثبت ورود یا خروج سریع توسط ادمین (فقط در دسکتاپ و دارای گارد سطح دسترسی) *@
                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
                                 @if (isPresent)
                                 {
@@ -152,20 +164,24 @@
                                 }
                             </td>
 
-                            @* ستون دکمه های ویرایش و حذف دسکتاپ *@
+                            @* ستون هفتم: دکمه‌های ویرایش مشخصات و حذف پرونده پرسنلی (فقط در دسکتاپ) *@
                             <td class="d-none d-md-table-cell" style="padding: 4px 2px;">
                                 <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => StartEmpEdit(emp)" title="@CalendarManager.Translate("EditBBtn")">@CalendarManager.Translate("EditBBtn")</button>
                                 <button type="button" disabled="@(!canDeletePerm)" class="btn btn-sm @(canDeletePerm ? "text-danger" : "text-muted") p-0" @onclick="() => TriggerDeleteEmployee(emp.Id, emp.FullName)" title="@(canDeletePerm ? CalendarManager.Translate("DeleteBBtn") : CalendarManager.Translate("PCal_AdminPanel_NoPermissionTitle"))">@CalendarManager.Translate("DeleteBBtn")</button>
                             </td>
 
-                            @* ستون منوی عملیات موبایل *@
+                            @* ستون هشتم: منوی آبشاری عملیات مخصوص نمایشگرهای موبایل *@
                             <td class="d-md-none" style="padding: 4px 2px; position: relative;">
                                 <button type="button" class="btn btn-xs btn-outline-dark fw-bold" style="font-size: 10.5px; padding: 2px 6px;" @onclick="() => ToggleMobileMenuDropdown(emp.Id)" @onclick:stopPropagation>@CalendarManager.Translate("MenuBBtn")</button>
+
                                 @if (ActiveMobileDropdownId == emp.Id)
                                 {
                                     <div style="position: absolute; top: 100%; @(CurrentLanguage == "fa" ? "left: 0;" : "right: 0;"); background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 999999 !important; min-width: 150px; padding: 4px 0; text-align: @(CurrentLanguage == "fa" ? "right" : "left");" @onclick:stopPropagation>
+
+                                        @* گزینه ویرایش مشخصات کارمند *@
                                         <button type="button" class="dropdown-item text-warning fw-bold small py-2 w-100 border-0 bg-transparent" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");" @onclick="() => StartEmpEdit(emp)">@CalendarManager.Translate("EditBBtn")</button>
 
+                                        @* گزینه‌های ثبت ورود یا خروج سریع در صورت داشتن مجوز ویرایش *@
                                         @if (canEditPerm)
                                         {
                                             @if (isPresent)
@@ -178,6 +194,7 @@
                                             }
                                         }
 
+                                        @* گزینه حذف پرونده در صورت داشتن مجوز حذف *@
                                         @if (canDeletePerm)
                                         {
                                             <div class="dropdown-divider m-1"></div>
@@ -191,17 +208,19 @@
                 }
                 else
                 {
+                    @* نمایش پیام در صورت خالی بودن جدول یا عدم تطابق با عبارت جستجو *@
                     <tr><td colspan="8" class="text-muted py-3" style="font-size: 12.5px;">@CalendarManager.Translate("PCal_AdminPanel_NoEmployeesFound")</td></tr>
                 }
             </tbody>
+
         </table>
 
         @* بخش پنجره بازشو (Modal) کارنامه تفکیکی و گزارشات ماهانه پرسنل *@
         @if (showModal && selectedEmployee != null)
         {
-            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 10px !important;" @onclick="CloseAllMobileDropdowns">
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 99999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 10px !important;" @onmousedown="CloseModal">
 
-                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 850px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; max-height: 95vh !important;" @onclick:stopPropagation>
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 850px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; max-height: 95vh !important;" @onclick:stopPropagation @onmousedown:stopPropagation>
 
                     <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
                         <h5 class="m-0" style="font-size: 14px; font-weight: bold;">
@@ -378,333 +397,342 @@
                                                         }
                                                     </td>
 
-                                            <td class="@(att.ClockOutTime == null ? "text-warning fw-bold" : "text-success fw-bold")" style="font-size: 11px; padding: 4px 2px; vertical-align: middle;">
-                                                @GetSingleDuration(att)
-                                            </td>
+                                                    <td class="@(att.ClockOutTime == null ? "text-warning fw-bold" : "text-success fw-bold")" style="font-size: 11px; padding: 4px 2px; vertical-align: middle;">
+                                                        @GetSingleDuration(att)
+                                                    </td>
 
-                                            <td style="padding: 4px 2px; vertical-align: middle;">
-                                                <div class="d-flex justify-content-center gap-1">
-                                                    @if (att.ClockOutTime == null)
-                                                    {
-                                                        <button type="button" disabled="@(!canEditPerm)" class="btn btn-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StopAttendanceNow(att.Id)">@CalendarManager.Translate("PCal_AdminPanel_BtnStopFast")</button>
-                                                    }
-                                                    else
-                                                    {
-                                                        <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StartAttEdit(att)">@CalendarManager.Translate("PCal_AdminPanel_BtnEditTime")</button>
-                                                    }
-                                                    <button type="button" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)"
-                                                            class="btn btn-outline-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;"
-                                                            @onclick="() => TriggerDeleteTimeRecord(att)">
-                                                        @CalendarManager.Translate("PCal_AdminPanel_BtnDeleteTime")
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                                    <td style="padding: 4px 2px; vertical-align: middle;">
+                                                        <div class="d-flex justify-content-center gap-1">
+                                                            @if (att.ClockOutTime == null)
+                                                            {
+                                                                <button type="button" disabled="@(!canEditPerm)" class="btn btn-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StopAttendanceNow(att.Id)">@CalendarManager.Translate("PCal_AdminPanel_BtnStopFast")</button>
+                                                            }
+                                                            else
+                                                            {
+                                                                <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StartAttEdit(att)">@CalendarManager.Translate("PCal_AdminPanel_BtnEditTime")</button>
+                                                            }
+                                                            <button type="button" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)"
+                                                                    class="btn btn-outline-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;"
+                                                                    @onclick="() => TriggerDeleteTimeRecord(att)">
+                                                                @CalendarManager.Translate("PCal_AdminPanel_BtnDeleteTime")
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
                                     }
-                                }
-                            }
                                     else
-                            {
-                                <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">@CalendarManager.Translate("PCal_AdminPanel_SelectEmpPrompt")</td></tr>
-                            }
-                        </tbody>
-                    </table>
+                                    {
+                                        <tr><td colspan="4" class="text-muted py-3" style="font-size: 11.5px;">@CalendarManager.Translate("PCal_AdminPanel_SelectEmpPrompt")</td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-}
-@* مودال ثبت دستی و ویرایش ساعت کاری پرسنل *@
-@if (showManualAddModal && selectedEmployee != null)
-{
-    <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseManualAddModal">
-        <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 430px !important; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;" @onclick:stopPropagation>
+        }
+        @* مودال ثبت دستی و ویرایش ساعت کاری پرسنل *@
+        @if (showManualAddModal && selectedEmployee != null)
+        {
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 999999 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onmousedown="CloseManualAddModal">
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 430px !important; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;" @onclick:stopPropagation @onmousedown:stopPropagation>
 
-            <div class="bg-secondary text-white d-flex justify-content-between align-items-center p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
-                <h6 class="m-0 fw-bold" style="font-size: 13.5px;">@(isAttEditMode ? CalendarManager.Translate("PCal_AdminPanel_ManualModalEditTitle") : CalendarManager.Translate("PCal_AdminPanel_ManualModalAddTitle"))</h6>
-                <button type="button" class="btn-close btn-close-white" @onclick="CloseManualAddModal"></button>
-            </div>
-
-            <div class="p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
-
-                @if (CalendarManager != null && !string.IsNullOrEmpty(CalendarManager.AttendanceValidationMessage))
-                {
-                    <div class="alert alert-danger text-center p-2 mb-3 fw-bold small" style="border-radius: 6px; font-size: 11.5px;">
-                        @CalendarManager.AttendanceValidationMessage
-                    </div>
-                }
-
-                <div class="mb-2.5">
-                    <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminPanel_ManualInDateLabel")</label>
-                    <div class="input-group input-group-sm gap-1" style="direction: ltr;">
-                        <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
-                                value="@CalendarManager!.ManualInYear"
-                                @onchange='(e) => { CalendarManager.ManualInYear = e.Value?.ToString(); CalendarManager.ManualOutYear = e.Value?.ToString(); }'>
-                            @foreach (var y in CalendarManager.GetFormYears())
-                            {
-                                <option value="@y">@y</option>
-                            }
-                        </select>
-                        <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
-                                value="@CalendarManager!.ManualInMonth"
-                                @onchange='(e) => { CalendarManager.ManualInMonth = e.Value?.ToString(); CalendarManager.ManualOutMonth = e.Value?.ToString(); }'>
-                            @foreach (var m in CalendarManager.GetFormMonths())
-                            {
-                                <option value="@m.Key">@m.Value</option>
-                            }
-                        </select>
-                        <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
-                                value="@CalendarManager!.ManualInDay"
-                                @onchange='(e) => { CalendarManager.ManualInDay = e.Value?.ToString(); CalendarManager.ManualOutDay = e.Value?.ToString(); }'>
-                            @for (int i = 1; i <= 31; i++)
-                            {
-                                var d = i.ToString("D2");
-                                <option value="@d">@d</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-
-                <div class="mb-2.5">
-                    <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminPanel_ManualInTimeLabel")</label>
-                    <input type="text" @bind="manualInTime" class="form-control form-control-sm text-center font-monospace" placeholder="07:00" style="font-size: 13px;" />
-                </div>
-
-                <div class="mb-2.5">
-                    <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminPanel_ManualOutDateLabel")</label>
-                    <div class="input-group input-group-sm gap-1" style="direction: ltr;">
-                        <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutYear">
-                            @foreach (var y in CalendarManager.GetFormYears())
-                            {
-                                <option value="@y">@y</option>
-                            }
-                        </select>
-                        <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutMonth">
-                            @foreach (var m in CalendarManager.GetFormMonths())
-                            {
-                                <option value="@m.Key">@m.Value</option>
-                            }
-                        </select>
-                        <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutDay">
-                            @for (int i = 1; i <= 31; i++)
-                            {
-                                var d = i.ToString("D2");
-                                <option value="@d">@d</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminPanel_ManualOutTimeLabel")</label>
-                    <input type="text" @bind="manualOutTime" class="form-control form-control-sm text-center font-monospace" placeholder="17:30" style="font-size: 13px;" />
-                </div>
-
-                <div class="d-flex gap-2 mt-2 border-top pt-3">
-                    @if (isAttEditMode)
-                    {
-                        <button type="button" @onclick="AddManualAttendance" class="btn btn-warning text-dark btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">@CalendarManager.Translate("PCal_AdminPanel_ManualApplyChangesBtn")</button>
-                    }
-                    else
-                    {
-                        <button type="button" @onclick="AddManualAttendance" class="btn btn-success btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">@CalendarManager.Translate("PCal_AdminPanel_ManualSubmitBtn")</button>
-                    }
-                    <button type="button" @onclick="CloseManualAddModal" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">@CalendarManager.Translate("CancelBtn")</button>
-                </div>
-            </div>
-
-        </div>
-    </div>
-}
-
-@* مودال ثبت و ویرایش کارمند *@
-@if (showEmpFormModal)
-{
-    <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2000 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseEmpFormModal">
-        <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation>
-
-            <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
-                <h5 class="m-0" style="font-size: 15px;">@(isEmpEditMode ? CalendarManager.Translate("EditBBtn") : CalendarManager.Translate("EmpFormAddTitle"))</h5>
-                <button type="button" class="btn-close btn-close-white" @onclick="CloseEmpFormModal"></button>
-            </div>
-
-            <div class="p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
-                <form @onsubmit="SaveEmployeeData" @onsubmit:preventDefault>
-
-                    <div class="mb-2">
-                        <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EmpLabelName")</label>
-                        <input type="text" id="empNameInput" maxlength="40" @bind="newEmpName"
-                               disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
-                               class="form-control form-control-sm" />
+                    <div class="bg-secondary text-white d-flex justify-content-between align-items-center p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
+                        <h6 class="m-0 fw-bold" style="font-size: 13.5px;">@(isAttEditMode ? CalendarManager.Translate("PCal_AdminPanel_ManualModalEditTitle") : CalendarManager.Translate("PCal_AdminPanel_ManualModalAddTitle"))</h6>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseManualAddModal"></button>
                     </div>
 
-                    <div class="mb-2">
-                        <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EmpLabelCode")</label>
-                        <input type="text" id="empCodeInput" inputmode="numeric" pattern="[0-9]*"
-                               oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="20" @bind="newEmpCode"
-                               disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
-                               class="form-control form-control-sm" />
-                    </div>
+                    <div class="p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
 
-                    <div class="mb-2">
-                        <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EmpLabelPhone")</label>
-                        <input type="text" id="empPhoneInput" inputmode="numeric" pattern="[0-9]*"
-                               oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="15" @bind="newEmpPhone"
-                               disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
-                               class="form-control form-control-sm text-center" placeholder="0912-000-0000" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EmpLabelUpload")</label>
-                        <InputFile OnChange="HandleImageUpload" disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))" class="form-control form-control-sm" accept=".jpg,.jpeg,.png" />
-
-                        @if (!string.IsNullOrEmpty(previewImageUrl))
+                        @if (CalendarManager != null && !string.IsNullOrEmpty(CalendarManager.AttendanceValidationMessage))
                         {
-                            <div class="text-center mt-2">
-                                <img src="@previewImageUrl" class="rounded border shadow-sm" style="max-width: 90px; max-height: 90px; object-fit: cover;" />
+                            <div class="alert alert-danger text-center p-2 mb-3 fw-bold small" style="border-radius: 6px; font-size: 11.5px;">
+                                @CalendarManager.AttendanceValidationMessage
                             </div>
                         }
+
+                        <div class="mb-2.5">
+                            <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminPanel_ManualInDateLabel")</label>
+                            <div class="input-group input-group-sm gap-1" style="direction: ltr;">
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
+                                        value="@CalendarManager!.ManualInYear"
+                                        @onchange='(e) => { CalendarManager.ManualInYear = e.Value?.ToString(); CalendarManager.ManualOutYear = e.Value?.ToString(); }'>
+                                    @foreach (var y in CalendarManager.GetFormYears())
+                                    {
+                                        <option value="@y">@y</option>
+                                    }
+                                </select>
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
+                                        value="@CalendarManager!.ManualInMonth"
+                                        @onchange='(e) => { CalendarManager.ManualInMonth = e.Value?.ToString(); CalendarManager.ManualOutMonth = e.Value?.ToString(); }'>
+                                    @foreach (var m in CalendarManager.GetFormMonths())
+                                    {
+                                        <option value="@m.Key">@m.Value</option>
+                                    }
+                                </select>
+                                <select class="form-select text-center fw-bold" disabled="@isAttEditMode"
+                                        value="@CalendarManager!.ManualInDay"
+                                        @onchange='(e) => { CalendarManager.ManualInDay = e.Value?.ToString(); CalendarManager.ManualOutDay = e.Value?.ToString(); }'>
+                                    @for (int i = 1; i <= 31; i++)
+                                    {
+                                        var d = i.ToString("D2");
+                                        <option value="@d">@d</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-2.5">
+                            <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminPanel_ManualInTimeLabel")</label>
+                            <input type="text" @bind="manualInTime" class="form-control form-control-sm text-center font-monospace" placeholder="07:00" style="font-size: 13px;" />
+                        </div>
+
+                        <div class="mb-2.5">
+                            <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminPanel_ManualOutDateLabel")</label>
+                            <div class="input-group input-group-sm gap-1" style="direction: ltr;">
+                                <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutYear">
+                                    @foreach (var y in CalendarManager.GetFormYears())
+                                    {
+                                        <option value="@y">@y</option>
+                                    }
+                                </select>
+                                <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutMonth">
+                                    @foreach (var m in CalendarManager.GetFormMonths())
+                                    {
+                                        <option value="@m.Key">@m.Value</option>
+                                    }
+                                </select>
+                                <select class="form-select text-center fw-bold text-muted bg-light" disabled="true" @bind="CalendarManager!.ManualOutDay">
+                                    @for (int i = 1; i <= 31; i++)
+                                    {
+                                        var d = i.ToString("D2");
+                                        <option value="@d">@d</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminPanel_ManualOutTimeLabel")</label>
+                            <input type="text" @bind="manualOutTime" class="form-control form-control-sm text-center font-monospace" placeholder="17:30" style="font-size: 13px;" />
+                        </div>
+
+                        <div class="d-flex gap-2 mt-2 border-top pt-3">
+                            @if (isAttEditMode)
+                            {
+                                <button type="button" @onclick="AddManualAttendance" class="btn btn-warning text-dark btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">@CalendarManager.Translate("PCal_AdminPanel_ManualApplyChangesBtn")</button>
+                            }
+                            else
+                            {
+                                <button type="button" @onclick="AddManualAttendance" class="btn btn-success btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">@CalendarManager.Translate("PCal_AdminPanel_ManualSubmitBtn")</button>
+                            }
+                            <button type="button" @onclick="CloseManualAddModal" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">@CalendarManager.Translate("CancelBtn")</button>
+                        </div>
                     </div>
 
-                    <div class="d-flex gap-2 mt-3 border-top pt-3">
-                        @if (isEmpEditMode)
-                        {
-                            <button type="submit" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)" class="btn btn-warning text-dark btn-sm flex-grow-1 fw-bold">@CalendarManager.Translate("EmpBtnSaveChanges")</button>
-                        }
-                        else
-                        {
-                            <button type="submit" disabled="@(!canAddPerm && !AdminState.isCurrentUserSuperAdmin)" class="btn btn-success btn-sm flex-grow-1 fw-bold">@CalendarManager.Translate("EmpBtnSave")</button>
-                        }
-                        <button type="button" @onclick="CloseEmpFormModal" class="btn btn-secondary btn-sm">@CalendarManager.Translate("CancelBtn")</button>
-                    </div>
-
-                </form>
+                </div>
             </div>
-        </div>
-    </div>
-}
+        }
 
-@* مودال تنظیمات قوانین کاری و محاسبات سرور *@
-@if (showSettingsModal)
-{
-    <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2005 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="() => showSettingsModal = false">
+        @* مودال ثبت و ویرایش کارمند *@
+        @if (showEmpFormModal)
+        {
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2000 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onmousedown="CloseEmpFormModal">
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation @onmousedown:stopPropagation>
 
-        <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 440px !important; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation>
+                    <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
+                        <h5 class="m-0" style="font-size: 15px;">@(isEmpEditMode ? CalendarManager.Translate("EditBBtn") : CalendarManager.Translate("EmpFormAddTitle"))</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseEmpFormModal"></button>
+                    </div>
 
-            <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
-                <h5 class="m-0" style="font-size: 14px; font-weight: bold;">@CalendarManager.Translate("SettingsTitle")</h5>
-                <button type="button" class="btn-close btn-close-white" @onclick="() => showSettingsModal = false"></button>
+                    <div class="p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
+                        <form @onsubmit="SaveEmployeeData" @onsubmit:preventDefault>
+
+                            @* فیلد نام و نام خانوادگی با کادر قرمز در صورت خطا *@
+                            <div class="mb-2">
+                                <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EmpLabelName")</label>
+                                <input type="text" id="empNameInput" maxlength="40" @bind="newEmpName"
+                                       disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
+                                       class="form-control form-control-sm @(EmpErrorField == "Name" ? "is-invalid border-danger" : "")" />
+                            </div>
+
+                            @* فیلد کد ملی با کادر قرمز در صورت خطا یا تکراری بودن *@
+                            <div class="mb-2">
+                                <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EmpLabelCode")</label>
+                                <input type="text" id="empCodeInput" inputmode="numeric" pattern="[0-9]*"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="20" @bind="newEmpCode"
+                                       disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
+                                       class="form-control form-control-sm @(EmpErrorField == "Code" ? "is-invalid border-danger" : "")" />
+                            </div>
+
+                            @* فیلد شماره تماس با کادر قرمز در صورت خطا *@
+                            <div class="mb-2">
+                                <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EmpLabelPhone")</label>
+                                <input type="text" id="empPhoneInput" inputmode="numeric" pattern="[0-9]*"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '');" maxlength="15" @bind="newEmpPhone"
+                                       disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
+                                       class="form-control form-control-sm text-center @(EmpErrorField == "Phone" ? "is-invalid border-danger" : "")" placeholder="0912-000-0000" />
+                            </div>
+                            <div class="form-check form-switch mb-3 border-top pt-2">
+                                <input class="form-check-input" type="checkbox" id="chkHideKiosk" @bind="newEmpHiddenFromKiosk"
+                                       disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))" />
+                                <label class="form-check-label fw-bold text-danger small" for="chkHideKiosk">
+                                    @CalendarManager.Translate("PCal_Emp_HideFromKioskLabel")
+                                </label>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EmpLabelUpload")</label>
+                                <InputFile OnChange="HandleImageUpload" disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))" class="form-control form-control-sm" accept=".jpg,.jpeg,.png" />
+
+                                @if (!string.IsNullOrEmpty(previewImageUrl))
+                                {
+                                    <div class="text-center mt-2">
+                                        <img src="@previewImageUrl" class="rounded border shadow-sm" style="max-width: 90px; max-height: 90px; object-fit: cover;" />
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="d-flex gap-2 mt-3 border-top pt-3">
+                                @if (isEmpEditMode)
+                                {
+                                    <button type="submit" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)" class="btn btn-warning text-dark btn-sm flex-grow-1 fw-bold">@CalendarManager.Translate("EmpBtnSaveChanges")</button>
+                                }
+                                else
+                                {
+                                    <button type="submit" disabled="@(!canAddPerm && !AdminState.isCurrentUserSuperAdmin)" class="btn btn-success btn-sm flex-grow-1 fw-bold">@CalendarManager.Translate("EmpBtnSave")</button>
+                                }
+                                <button type="button" @onclick="CloseEmpFormModal" class="btn btn-secondary btn-sm">@CalendarManager.Translate("CancelBtn")</button>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
             </div>
+        }
 
-            <div class="p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left"); font-family: Tahoma;">
-                <form @onsubmit="SaveSettingsData" @onsubmit:preventDefault>
+        @* مودال تنظیمات قوانین کاری و محاسبات سرور *@
+        @if (showSettingsModal)
+        {
+            <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2005 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onmousedown="() => showSettingsModal = false">
 
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label text-muted small mb-1">@CalendarManager.Translate("StartTime")</label>
-                            <input type="text" @bind="settingsStartTime" class="form-control form-control-sm text-center font-monospace" placeholder="07:00" style="font-size: 13px;" />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EndTime")</label>
-                            <input type="text" @bind="settingsEndTime" class="form-control form-control-sm text-center font-monospace" placeholder="17:30" style="font-size: 13px;" />
-                        </div>
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 440px !important; box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation @onmousedown:stopPropagation>
+
+                    <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
+                        <h5 class="m-0" style="font-size: 14px; font-weight: bold;">@CalendarManager.Translate("SettingsTitle")</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="() => showSettingsModal = false"></button>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label text-muted small mb-1">System Language / زبان سیستم (Kalıcı):</label>
-                        <div class="btn-group btn-group-sm w-100" role="group" style="direction: ltr;">
-                            <button type="button" class="btn @(CurrentLanguage == "tr" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
-                                    @onclick='() => SetSystemLanguage("tr")' style="font-size: 11px; padding: 6px;">
-                                Türkçe
-                            </button>
-                            <button type="button" class="btn @(CurrentLanguage == "en" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
-                                    @onclick='() => SetSystemLanguage("en")' style="font-size: 11px; padding: 6px;">
-                                English
-                            </button>
-                            <button type="button" class="btn @(CurrentLanguage == "fa" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
-                                    @onclick='() => SetSystemLanguage("fa")' style="font-size: 11px; padding: 6px;">
-                                فارسی
-                            </button>
-                        </div>
-                    </div>
+                    <div class="p-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left"); font-family: Tahoma;">
+                        <form @onsubmit="SaveSettingsData" @onsubmit:preventDefault>
 
-                    <div class="mb-3">
-                        <label class="form-label text-muted small mb-1">@CalendarManager.Translate("CalendarLang")</label>
-                        <div class="btn-group btn-group-sm w-100" role="group" style="direction: ltr;">
-                            <button type="button" class="btn @(CalendarManager != null && !CalendarManager.UsePersianCalendar ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
-                                    @onclick="() => SetCalendarType(false)" style="font-size: 11px; padding: 5px;">
-                                Miladi Calendar
-                            </button>
-                            <button type="button" class="btn @(CalendarManager != null && CalendarManager.UsePersianCalendar ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
-                                    @onclick="() => SetCalendarType(true)" style="font-size: 11px; padding: 5px;">
-                                تقویم شمسی
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label text-muted small mb-1">@CalendarManager.Translate("ThresholdLabel")</label>
-                        <input type="number" @bind="AdminState.CurrentSettings.DeficitThresholdMinutes" class="form-control form-control-sm text-center fw-bold" placeholder="15" min="0" max="120" style="font-size: 12px;" />
-                        <div class="form-text text-muted" style="font-size: 9.5px; margin-top: 4px; text-align: justify; line-height: 1.4;">
-                            @CalendarManager.Translate("ThresholdHelp")
-                        </div>
-                    </div>
-
-                    <div class="border-top pt-2 mb-2">
-                        <h6 class="fw-bold text-dark mb-2" style="font-size: 12px;">@CalendarManager.Translate("OffDaysTitle")</h6>
-                    </div>
-                    <div class="p-2.5 border rounded bg-light mb-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <div class="form-check d-flex align-items-center gap-2 mb-1">
-                                    <input class="form-check-input m-0" type="checkbox" id="offSat" checked="@selectedOffDays.Contains("Saturday")" @onchange='(e) => ToggleOffDaySelection("Saturday", e.Value)' />
-                                    <label class="form-check-label small" for="offSat">@CalendarManager.Translate("Saturday") (Sat)</label>
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="form-label text-muted small mb-1">@CalendarManager.Translate("StartTime")</label>
+                                    <input type="text" @bind="settingsStartTime" class="form-control form-control-sm text-center font-monospace" placeholder="07:00" style="font-size: 13px;" />
                                 </div>
-                                <div class="form-check d-flex align-items-center gap-2 mb-1">
-                                    <input class="form-check-input m-0" type="checkbox" id="offSun" checked="@selectedOffDays.Contains("Sunday")" @onchange='(e) => ToggleOffDaySelection("Sunday", e.Value)' />
-                                    <label class="form-check-label small" for="offSun">@CalendarManager.Translate("Sunday") (Sun)</label>
-                                </div>
-                                <div class="form-check d-flex align-items-center gap-2 mb-1">
-                                    <input class="form-check-input m-0" type="checkbox" id="offMon" checked="@selectedOffDays.Contains("Monday")" @onchange='(e) => ToggleOffDaySelection("Monday", e.Value)' />
-                                    <label class="form-check-label small" for="offMon">@CalendarManager.Translate("Monday") (Mon)</label>
-                                </div>
-                                <div class="form-check d-flex align-items-center gap-2 mb-0">
-                                    <input class="form-check-input m-0" type="checkbox" id="offTue" checked="@selectedOffDays.Contains("Tuesday")" @onchange='(e) => ToggleOffDaySelection("Tuesday", e.Value)' />
-                                    <label class="form-check-label small" for="offTue">@CalendarManager.Translate("Tuesday") (Tue)</label>
+                                <div class="col-6">
+                                    <label class="form-label text-muted small mb-1">@CalendarManager.Translate("EndTime")</label>
+                                    <input type="text" @bind="settingsEndTime" class="form-control form-control-sm text-center font-monospace" placeholder="17:30" style="font-size: 13px;" />
                                 </div>
                             </div>
 
-                            <div class="col-6">
-                                <div class="form-check d-flex align-items-center gap-2 mb-1">
-                                    <input class="form-check-input m-0" type="checkbox" id="offWed" checked="@selectedOffDays.Contains("Wednesday")" @onchange='(e) => ToggleOffDaySelection("Wednesday", e.Value)' />
-                                    <label class="form-check-label small" for="offWed">@CalendarManager.Translate("Wednesday") (Wed)</label>
-                                </div>
-                                <div class="form-check d-flex align-items-center gap-2 mb-1">
-                                    <input class="form-check-input m-0" type="checkbox" id="offThu" checked="@selectedOffDays.Contains("Thursday")" @onchange='(e) => ToggleOffDaySelection("Thursday", e.Value)' />
-                                    <label class="form-check-label small" for="offThu">@CalendarManager.Translate("Thursday") (Thu)</label>
-                                </div>
-                                <div class="form-check d-flex align-items-center gap-2 mb-0">
-                                    <input class="form-check-input m-0" type="checkbox" id="offFri" checked="@selectedOffDays.Contains("Friday")" @onchange='(e) => ToggleOffDaySelection("Friday", e.Value)' />
-                                    <label class="form-check-label small" for="offFri">@CalendarManager.Translate("Friday") (Fri)</label>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">System Language / زبان سیستم (Kalıcı):</label>
+                                <div class="btn-group btn-group-sm w-100" role="group" style="direction: ltr;">
+                                    <button type="button" class="btn @(CurrentLanguage == "tr" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                            @onclick='() => SetSystemLanguage("tr")' style="font-size: 11px; padding: 6px;">
+                                        Türkçe
+                                    </button>
+                                    <button type="button" class="btn @(CurrentLanguage == "en" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                            @onclick='() => SetSystemLanguage("en")' style="font-size: 11px; padding: 6px;">
+                                        English
+                                    </button>
+                                    <button type="button" class="btn @(CurrentLanguage == "fa" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                            @onclick='() => SetSystemLanguage("fa")' style="font-size: 11px; padding: 6px;">
+                                        فارسی
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="d-flex gap-2 mt-2 border-top pt-3">
-                        <button type="submit" class="btn btn-dark text-warning btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">
-                            @CalendarManager.Translate("SaveBtn")
-                        </button>
-                        <button type="button" @onclick="() => showSettingsModal = false" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">
-                            @CalendarManager.Translate("CancelBtn")
-                        </button>
-                    </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">@CalendarManager.Translate("CalendarLang")</label>
+                                <div class="btn-group btn-group-sm w-100" role="group" style="direction: ltr;">
+                                    <button type="button" class="btn @(CalendarManager != null && !CalendarManager.UsePersianCalendar ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                            @onclick="() => SetCalendarType(false)" style="font-size: 11px; padding: 5px;">
+                                        Miladi Calendar
+                                    </button>
+                                    <button type="button" class="btn @(CalendarManager != null && CalendarManager.UsePersianCalendar ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                            @onclick="() => SetCalendarType(true)" style="font-size: 11px; padding: 5px;">
+                                        تقویم شمسی
+                                    </button>
+                                </div>
+                            </div>
 
-                </form>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small mb-1">@CalendarManager.Translate("ThresholdLabel")</label>
+                                <input type="number" @bind="AdminState.CurrentSettings.DeficitThresholdMinutes" class="form-control form-control-sm text-center fw-bold" placeholder="15" min="0" max="120" style="font-size: 12px;" />
+                                <div class="form-text text-muted" style="font-size: 9.5px; margin-top: 4px; text-align: justify; line-height: 1.4;">
+                                    @CalendarManager.Translate("ThresholdHelp")
+                                </div>
+                            </div>
+
+                            <div class="border-top pt-2 mb-2">
+                                <h6 class="fw-bold text-dark mb-2" style="font-size: 12px;">@CalendarManager.Translate("OffDaysTitle")</h6>
+                            </div>
+                            <div class="p-2.5 border rounded bg-light mb-3" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="form-check d-flex align-items-center gap-2 mb-1">
+                                            <input class="form-check-input m-0" type="checkbox" id="offSat" checked="@selectedOffDays.Contains("Saturday")" @onchange='(e) => ToggleOffDaySelection("Saturday", e.Value)' />
+                                            <label class="form-check-label small" for="offSat">@CalendarManager.Translate("Saturday") (Sat)</label>
+                                        </div>
+                                        <div class="form-check d-flex align-items-center gap-2 mb-1">
+                                            <input class="form-check-input m-0" type="checkbox" id="offSun" checked="@selectedOffDays.Contains("Sunday")" @onchange='(e) => ToggleOffDaySelection("Sunday", e.Value)' />
+                                            <label class="form-check-label small" for="offSun">@CalendarManager.Translate("Sunday") (Sun)</label>
+                                        </div>
+                                        <div class="form-check d-flex align-items-center gap-2 mb-1">
+                                            <input class="form-check-input m-0" type="checkbox" id="offMon" checked="@selectedOffDays.Contains("Monday")" @onchange='(e) => ToggleOffDaySelection("Monday", e.Value)' />
+                                            <label class="form-check-label small" for="offMon">@CalendarManager.Translate("Monday") (Mon)</label>
+                                        </div>
+                                        <div class="form-check d-flex align-items-center gap-2 mb-0">
+                                            <input class="form-check-input m-0" type="checkbox" id="offTue" checked="@selectedOffDays.Contains("Tuesday")" @onchange='(e) => ToggleOffDaySelection("Tuesday", e.Value)' />
+                                            <label class="form-check-label small" for="offTue">@CalendarManager.Translate("Tuesday") (Tue)</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-6">
+                                        <div class="form-check d-flex align-items-center gap-2 mb-1">
+                                            <input class="form-check-input m-0" type="checkbox" id="offWed" checked="@selectedOffDays.Contains("Wednesday")" @onchange='(e) => ToggleOffDaySelection("Wednesday", e.Value)' />
+                                            <label class="form-check-label small" for="offWed">@CalendarManager.Translate("Wednesday") (Wed)</label>
+                                        </div>
+                                        <div class="form-check d-flex align-items-center gap-2 mb-1">
+                                            <input class="form-check-input m-0" type="checkbox" id="offThu" checked="@selectedOffDays.Contains("Thursday")" @onchange='(e) => ToggleOffDaySelection("Thursday", e.Value)' />
+                                            <label class="form-check-label small" for="offThu">@CalendarManager.Translate("Thursday") (Thu)</label>
+                                        </div>
+                                        <div class="form-check d-flex align-items-center gap-2 mb-0">
+                                            <input class="form-check-input m-0" type="checkbox" id="offFri" checked="@selectedOffDays.Contains("Friday")" @onchange='(e) => ToggleOffDaySelection("Friday", e.Value)' />
+                                            <label class="form-check-label small" for="offFri">@CalendarManager.Translate("Friday") (Fri)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 mt-2 border-top pt-3">
+                                <button type="submit" class="btn btn-dark text-warning btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">
+                                    @CalendarManager.Translate("SaveBtn")
+                                </button>
+                                <button type="button" @onclick="() => showSettingsModal = false" class="btn btn-secondary btn-sm" style="font-size: 12px; height: 32px;">
+                                    @CalendarManager.Translate("CancelBtn")
+                                </button>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-}
+        }
 
     }
 </div>

@@ -87,63 +87,58 @@ namespace sqlite_web.Components.Pages
 
 
         private async Task LoadData()
-{
-    try
-    {
-        if (DbContext != null)
         {
-            // بارگذاری قوانین کاری فعال سیستم از دیتابیس
-            var settings = AdminState.CurrentSettings;
-            bool applyAutoLogout = settings?.ApplyAutoLogout ?? true;
-            string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
-
-            // واکشی تمامی ترددهایی که هنوز خروج ندارند و تاریخ ورودشان قبل از امروز است
-            var overdueRecords = await DbContext.Attendances
-                .Where(a => a.ClockOutTime == null && a.ClockInTime.HasValue && a.ClockInTime.Value.Date < DateTime.Today)
-                .ToListAsync();
-
-            // بستن خودکار و فیکس کردن رکوردهای باز گذشته روی ساعت تعیین شده
-            foreach (var oldRecord in overdueRecords)
+            try
             {
-                if (applyAutoLogout)
+                if (DbContext != null)
                 {
-                    var parsedTime = TimeSpan.Parse(autoTimeStr);
-                    oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(parsedTime);
-                }
-                else
-                {
-                    oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(TimeSpan.Parse("23:59"));
-                }
-                oldRecord.EntrySource = "AutoClose";
-                DbContext.Attendances.Update(oldRecord);
-            }
+                    // بارگذاری قوانین کاری فعال سیستم از دیتابیس
+                    var settings = AdminState.CurrentSettings;
+                    bool applyAutoLogout = settings?.ApplyAutoLogout ?? true;
+                    string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
 
-            // ذخیره نهایی تغییرات در دیتابیس SQLite
-            if (overdueRecords.Any())
+                    // واکشی تمامی ترددهایی که هنوز خروج ندارند و تاریخ ورودشان قبل از امروز است
+                    var overdueRecords = await DbContext.Attendances
+                        .Where(a => a.ClockOutTime == null && a.ClockInTime.HasValue && a.ClockInTime.Value.Date < DateTime.Today)
+                        .ToListAsync();
+
+                    // بستن خودکار و فیکس کردن رکوردهای باز گذشته روی ساعت تعیین شده
+                    foreach (var oldRecord in overdueRecords)
+                    {
+                        if (applyAutoLogout)
+                        {
+                            var parsedTime = TimeSpan.Parse(autoTimeStr);
+                            oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(parsedTime);
+                        }
+                        else
+                        {
+                            oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(TimeSpan.Parse("23:59"));
+                        }
+                        oldRecord.EntrySource = "AutoClose";
+                        DbContext.Attendances.Update(oldRecord);
+                    }
+
+                    // ذخیره نهایی تغییرات در دیتابیس SQLite
+                    if (overdueRecords.Any())
+                    {
+                        await DbContext.SaveChangesAsync();
+                    }
+
+                    // بارگذاری مجدد لیست نهایی و به روز شده برای نمایش در جدول
+                    // واکشی کارمندان فعال مجاز به نمایش در صفحه کیوسک
+                    employees = await DbContext.Employees
+                        .Where(e => !e.IsHiddenFromKiosk)
+                        .AsNoTracking()
+                        .ToListAsync();
+                    allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync();
+                }
+            }
+            catch (Exception ex)
             {
-                await DbContext.SaveChangesAsync();
+                string errorFormat = CalendarManager.Translate("PCal_MainHome_LoadError");
+                message = string.Format(errorFormat, ex.Message);
             }
-
-            // بارگذاری مجدد لیست نهایی و به روز شده برای نمایش در جدول
-            employees = await DbContext.Employees.AsNoTracking().ToListAsync();
-            allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync();
-        }
-    }
-    catch (Exception ex)
-    {
-        string errorFormat = CalendarManager.Translate("PCal_MainHome_LoadError");
-        message = string.Format(errorFormat, ex.Message);
-    }
-}
-
-
-        private async Task AdminLogoutFromHome()
-        {
-            await AdminState.LogoutAsync();
-            message = CalendarManager.Translate("PCal_MainHome_KioskLocked");
-            StateHasChanged();
-        }
-
+        }       
         private void ClearSearch()
         {
             searchQuery = "";
