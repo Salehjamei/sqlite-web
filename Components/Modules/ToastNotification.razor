@@ -1,0 +1,36 @@
+﻿@namespace sqlite_web.Components.Modules
+@using sqlite_web.Components.Models
+@using sqlite_web.Components.Models.Calendar
+@using sqlite_web.Services
+
+<div class="toast-container position-fixed p-2" role="status" aria-live="polite" aria-atomic="true"
+     style="top: calc(var(--app-header-height, 56px) + 0.5rem); @(CurrentLanguage == "fa" ? "right: 1rem; left: auto;" : "left: 1rem; right: auto;"); z-index: 9999999 !important;">
+    @if (Show && !string.IsNullOrEmpty(Message))
+    {
+        <div class="toast show shadow-lg"
+             style="background: @(IsError ? "rgba(255, 240, 243, 0.92)" : "rgba(255, 255, 255, 0.92)") !important;
+            backdrop-filter: blur(12px) saturate(160%) !important;
+            -webkit-backdrop-filter: blur(12px) saturate(160%) !important;
+            border: 1px solid @(IsError ? "rgba(220, 53, 69, 0.45)" : "rgba(0, 0, 0, 0.15)") !important;
+            border-radius: 8px;
+            min-width: 280px;
+            max-width: 350px;">
+
+            @* هدر توست با نمایش زنده گذشت زمان (اکنون / X دقیقه پیش) *@
+            <div class="toast-header d-flex justify-content-between w-100"
+                 style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); background-color: rgba(255, 255, 255, 0.55); border-bottom: 1px solid rgba(0,0,0,0.08);">
+                <div class="d-flex align-items-center gap-2">
+                    <strong class="@(IsError ? "text-danger" : "text-dark")">@CalendarManager.Translate("PCal_MainHome_Notification")</strong>
+                    <small class="text-muted fw-normal" style="font-size: 10.5px;">@GetRelativeTimeText()</small>
+                </div>
+                <button type="button" class="btn-close" @onclick="CloseToastAsync" aria-label="@CalendarManager.Translate("PCal_MainHome_CloseBtn")"></button>
+            </div>
+
+            @* بدنه پیام همراه با پشتیبانی از کدهای رنگی HTML *@
+            <div class="toast-body small fw-bold @(IsError ? "text-danger" : "text-dark")"
+                 style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr"); text-align: @(CurrentLanguage == "fa" ? "right" : "left"); line-height: 1.6;">
+                @((MarkupString)Message)
+            </div>
+        </div>
+    }
+</div>

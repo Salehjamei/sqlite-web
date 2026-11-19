@@ -17,5 +17,8 @@ namespace sqlite_web
         public DbSet<WorkSettings> WorkSettings { get; set; } = default!;
         // جدول تاریخچه آرشیو فیزیکی تغییرات ادمین ها (Audit Log)
         public DbSet<AttendanceEditLog> AttendanceEditLogs { get; set; } = default!;
+        //اعلانات جاری نمایش داده شده و ثبت تغییرات جاری سیستم
+        public DbSet<AdminNotificationLog> AdminNotificationLogs { get; set; }
+
     }
 }

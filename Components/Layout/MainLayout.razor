@@ -5,14 +5,23 @@
     @* --- 📱 هدر امن و ریسپانسیو سیستم حضور و غیاب پرسنل --- *@
     <header class="navbar-system">
 
-        @* 🔹 بخش همبرگری و نام ادمین در لبه‌ها (فقط زمانی رندر می‌شوند که منوی موبایل بسته باشد) *@
-        <div class="navbar-main">
+        @* بخش همبرگری، برند برنامه و نام ادمین در لبه‌ها *@
+        <div class="navbar-main d-flex align-items-center justify-content-between gap-2">
             @if (!IsMobileMenuOpen)
             {
-                @* دکمه منوی همبرگری موبایل *@
-                <button type="button" class="menu-toggle-btn" @onclick="ToggleMobileMenu">
-                    ☰
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    @* دکمه منوی همبرگری موبایل *@
+                    <button type="button" class="menu-toggle-btn" @onclick="ToggleMobileMenu">
+                        ☰
+                    </button>
+
+                    @* لوگوی متنی برند با مقیاس‌پذیری خودکار برای موبایل، تبلت و ویندوز *@
+                    <a href="/" class="text-decoration-none d-flex align-items-center mx-md-3"
+                       style="direction: ltr; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: clamp(13px, 1.8vw, 17px); font-weight: 800; letter-spacing: 0.3px; white-space: nowrap; color: #ffffff;">
+                        Personel<span style="color: #ffc107;">SPN</span>Core
+                    </a>
+
+                </div>
 
                 @* نمایش مینی‌مال نام ادمین روبه‌روی همبرگری در لبه مقابل موبایل *@
                 @if (AdminState.IsAuthorized)
@@ -21,6 +30,7 @@
                 }
             }
         </div>
+
 
         @* 🔒 کانتینر منوی هوشمند (به محض باز شدن، ساختار مستقل و چیدمان ردیفی مرکزی می‌گیرد) *@
         <div class="header-actions-container @(IsMobileMenuOpen ? "open" : "")">
@@ -74,7 +84,7 @@
             else
             {
                 <button type="button" class="btn-modern btn-modern-success" @onclick='() => NavigateToPage("/login")'>
-                    🔑 ورود به پنل مدیریت
+                    @CalendarManager.Translate("PCal_Login_CardHeader")
                 </button>
             }
         </div>

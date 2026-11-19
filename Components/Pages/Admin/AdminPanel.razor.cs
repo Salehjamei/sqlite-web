@@ -316,7 +316,6 @@ namespace sqlite_web.Components.Pages
                 return;
             }
 
-
             // کنترل سقف مجاز ۴۰ کاراکتر برای نام و نام خانوادگی همراه با قرمز کردن کادر
             if (newEmpName.Length > 40)
             {
@@ -337,6 +336,9 @@ namespace sqlite_web.Components.Pages
                 await SetEmpValidationErrorAsync("Phone", "empPhoneInput", CalendarManager.Translate("PCal_AdminPanel_ErrPhoneLength"));
                 return;
             }
+
+            // ساخت نام برجسته و رنگی کارمند برای نمایش در بنر اعلان بالای صفحه
+            string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{newEmpName}»</span>";
 
             // بررسی حالت ویرایش کارمند موجود
             if (isEmpEditMode && _editingEmployeeId.HasValue)
@@ -363,9 +365,9 @@ namespace sqlite_web.Components.Pages
                     emp.ImagePath = previewImageUrl;
                     emp.IsHiddenFromKiosk = newEmpHiddenFromKiosk;
 
-                    // ثبت تغییرات در بافت دیتابیس و تنظیم پیام موفقیت
+                    // ثبت تغییرات در بافت دیتابیس و تنظیم پیام موفقیت همراه با نام کارمند
                     DbContext.Employees.Update(emp);
-                    SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpEditSuccess");
+                    SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_EmpEditSuccess"), coloredEmpName);
                 }
             }
             // حالت ثبت کارمند جدید در سیستم
@@ -392,8 +394,8 @@ namespace sqlite_web.Components.Pages
                     IsHiddenFromKiosk = newEmpHiddenFromKiosk
                 });
 
-                // تنظیم پیام موفقیت ثبت کارمند جدید
-                SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpAddSuccess");
+                // تنظیم پیام موفقیت ثبت کارمند جدید همراه با نام کارمند
+                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_EmpAddSuccess"), coloredEmpName);
             }
 
             // ذخیره نهایی تغییرات در فایل دیتابیس SQLite
@@ -403,6 +405,7 @@ namespace sqlite_web.Components.Pages
             await RefreshDataAsync();
             CloseEmpFormModal();
         }
+
 
         // مقداردهی اولیه فیلدهای فرم برای ویرایش اطلاعات یک کارمند مشخص
         protected void StartEmpEdit(Employee emp)
@@ -457,13 +460,18 @@ namespace sqlite_web.Components.Pages
         }
 
         // ثبت ورود و خروج سریع از جدول پنل مدیریت همراه با ثبت شناسه ادمین
+        // ثبت سریع ورود کارمند از جدول اصلی پنل همراه با ثبت نام کارمند در بنر اعلان
         protected async Task StartAttendanceNow(int employeeId)
         {
+            // بررسی سطح دسترسی مدیر برای انجام عملیات ویرایش و ثبت تردد
             if (!canEditPerm) return;
 
             try
             {
+                // دریافت شناسه ادمین آنلاین جهت ثبت در تاریخچه رکورد
                 int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
+
+                // ایجاد رکورد تردد جدید با منبع ثبت سریع ادمین
                 var attendance = new Attendance
                 {
                     EmployeeId = employeeId,
@@ -474,72 +482,107 @@ namespace sqlite_web.Components.Pages
                     CreatedByAdminId = currentAdminId
                 };
 
+                // افزودن رکورد به دیتابیس و ذخیره تغییرات
                 DbContext.Attendances.Add(attendance);
                 await DbContext.SaveChangesAsync();
+
+                // استخراج نام کارمند و قالب‌بندی آن با رنگ قرمز جهت نمایش در اعلان بالای صفحه
+                string empName = employees.FirstOrDefault(e => e.Id == employeeId)?.FullName ?? string.Empty;
+                string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
+                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastInSuccess"), coloredEmpName);
+
+                // بارگذاری مجدد داده‌های صفحه
                 await RefreshDataAsync();
             }
             catch (Exception ex)
             {
+                // نمایش پیام خطا در صورت بروز مشکل هنگام ثبت ورود سریع
                 SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastInError"), ex.Message);
             }
+
+            // بازرندر رابط کاربری برای نمایش وضعیت جدید و بنر اعلان
             await InvokeAsync(StateHasChanged);
         }
 
+        // ثبت سریع خروج کارمند از جدول اصلی یا کارنامه همراه با نمایش نام کارمند در بنر اعلان
         protected async Task StopAttendanceNow(int attendanceId)
         {
+            // بررسی سطح دسترسی مدیر برای انجام عملیات ویرایش و ثبت خروج
             if (!canEditPerm) return;
 
             try
             {
+                // یافتن رکورد تردد باز بر اساس شناسه دریافتی
                 var attendance = await DbContext.Attendances.FindAsync(attendanceId);
                 if (attendance != null)
                 {
+                    // دریافت شناسه ادمین آنلاین و ثبت ساعت خروج به عنوان زمان فعلی
                     int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
                     attendance.ClockOutTime = DateTime.Now;
                     attendance.LastModifiedByAdminId = currentAdminId;
 
+                    // به‌روزرسانی رکورد در دیتابیس و ذخیره تغییرات
                     DbContext.Attendances.Update(attendance);
                     await DbContext.SaveChangesAsync();
+
+                    // استخراج نام کارمند و قالب‌بندی آن با رنگ قرمز جهت نمایش در اعلان بالای صفحه
+                    string empName = employees.FirstOrDefault(e => e.Id == attendance.EmployeeId)?.FullName ?? string.Empty;
+                    string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
+                    SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastOutSuccess"), coloredEmpName);
+
+                    // بارگذاری مجدد داده‌های صفحه
                     await RefreshDataAsync();
                 }
             }
             catch (Exception ex)
             {
+                // نمایش پیام خطا در صورت بروز مشکل هنگام ثبت خروج سریع
                 SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastOutError"), ex.Message);
             }
+
+            // بازرندر رابط کاربری برای نمایش وضعیت جدید و بنر اعلان
             await InvokeAsync(StateHasChanged);
         }
-        // ثبت دستی یا ویرایش ساعت کاری پرسنل همراه با ذخیره تاریخچه تغییرات ادمین
+
+        // ثبت دستی یا ویرایش ساعت کاری پرسنل همراه با ذخیره تاریخچه تغییرات ادمین و نمایش نام کارمند در اعلان
         protected async Task AddManualAttendance()
         {
+            // بررسی سطح دسترسی مدیر و انتخاب شدن کارمند هدف
             if (!canEditPerm) return;
             if (selectedEmployee == null) return;
 
+            // اطمینان از مقداردهی اولیه شیء مدیریت تقویم
             if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
 
             try
             {
+                // تبدیل فیلدهای سال، ماه و روز انتخاب شده در فرم به تاریخ استاندارد میلادی
                 manualDate = CalendarManager.ParseFormFieldsToDateTime(CalendarManager.ManualInYear, CalendarManager.ManualInMonth, CalendarManager.ManualInDay, "00:00");
                 manualOutDate = CalendarManager.ParseFormFieldsToDateTime(CalendarManager.ManualOutYear, CalendarManager.ManualOutMonth, CalendarManager.ManualOutDay, "00:00");
 
+                // ترکیب تاریخ و ساعت وارد شده برای ایجاد زمان دقیق ورود و خروج
                 var inTime = DateTime.Parse($"{manualDate:yyyy-MM-dd} {manualInTime}");
                 var outTime = DateTime.Parse($"{manualOutDate:yyyy-MM-dd} {manualOutTime}");
 
+                // بررسی یکسان بودن تاریخ روز ورود و روز خروج
                 if (inTime.Date != outTime.Date)
                 {
                     CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_ManualDateMismatch");
                     return;
                 }
 
+                // جلوگیری از ثبت ساعت خروج زودتر از ساعت ورود
                 if (outTime < inTime)
                 {
                     CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_ManualTimeOrderError");
                     return;
                 }
 
+                // دریافت مشخصات ادمین آنلاین جهت ثبت در تاریخچه و لاگ سیستم
                 int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
                 string currentAdminName = AdminState.CurrentOnlineAdmin?.Username ?? "Admin";
 
+                // حالت اول: ویرایش یک رکورد تردد موجود
                 if (isAttEditMode && _editingAttendanceId.HasValue)
                 {
                     var att = await DbContext.Attendances
@@ -548,6 +591,7 @@ namespace sqlite_web.Components.Pages
 
                     if (att != null)
                     {
+                        // ثبت سابقه تغییر ساعت در جدول تاریخچه ویرایش‌ها (Audit Log)
                         var log = new AttendanceEditLog
                         {
                             AttendanceId = att.Id,
@@ -563,6 +607,7 @@ namespace sqlite_web.Components.Pages
 
                         DbContext.AttendanceEditLogs.Add(log);
 
+                        // به‌روزرسانی ساعت‌های ورود و خروج و شناسه آخرین ویرایشگر
                         att.ClockInTime = inTime;
                         att.ClockOutTime = outTime;
                         att.LastModifiedByAdminId = currentAdminId;
@@ -570,6 +615,7 @@ namespace sqlite_web.Components.Pages
                         DbContext.Attendances.Update(att);
                     }
                 }
+                // حالت دوم: ثبت یک رکورد تردد دستی جدید توسط ادمین
                 else
                 {
                     var newAtt = new Attendance
@@ -585,18 +631,28 @@ namespace sqlite_web.Components.Pages
                     DbContext.Attendances.Add(newAtt);
                 }
 
+                // ذخیره نهایی تغییرات در فایل دیتابیس SQLite
                 await DbContext.SaveChangesAsync();
-                showManualAddModal = false;
 
+                // قالب‌بندی نام کارمند با رنگ قرمز جهت نمایش در بنر شیشه‌ای بالای صفحه
+                string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{selectedEmployee.FullName}»</span>";
+                SystemMessage = isAttEditMode
+                    ? string.Format(CalendarManager.Translate("PCal_AdminPanel_ManualEditSuccess"), coloredEmpName)
+                    : string.Format(CalendarManager.Translate("PCal_AdminPanel_ManualAddSuccess"), coloredEmpName);
+
+                // بستن مودال ثبت دستی، بازمحاسبه ساعات کارنامه و بازنشانی فرم
+                showManualAddModal = false;
                 await RefreshDataAsync();
                 CalculateFilteredHours(selectedEmployee.Id);
                 CancelAttEdit();
             }
             catch
             {
+                // نمایش خطا در صورت نامعتبر بودن فرمت ساعت تایپ شده
                 CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_InvalidTimeFormat");
             }
         }
+
 
         protected void CloseModal() { showModal = false; selectedEmployee = null; }
         protected void ClearSystemMessage() => SystemMessage = string.Empty;
@@ -742,42 +798,76 @@ namespace sqlite_web.Components.Pages
             showDeleteModal = true;
         }
         protected void CancelDeleteModal() => showDeleteModal = false;
+        // اجرای عملیات حذف تایید شده (پرونده پرسنل یا رکورد تردد) و نمایش نام کارمند در بنر اعلان
         protected async Task ExecuteConfirmedDelete()
         {
+            // بستن پنجره مودال تاییدیه حذف
             showDeleteModal = false;
+
+            // بررسی معتبر بودن شناسه هدف و اتصال دیتابیس
             if (_targetIdToDelete <= 0 || DbContext == null) return;
+
             try
             {
+                // حالت اول: حذف کامل پرونده یک کارمند و کلیه ترددهای او
                 if (_deleteType == "Employee")
                 {
                     var employee = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _targetIdToDelete);
                     if (employee != null)
                     {
+                        // قالب‌بندی نام کارمند با رنگ قرمز و فونت ضخیم جهت نمایش در اعلان بالای صفحه
+                        string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{employee.FullName}»</span>";
+
+                        // واکشی و حذف تمامی سوابق تردد مرتبط با این کارمند
                         var attendances = DbContext.Attendances.Where(a => a.EmployeeId == _targetIdToDelete);
                         DbContext.Attendances.RemoveRange(attendances);
+
+                        // حذف رکورد اصلی کارمند از جدول پرسنل
                         DbContext.Employees.Remove(employee);
-                        SystemMessage = CalendarManager.Translate("PCal_AdminPanel_EmpDeletedMsg");
+
+                        // تنظیم پیام موفقیت حذف همراه با نام کارمند
+                        SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_EmpDeletedMsg"), coloredEmpName);
                     }
                 }
+                // حالت دوم: حذف یک رکورد تردد خاص از کارنامه کارمند
                 else if (_deleteType == "Attendance")
                 {
                     var att = await DbContext.Attendances.FirstOrDefaultAsync(a => a.Id == _targetIdToDelete);
                     if (att != null)
                     {
+                        // استخراج نام کارمند مرتبط با این تردد (از کارمند انتخاب‌شده در کارنامه یا لیست کل پرسنل)
+                        string empName = selectedEmployee?.FullName
+                                         ?? employees.FirstOrDefault(e => e.Id == att.EmployeeId)?.FullName
+                                         ?? string.Empty;
+
+                        // قالب‌بندی نام کارمند با رنگ قرمز و فونت ضخیم جهت نمایش در اعلان
+                        string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
+
+                        // حذف رکورد تردد از جدول دیتابیس
                         DbContext.Attendances.Remove(att);
-                        SystemMessage = CalendarManager.Translate("PCal_AdminPanel_AttDeletedMsg");
+
+                        // تنظیم پیام موفقیت ابطال تردد همراه با نام کارمند
+                        SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_AttDeletedMsg"), coloredEmpName);
                     }
                 }
+
+                // ذخیره نهایی تغییرات حذف در فایل دیتابیس SQLite
                 await DbContext.SaveChangesAsync();
             }
             catch (Exception ex)
             {
+                // نمایش پیغام خطا در صورت بروز مشکل در عملیات حذف دیتابیس
                 SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_DeleteError"), ex.Message);
             }
+
+            // بازمحاسبه ساعات کاری ماهانه در صورت حذف شدن یک تردد از داخل کارنامه
             if (selectedEmployee != null && _deleteType == "Attendance") CalculateFilteredHours(selectedEmployee.Id);
+
+            // به‌روزرسانی لیست‌های صفحه و بازرندر رابط کاربری
             await RefreshDataAsync();
             await InvokeAsync(StateHasChanged);
         }
+
         // محاسبه تفکیک شده ساعات موظفی و اضافه کاری بدون تداخل با رکوردهای با کارکرد صفر
         private void CalculateFilteredHours(int employeeId)
         {

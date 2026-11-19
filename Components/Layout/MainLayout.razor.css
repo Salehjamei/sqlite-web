@@ -288,3 +288,10 @@ html body .navbar-system {
         font-size: 10px !important;
     }
 }
+/* بهینه‌سازی نمایش برند در موبایل‌های کوچک */
+@media (max-width: 400px) {
+    .navbar-brand {
+        font-size: 12.5px !important;
+        letter-spacing: 0px !important;
+    }
+}
