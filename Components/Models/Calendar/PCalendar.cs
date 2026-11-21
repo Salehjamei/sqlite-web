@@ -102,10 +102,20 @@ namespace sqlite_web.Components.Models.Calendar
         
        
         //صفحه ی مدیریت مدیران
+        // اعلان‌های صفحه مدیریت مدیران و سطوح دسترسی (ManageAdmins)
+        { "PCal_ManageAdmins_AddSuccess", new Dictionary<string, string> { { "fa", "حساب کاربری مدیر جدید با نام {0} با موفقیت در سرور تعریف و ثبت گردید." }, { "en", "New system admin account {0} has been successfully registered." }, { "tr", "{0} adlı yeni sistem yöneticisi hesabı başarıyla oluşturuldu." } } },
+        { "PCal_ManageAdmins_EditSuccess", new Dictionary<string, string> { { "fa", "مشخصات و مجوزهای حساب کاربری مدیر با نام {0} با موفقیت اصلاح شد." }, { "en", "Permissions and details for admin {0} have been updated." }, { "tr", "{0} adlı yöneticinin bilgileri ve yetkileri güncellendi." } } },
+        { "PCal_ManageAdmins_FreezeSuccess", new Dictionary<string, string> { { "fa", "حساب کاربری مدیر با نام {0} مسدود (فریز) شد و سشن‌های او ابطال گردید." }, { "en", "Admin account {0} has been frozen and active sessions revoked." }, { "tr", "{0} adlı yönetici hesabı donduruldu ve aktif oturumları iptal edildi." } } },
+        { "PCal_ManageAdmins_UnfreezeSuccess", new Dictionary<string, string> { { "fa", "حساب کاربری مدیر با نام {0} با موفقیت فعال و رفع مسدودیت شد." }, { "en", "Admin account {0} has been unfrozen and reactivated." }, { "tr", "{0} adlı yönetici hesabının engeli kaldırıldı ve aktifleştirildi." } } },
+        { "PCal_ManageAdmins_RevokeTokenSuccess", new Dictionary<string, string> { { "fa", "توکن زنده عملیاتی مدیر با نام {0} ابطال شد و کاربر فوراً از برنامه خارج گردید." }, { "en", "Active operational token for admin {0} was revoked." }, { "tr", "{0} adlı yöneticinin aktif oturum anahtarı iptal edildi." } } },
+        { "PCal_ManagAdmins_DeleteSuccess", new Dictionary<string, string> { { "fa", "حساب کاربری مدیر با نام {0} به همراه کلیه سوابق و مجوزهای او با موفقیت حذف گردید." }, { "en", "Admin account {0} and all associated permissions were permanently deleted." }, { "tr", "{0} adlı yönetici hesabı ve tüm yetkileri kalıcı olarak silindi." } } },
+        { "PCal_ManageAdmins_LastSuperAdminError", new Dictionary<string, string> { { "fa", "خطا: سیستم باید حداقل دارای یک سوپر ادمین باشد. امکان حذف رتبه تنها سوپر ادمین ({0}) وجود ندارد!" }, { "en", "Error: The system must have at least one Super Admin. Cannot demote the only Super Admin ({0})!" }, { "tr", "Hata: Sistemde en az bir Süper Yönetici bulunmalıdır. Tek Süper Yöneticinin ({0}) yetkisi kaldırılamaz!" } } },
         // --- Empty State Messages ---
         { "PCal_AdminModal_NoRecordsFound", new Dictionary<string, string> { { "fa", "هیچ رکوردی در جدول مدیران سرور وجود ندارد." }, { "en", "No records found in the server admins table." }, { "tr", "Sunucu yöneticileri tablosunda hiçbir kayıt bulunamadı." } } },
         // --- Error & Access Restriction Messages ---
         { "PCal_AdminModal_AccessDeniedError", new Dictionary<string, string> { { "fa", "🛑 خطای دسترسی: حساب کاربری شما فاقد مجوزهای ارشد جهت مدیریت سطوح دسترسی مدیران است!" }, { "en", "🛑 Access Denied: Your account lacks senior permissions to manage admin access levels!" }, { "tr", "🛑 Erişim Reddedildi: Hesabınız, yönetici erişim seviyelerini yönetmek için kıdemli izinlere sahip değil!" } } },
+                // اعلان خروج خودکار سیستم در پایان روز
+        { "PCal_System_AutoLogoutSuccess", new Dictionary<string, string> { { "fa", "خروج خودکار سیستم برای کارمند {0} در ساعت {1} ثبت شد." }, { "en", "System automatic clock-out recorded for {0} at {1}." }, { "tr", "{0} adlı personel için saat {1} itibarıyla sistem otomatik çıkışı kaydedildi." } } },
 
         // 🟢 واژگان اختصاصی صفحه مدیریت سطوح دسترسی و مدیران
         { "AccessPageTitle", new Dictionary<string, string> { { "fa", "مدیریت سطوح دسترسی و مدیران" }, { "en", "Access Levels & Admins Management" }, { "tr", "Yetkilendirme Seviyeleri & Yönetici Yönetimi" } } },
@@ -240,8 +250,8 @@ namespace sqlite_web.Components.Models.Calendar
         { "PCal_AdminPanel_ErrNameLength", new Dictionary<string, string> { { "fa", "خطا: طول نام و نام خانوادگی نمی‌تواند بیشتر از ۴۰ کاراکتر باشد." }, { "en", "Error: Full name cannot exceed 40 characters." }, { "tr", "Hata: Ad ve soyad 40 karakteri geçemez." } } },
         { "PCal_AdminPanel_ErrCodeLength", new Dictionary<string, string> { { "fa", "خطا: کد ملی باید حداقل ۱۰ رقم و حداکثر ۲۰ رقم باشد." }, { "en", "Error: National ID must be between 10 and 20 digits." }, { "tr", "Hata: Kimlik numarası en az 10, en fazla 20 haneli olmalıdır." } } },
         { "PCal_AdminPanel_ErrPhoneLength", new Dictionary<string, string> { { "fa", "خطا: شماره تماس نمی‌تواند بیشتر از ۱۵ رقم باشد." }, { "en", "Error: Phone number cannot exceed 15 digits." }, { "tr", "Hata: Telefon numarası 15 haneyi geçemez." } } },
-        { "PCal_AdminPanel_DuplicateCodeEdit", new Dictionary<string, string> { { "fa", "خطا: این کد ملی قبلاً برای کارمند دیگری در سیستم ثبت شده است! کد ملی باید منحصربه‌فرد باشد." }, { "en", "Error: This ID is already assigned to another employee! It must be unique." }, { "tr", "Hata: Bu kimlik numarası başka bir personele kayıtlı! Benzersiz olmalıdır." } } },      
-        { "PCal_AdminPanel_DuplicateCodeAdd", new Dictionary<string, string> { { "fa", "خطا: کارمندی با این کد ملی قبلاً در سیستم تعریف شده است! ورود کد ملی تکراری مجاز نیست." }, { "en", "Error: An employee with this ID already exists! Duplicate ID is not allowed." }, { "tr", "Hata: Bu kimlik numarasına sahip bir personel zaten mevcut!" } } },        
+        { "PCal_AdminPanel_DuplicateCodeEdit", new Dictionary<string, string> { { "fa", "خطا: این کد ملی قبلاً برای کارمند دیگری در سیستم ثبت شده است! کد ملی باید منحصربه‌فرد باشد." }, { "en", "Error: This ID is already assigned to another employee! It must be unique." }, { "tr", "Hata: Bu kimlik numarası başka bir personele kayıtlı! Benzersiz olmalıdır." } } },
+        { "PCal_AdminPanel_DuplicateCodeAdd", new Dictionary<string, string> { { "fa", "خطا: کارمندی با این کد ملی قبلاً در سیستم تعریف شده است! ورود کد ملی تکراری مجاز نیست." }, { "en", "Error: An employee with this ID already exists! Duplicate ID is not allowed." }, { "tr", "Hata: Bu kimlik numarasına sahip bir personel zaten mevcut!" } } },
         { "PCal_AdminPanel_DelEmpTitle", new Dictionary<string, string> { { "fa", "تاییدیه حذف قطعی پرونده پرسنلی" }, { "en", "Confirm Permanent Employee Deletion" }, { "tr", "Personel Dosyası Kalıcı Silme Onayı" } } },
         { "PCal_AdminPanel_DelEmpMsg", new Dictionary<string, string> { { "fa", "آیا از حذف کامل پرونده پرسنلی کارمند با نام «{0}» مطمئن هستید؟" }, { "en", "Are you sure you want to completely delete employee '{0}'?" }, { "tr", "'{0}' adlı personelin dosyasını tamamen silmek istediğinizden emin misiniz?" } } },
         { "PCal_AdminPanel_DelEmpSubMsg", new Dictionary<string, string> { { "fa", "توجه: کلیه سوابق تردد این کارمند فوراً و به صورت غیرقابل بازگشت پاک خواهد شد." }, { "en", "Note: All attendance records for this employee will be permanently wiped." }, { "tr", "Not: Bu personelin tüm geçiş kayıtları kalıcı olarak silinecektir." } } },
@@ -256,7 +266,7 @@ namespace sqlite_web.Components.Models.Calendar
         { "PCal_AdminPanel_DelAttTitle", new Dictionary<string, string> { { "fa", "تاییدیه حذف قطعی رکورد تردد پرسنل" }, { "en", "Confirm Attendance Record Deletion" }, { "tr", "Geçiş Kaydı Silme Onayı" } } },
         { "PCal_AdminPanel_DelAttTargetName", new Dictionary<string, string> { { "fa", "تردد مورخ {0} ساعت {1}" }, { "en", "Attendance on {0} at {1}" }, { "tr", "{0} tarihli saat {1} geçişi" } } },
         { "PCal_AdminPanel_DelAttMsg", new Dictionary<string, string> { { "fa", "آیا از حذف کامل این رکورد تردد کاری پرسنل در تاریخ {0} مطمئن هستید؟" }, { "en", "Are you sure you want to delete this attendance record on {0}?" }, { "tr", "{0} tarihindeki bu çalışma geçiş kaydını silmek istediğinizden emin misiniz?" } } },
-        { "PCal_AdminPanel_DelAttSubMsg", new Dictionary<string, string> { { "fa", "توجه: با تایید نهایی، این ساعت ورود و خروج خاص به طور کامل پاک شده و در محاسبات این ماه لحاظ نخواهد شد." }, { "en", "Note: Once confirmed, this clock-in/out record will be deleted and excluded from monthly calculations." }, { "tr", "Not: Onaylandığında bu giriş-çıkış kaydı silinecek ve aylık hesaplamalara dahil edilmeyecektir." } } },                
+        { "PCal_AdminPanel_DelAttSubMsg", new Dictionary<string, string> { { "fa", "توجه: با تایید نهایی، این ساعت ورود و خروج خاص به طور کامل پاک شده و در محاسبات این ماه لحاظ نخواهد شد." }, { "en", "Note: Once confirmed, this clock-in/out record will be deleted and excluded from monthly calculations." }, { "tr", "Not: Onaylandığında bu giriş-çıkış kaydı silinecek ve aylık hesaplamalara dahil edilmeyecektir." } } },
         { "PCal_AdminPanel_DeleteError", new Dictionary<string, string> { { "fa", "خطا در حذف: {0}" }, { "en", "Error during deletion: {0}" }, { "tr", "Silme işlemi sırasında hata: {0}" } } },
          // متون باقی مانده فرانت اند صفحه مدیریت پرسنل و مودال کارنامه (AdminPanel.razor)
         { "PCal_AdminPanel_NoPermissionTitle", new Dictionary<string, string> { { "fa", "شما مجوز ندارید" }, { "en", "Permission denied" }, { "tr", "Yetkiniz yok" } } },
@@ -315,7 +325,18 @@ namespace sqlite_web.Components.Models.Calendar
         { "PCal_NotifCat_Kiosk", new Dictionary<string, string> { { "fa", "صفحه کیوسک" }, { "en", "Kiosk Screen" }, { "tr", "Kiosk Ekranı" } } },
         { "PCal_NotifCat_AdminPanel", new Dictionary<string, string> { { "fa", "پنل پرسنل" }, { "en", "Personnel Panel" }, { "tr", "Personel Paneli" } } },
         { "PCal_NotifCat_ManageAdmins", new Dictionary<string, string> { { "fa", "مدیریت مدیران" }, { "en", "Manage Admins" }, { "tr", "Yönetici Yönetimi" } } },
-        
+        ///NotificationLogs page
+        // واژگان صفحه اختصاصی مدیریت و فیلتر اعلانات
+        { "PCal_Notif_RefreshBtn", new Dictionary<string, string> { { "fa", "بروزرسانی" }, { "en", "Refresh" }, { "tr", "Yenile" } } },
+        { "PCal_Notif_ResetFiltersBtn", new Dictionary<string, string> { { "fa", "پاکسازی فیلترها" }, { "en", "Reset Filters" }, { "tr", "Filtreleri Temizle" } } },
+        { "PCal_Notif_SearchPlaceholder", new Dictionary<string, string> { { "fa", "نام کارمند، ادمین یا متن پیام..." }, { "en", "Employee, admin or message..." }, { "tr", "Personel, yönetici veya mesaj..." } } },
+        { "PCal_Notif_FilterCategory", new Dictionary<string, string> { { "fa", "بخش (Category)" }, { "en", "Category" }, { "tr", "Bölüm (Category)" } } },
+        { "PCal_Notif_FilterSubCategory", new Dictionary<string, string> { { "fa", "موضوع (SubCategory)" }, { "en", "SubCategory" }, { "tr", "Alt Konu" } } },
+        { "PCal_Notif_FilterType", new Dictionary<string, string> { { "fa", "وضعیت" }, { "en", "Type" }, { "tr", "Durum" } } },
+        { "PCal_Notif_FilterDate", new Dictionary<string, string> { { "fa", "تاریخ ثبت" }, { "en", "Created Date" }, { "tr", "Kayıt Tarihi" } } },
+        { "PCal_Notif_FilterTimeRange", new Dictionary<string, string> { { "fa", "بازه ساعتی" }, { "en", "Time Range" }, { "tr", "Saat Aralığı" } } },
+        { "PCal_Notif_ClearConfirmMsg", new Dictionary<string, string> { { "fa", "آیا از حذف کامل تمام سوابق و تاریخچه اعلانات سیستم مطمئن هستید؟" }, { "en", "Are you sure you want to permanently delete all notification logs?" }, { "tr", "Tüm sistem bildirim geçmişini kalıcı olarak silmek istediğinizden emin misiniz?" } } },
+        { "PCal_Notif_ClearConfirmSub", new Dictionary<string, string> { { "fa", "توجه: پس از پاکسازی، امکان بازیابی گزارش‌های ثبت‌شده وجود نخواهد داشت." }, { "en", "Note: Once cleared, recorded logs cannot be recovered." }, { "tr", "Not: Temizlendikten sonra kayıtlı günlükler geri getirilemez." } } },
 
             };
 
@@ -342,7 +363,7 @@ namespace sqlite_web.Components.Models.Calendar
             if (!dateTime.HasValue) return "";
             DayOfWeek day = dateTime.Value.DayOfWeek;
 
-            if (CurrentLanguage == "fa")
+            if (CurrentLanguage == "fa" || CurrentLanguage == "ar")
             {
                 return day switch
                 {

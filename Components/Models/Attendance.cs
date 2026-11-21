@@ -14,14 +14,6 @@ namespace sqlite_web.Components.Models
         /// 📅 زمان دقیق فیزیکی اولین ثبت رکورد در دیتابیس (جهت بررسی زمان واقعی)
         /// </summary>
         public DateTime CreationDate { get; set; } = DateTime.Now;
-
-        /// <summary>
-        /// 🔌 منبع ثبت: 
-        /// "Kiosk" -> خود پرسنل از صفحه اصلی
-        /// "AdminManual" -> ثبت دستی ادمین از پنل کارنامه
-        /// "AdminFast" -> دکمه تردد سریع ادمین در جدول
-        /// "AutoClose" -> خروج خودکار سیستم در ساعت ۲۳:۵۹
-        /// </summary>
         public string EntrySource { get; set; } = "Kiosk";
 
         /// <summary>

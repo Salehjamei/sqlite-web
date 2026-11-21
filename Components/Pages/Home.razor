@@ -1,8 +1,9 @@
 ﻿@page "/"
 @inherits sqlite_web.Components.AppBaseComponent
 @rendermode InteractiveServer
+@using sqlite_web.Components.Modules
 
-<div class="container home-container" dir="@(CurrentLanguage == "fa" ? "rtl" : "ltr")" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left"); font-family: Tahoma;">
+<div class="container home-container" dir="@(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "rtl" : "ltr")" style="text-align: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left"); font-family: Tahoma;">
     <div class="card mb-3 shadow-sm">
         <div class="card-header bg-primary text-white fw-bold d-flex align-items-center justify-content-between gap-2" style="padding: 0.5rem 0.75rem;">
             <span class="page-title text-truncate">📋 @CalendarManager.Translate("PCal_MainHome_PageTitle")</span>
@@ -15,15 +16,15 @@
                                placeholder="@CalendarManager.Translate("PCal_MainHome_SearchPlaceholder")" 
                                @bind="searchQuery" 
                                @bind:event="oninput"
-                               style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");
-                                      border-radius: @(CurrentLanguage == "fa" ? "0 4px 4px 0" : "4px 0 0 4px") !important;" />
+                               style="text-align: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left");
+                                      border-radius: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "0 4px 4px 0" : "4px 0 0 4px") !important;" />
                         
                         @if (string.IsNullOrEmpty(searchQuery))
                         {
                             <button class="btn btn-light text-primary fw-bold btn-search-indicator" 
                                     type="button" 
-                                    style="border-radius: @(CurrentLanguage == "fa" ? "4px 0 0 4px" : "0 4px 4px 0") !important;
-                                           border-@(CurrentLanguage == "fa" ? "right" : "left"): 0;">
+                                    style="border-radius: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "4px 0 0 4px" : "0 4px 4px 0") !important;
+                                           border-@(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left"): 0;">
                                 @CalendarManager.Translate("PCal_MainHome_SearchBtnText")
                             </button>
                         }
@@ -33,8 +34,8 @@
                                     type="button" 
                                     @onclick="ClearSearch" 
                                     title="@CalendarManager.Translate("PCal_MainHome_ClearBtnTitle")"
-                                    style="border-radius: @(CurrentLanguage == "fa" ? "4px 0 0 4px" : "0 4px 4px 0") !important;
-                                           border-@(CurrentLanguage == "fa" ? "right" : "left"): 0; min-width: 40px;">
+                                    style="border-radius: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "4px 0 0 4px" : "0 4px 4px 0") !important;
+                                           border-@(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left"): 0; min-width: 40px;">
                                 ✖
                             </button>
                         }
@@ -57,7 +58,7 @@
         {
             <!-- Desktop: table (large screens) -->
             <div class="table-responsive d-none d-lg-block">
-                <table class="table table-bordered table-striped text-center align-middle mb-0" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
+                <table class="table table-bordered table-striped text-center align-middle mb-0" style="text-align: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left");">
                     <thead class="table-dark">
                         <tr>
                             <th style="width: 10%;">@CalendarManager.Translate("PCal_MainHome_ThAvatar")</th>
@@ -221,22 +222,23 @@
         }
     </div>
 
-    @* --- بخش توست نوتیفیکیشن تفکیک شده و چندزبانه --- *@
-    <div class="toast-container position-fixed p-2" role="status" aria-live="polite" aria-atomic="true" style="top: calc(var(--app-header-height, 56px) + 0.5rem); @(CurrentLanguage == "fa" ? "right: 1rem; left: auto;" : "left: 1rem; right: auto;"); z-index: 1200;">
-        @if (showToast)
-        {
-            <div class="toast show">
-                <div class="toast-header d-flex justify-content-between w-100" style="direction: @(CurrentLanguage == "fa" ? "rtl" : "ltr");">
-                    <div class="d-flex align-items-center gap-1">
-                        <strong class="me-auto">@CalendarManager.Translate("PCal_MainHome_Notification")</strong>
-                        <small class="text-muted">@CalendarManager.Translate("PCal_MainHome_Now")</small>
-                    </div>
-                    <button type="button" class="btn-close" @onclick="() => showToast = false" aria-label="@CalendarManager.Translate("PCal_MainHome_CloseBtn")"></button>
-                </div>
-                <div class="toast-body small" style="text-align: @(CurrentLanguage == "fa" ? "right" : "left");">
-                    @toastMessage
-                </div>
-            </div>
-        }
-    </div>
+    <ToastNotification @bind-Show="showToast"
+                       Category="@toastCategory"
+                       SubCategory="@toastSubCategory"
+                       MessageKey="@toastMessageKey"
+                       MessageArgs="@toastMessageArgs"
+                       Message="@toastMessage"
+                       EventDate="@toastEventDate"
+                       EventTime="@toastEventTime"
+                       IsError="@isToastError"
+                       AutoCloseMilliseconds="3500"
+                       CurrentLanguage="@CurrentLanguage"
+                       CalendarManager="@CalendarManager"
+                       AdminId="@AdminState.CurrentOnlineAdmin?.Id"
+                       AdminUsername="@AdminState.CurrentOnlineAdmin?.Username"
+                       TargetEmployee="@toastTargetEmployee" />
+
+
+
+
 </div>

@@ -9,24 +9,23 @@ using System.Threading.Tasks;
 
 namespace sqlite_web.Components.Pages.Admin
 {
-    // 🟢 اصلاح ساختار ارث‌بری: جایگزینی کامپوننت پایه اختصاصی خودمان با حفظ اینترفیس IDisposable
     /// <summary>
     /// کلاس منطق پشت‌صحنه (Code-Behind) مدیریت سطوح دسترسی، متصل به متدهای بومی سرویس مرکزی
     /// </summary>
-    public partial class ManageAdmins : AppBaseComponent, IDisposable    
+    public partial class ManageAdmins : AppBaseComponent, IDisposable
     {
-        // 🛡️ تزریق مستقیم هسته متمرکز سرویس مدیریت ادمین‌ها
+        // تزریق مستقیم هسته متمرکز سرویس مدیریت ادمین‌ها
         [Inject] public AdminStateService AdminState { get; set; } = default!;
 
-        // 🔍 متغیر جدید ذخیره عبارت جستجوی مدیران سیستم
+        // متغیر جدید ذخیره عبارت جستجوی مدیران سیستم
         protected string SearchQuery { get; set; } = string.Empty;
 
-        // 🟢 تراز متغیر جستجو با نام لیست رسمی سرویس شما (AdminList) جهت فیکس ارورها
+        // لیست فیلتر شده مدیران سیستم بر اساس عبارت جستجو
         protected List<AdminUser> FilteredAdmins => string.IsNullOrWhiteSpace(SearchQuery)
             ? (AdminState.AdminList ?? new())
             : (AdminState.AdminList ?? new()).Where(a => a.Username != null && a.Username.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        // 🟢 متغیر کنترل شناسه منوی آبشاری فعال موبایل بدون بسته‌شدن خودکار
+        // متغیر کنترل شناسه منوی آبشاری فعال موبایل بدون بسته‌شدن خودکار
         protected int? ActiveMobileDropdownId { get; set; } = null;
 
         // پرچم‌های بولین مدیریت باز یا بسته بودن پنجره‌های مودال فرم و حذف تعاملی ماژولار
@@ -39,7 +38,7 @@ namespace sqlite_web.Components.Pages.Admin
         /// </summary>
         protected override async Task OnInitializedAsync()
         {
-            // 🟢 فیکس قطعی باگ: پاکسازی پیغام‌های مرده صفحات قبل در «اولین ثانیه ورود» به صفحه
+            // پاکسازی پیغام‌های خطای احتمالی قبلی در اولین لحظه ورود به صفحه
             AdminState.FeedbackMessage = string.Empty;
 
             // ۱. اتصال و گوش دادن به رویداد تغییرات سشن در سرویس
@@ -48,7 +47,7 @@ namespace sqlite_web.Components.Pages.Admin
             // ۲. پایش گارد امنیتی اصالت توکن و سشن سوپر ادمین ارشد
             await AdminState.CheckAccessAndRedirectAsync();
 
-            // ۳. فراخوانی متد رسمی بومی سرویس شما جهت واکشی اطلاعات از SQLite
+            // ۳. فراخوانی متد رسمی سرویس جهت واکشی اطلاعات از SQLite
             await AdminState.LoadAdminsDataAsync();
         }
 
@@ -56,6 +55,7 @@ namespace sqlite_web.Components.Pages.Admin
         {
             await SyncLanguageFromStorageAsync();
         }
+
         private async Task SyncLanguageFromStorageAsync()
         {
             try
@@ -71,6 +71,7 @@ namespace sqlite_web.Components.Pages.Admin
 
             await InvokeAsync(StateHasChanged);
         }
+
         protected void ToggleMobileMenuDropdown(int adminId)
         {
             if (ActiveMobileDropdownId == adminId) ActiveMobileDropdownId = null;
@@ -88,14 +89,14 @@ namespace sqlite_web.Components.Pages.Admin
         protected void OpenAddAdminModal()
         {
             CloseAllMobileDropdowns();
-            AdminState.CancelEdit(); // فراخوانی متد بومی ریست فرم سرویس شما
+            AdminState.CancelEdit();
             showFormModal = true;
         }
 
         protected void CloseFormModal()
         {
             showFormModal = false;
-            AdminState.CancelEdit(); // لغو وضعیت ادیت در سرویس
+            AdminState.CancelEdit();
         }
 
         protected void CancelDeleteModal()
@@ -103,8 +104,9 @@ namespace sqlite_web.Components.Pages.Admin
             showDeleteModal = false;
             targetDeleteAdminId = 0;
         }
+
         /// <summary>
-        /// فرستادن اطلاعات فیلتر شده به متد رسمی ذخیره‌سازی سرور و فعال‌سازی آلرت پویا با رنگ قرمز نام مدیر
+        /// فرستادن اطلاعات فرم به متد ذخیره‌سازی سرور و صدور اعلان شیشه‌ای چندزبانه (موفق یا خطا)
         /// </summary>
         protected async Task HandleSaveAdmin()
         {
@@ -113,81 +115,110 @@ namespace sqlite_web.Components.Pages.Admin
             string targetAdminName = AdminState.FormAdminUsername;
             bool isModeEdit = AdminState.IsEditMode;
 
-            // 🟢 گرفتن خروجی بوبلین از متد بک‌اند
+            // پاکسازی پیام خطای قبلی پیش از تلاش برای ذخیره
+            AdminState.FeedbackMessage = string.Empty;
+
+            // دریافت نتیجه موفقیت یا شکست عملیات از سرویس مرکزی
             bool isSuccess = await AdminState.SaveAdminAsync();
 
             if (isSuccess)
             {
-                // 🔴 در صورت موفقیت واقعی، پیغام موفقیت تولید و مودال بسته می‌شود
+                // قالب‌بندی نام مدیر با رنگ قرمز جهت نمایش در اعلان
                 string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
+                string msgKey = isModeEdit ? "PCal_ManageAdmins_EditSuccess" : "PCal_ManageAdmins_AddSuccess";
 
-                AdminState.FeedbackMessage = isModeEdit
-                    ? $"مشخصات و مجوزهای حساب کاربری مدیر سیستم با نام {coloredName} با موفقیت اصلاح شد."
-                    : $"حساب کاربری مدیر جدید سیستم با نام {coloredName} با موفقیت در سرور تعریف و ثبت گردید.";
+                // صدور اعلان موفق و ثبت در تاریخچه سوپر ادمین با زیردسته AdminManagement
+                TriggerToast(
+                    category: "ManageAdmins",
+                    subCategory: "AdminManagement",
+                    messageKey: msgKey,
+                    args: new object[] { coloredName },
+                    isError: false
+                );
 
-                showFormModal = false; // بستن مودال فقط در صورت موفقیت
+                // بستن مودال فرم فقط در صورت موفقیت
+                showFormModal = false;
                 CloseAllMobileDropdowns();
             }
             else
             {
-                // 🛑 در صورت شکست (تک سوپر ادمین)، مودال باز می‌ماند و پیغام خطای متد بک‌اند نمایش داده می‌شود
-                // نیازی به بستن مودال یا تغییر دستی FeedbackMessage نیست، چون دیتابیس خطا را پر کرده است
+                // صدور اعلان خطای قرمز رنگ (مثلاً تلاش برای حذف رتبه تنها سوپر ادمین) و ثبت در سرور
+                string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
+                TriggerToast(
+                    category: "ManageAdmins",
+                    subCategory: "AdminSecurity",
+                    messageKey: "PCal_ManageAdmins_LastSuperAdminError",
+                    args: new object[] { coloredName },
+                    isError: true
+                );
             }
 
             await InvokeAsync(StateHasChanged);
         }
 
-
-        /// <summary>
-        /// فعال‌سازی آلرت برای عملیات فریز همراه با نمایش نام قرمز رنگ مدیر هدف
-        /// </summary>
         protected async Task HandleToggleFreeze(int id, bool freezeStatus)
         {
             CloseAllMobileDropdowns();
 
-            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == id)?.Username ?? "مدیر سیستم";
+            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == id)?.Username ?? "Admin";
 
+            // اعمال تغییر وضعیت فریز در دیتابیس
             await AdminState.ToggleFreezeAdminAsync(id, freezeStatus);
 
             string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
+            string msgKey = freezeStatus ? "PCal_ManageAdmins_FreezeSuccess" : "PCal_ManageAdmins_UnfreezeSuccess";
 
-            AdminState.FeedbackMessage = freezeStatus
-                ? $"حساب کاربری مدیر سیستم با نام {coloredName} با موفقیت مسدود فریز شد و سشن‌های او ابطال گردید."
-                : $"حساب کاربری مدیر سیستم با نام {coloredName} با موفقیت فعال و رفع مسدودیت شد.";
+            // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته AdminSecurity
+            TriggerToast(
+                category: "ManageAdmins",
+                subCategory: "AdminSecurity",
+                messageKey: msgKey,
+                args: new object[] { coloredName },
+                isError: false
+            );
 
             await InvokeAsync(StateHasChanged);
         }
 
         /// <summary>
-        /// فعال‌سازی آلرت برای عملیات ابطال توکن همراه با نمایش نام قرمز رنگ مدیر هدف
+        /// ابطال توکن زنده عملیاتی مدیر و ثبت در تاریخچه اعلان‌های سرور
         /// </summary>
         protected async Task HandleStopToken(int id)
         {
             CloseAllMobileDropdowns();
 
-            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == id)?.Username ?? "مدیر سیستم";
+            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == id)?.Username ?? "Admin";
 
+            // ابطال توکن در دیتابیس
             await AdminState.StopAdminTokenAsync(id);
 
             string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
 
-            AdminState.FeedbackMessage = $"توکن زنده عملیاتی مدیر سیستم با نام {coloredName} ابطال شد و کاربر فوراً از برنامه اخراج گردید.";
+            // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته AdminSecurity
+            TriggerToast(
+                category: "ManageAdmins",
+                subCategory: "AdminSecurity",
+                messageKey: "PCal_ManageAdmins_RevokeTokenSuccess",
+                args: new object[] { coloredName },
+                isError: false
+            );
 
             await InvokeAsync(StateHasChanged);
         }
 
         /// <summary>
-        /// فعال‌سازی حالت ویرایش و بارگذاری مشخصات در فیلدهای بومی سرویس شما
+        /// فعال‌سازی حالت ویرایش و بارگذاری مشخصات مدیر در فیلدهای فرم
         /// </summary>
         protected void TriggerStartEdit(AdminUser admin)
         {
-            AdminState.StartEdit(admin); // لود داده‌ها در فیلدهای FormAdminUsername و... سرویس شما
+            AdminState.FeedbackMessage = string.Empty;
+            AdminState.StartEdit(admin);
             CloseAllMobileDropdowns();
-            showFormModal = true; // نمایش پاپ‌آ‌پ ویرایش
+            showFormModal = true;
         }
 
         /// <summary>
-        /// آماده‌سازی زیرساخت حذف و مهار نام ادمین برای پاپ‌آپ مودال تاییدیه حذف
+        /// آماده‌سازی پنجره مودال تاییدیه حذف مدیر
         /// </summary>
         protected void TriggerDeleteAdmin(int id, string name)
         {
@@ -199,23 +230,32 @@ namespace sqlite_web.Components.Pages.Admin
         }
 
         /// <summary>
-        /// اجرای متد رسمی حذف فیزیکی ادمین و صدور آلرت زنده با نام قرمز رنگ
+        /// اجرای حذف قطعی مدیر و صدور اعلان شیشه‌ای چندزبانه همراه با ثبت در تاریخچه سرور
         /// </summary>
         protected async Task ExecuteConfirmedAdminDelete()
         {
             showDeleteModal = false;
 
-            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == targetDeleteAdminId)?.Username ?? "مدیر سیستم";
+            string targetAdminName = AdminState.AdminList?.FirstOrDefault(a => a.Id == targetDeleteAdminId)?.Username ?? "Admin";
 
+            // حذف مدیر از دیتابیس
             await AdminState.DeleteAdminAsync(targetDeleteAdminId);
 
             string coloredName = $"<span style='color: #dc3545; font-weight: 900;'>«{targetAdminName}»</span>";
 
-            AdminState.FeedbackMessage = $"حساب کاربری مدیر سیستم با نام {coloredName} به همراه کلیه سوابق و مجوزهای او با موفقیت حذف گردید.";
+            // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته AdminManagement
+            TriggerToast(
+                category: "ManageAdmins",
+                subCategory: "AdminManagement",
+                messageKey: "PCal_ManageAdmins_DeleteSuccess",
+                args: new object[] { coloredName },
+                isError: false
+            );
 
             targetDeleteAdminId = 0;
             await InvokeAsync(StateHasChanged);
         }
+
         // متد چرخه حیات رندر تعاملی صفحه مدیریت مدیران جهت بارگذاری خودکار زبان سیستم
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
@@ -224,6 +264,5 @@ namespace sqlite_web.Components.Pages.Admin
                 await SyncLanguageFromStorageAsync();
             }
         }
-
     }
 }

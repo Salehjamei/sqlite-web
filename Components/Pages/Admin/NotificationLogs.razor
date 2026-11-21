@@ -1,0 +1,206 @@
+﻿@page "/admin/notifications"
+@rendermode InteractiveServer
+@namespace sqlite_web.Components.Pages.Admin
+@using sqlite_web.Services
+@using sqlite_web.Components.Modules
+@inherits sqlite_web.Components.AppBaseComponent
+
+@{
+    bool isRtl = CurrentLanguage == "fa" || CurrentLanguage == "ar";
+}
+
+<div class="container mt-2 modal-animation-fade" dir="@(isRtl ? "rtl" : "ltr")" style="text-align: @(isRtl ? "right" : "left"); font-family: Tahoma; max-width: 100%; padding-left: 10px; padding-right: 10px;">
+
+    @if (AdminState.IsChecked && !AdminState.isCurrentUserSuperAdmin)
+    {
+        <div class="alert alert-danger text-center fw-bold p-3 my-3 shadow-sm" role="alert" style="font-size: 13px;">
+            @CalendarManager.Translate("PCal_AdminModal_AccessDeniedError")
+        </div>
+    }
+    else if (AdminState.IsChecked && AdminState.isCurrentUserSuperAdmin)
+    {
+        <div class="row m-0 mb-3 align-items-center g-2" style="padding-left: 4px; padding-right: 4px;">
+            <div class="col-md-6 col-12 p-0">
+                <h4 class="m-0 fw-bold" style="color: #212529; font-size: calc(13.5px + 0.2vw);">
+                    🔔 @CalendarManager.Translate("PCal_AdminNotif_ModalTitle")
+                    <span class="badge bg-dark ms-2" style="font-size: 11px;">@FilteredLogs.Count()</span>
+                </h4>
+            </div>
+
+            <div class="col-md-6 col-12 p-0 d-flex justify-content-md-end justify-content-between gap-2">
+                <button type="button" class="btn btn-sm btn-outline-dark fw-bold" @onclick="LoadLogsAsync" style="font-size: 11px; height: 32px;">
+                    🔄 @CalendarManager.Translate("PCal_Notif_RefreshBtn")
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary fw-bold" @onclick="ResetFilters" style="font-size: 11px; height: 32px;">
+                    🧹 @CalendarManager.Translate("PCal_Notif_ResetFiltersBtn")
+                </button>
+                @if (allLogs.Any())
+                {
+                    <button type="button" class="btn btn-sm btn-danger fw-bold" @onclick="() => showClearConfirmModal = true" style="font-size: 11px; height: 32px;">
+                        🗑️ @CalendarManager.Translate("PCal_AdminNotif_ClearAllBtn")
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-3" style="border-radius: 8px; background-color: #f8f9fa;">
+            <div class="card-body p-2.5">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3 col-12">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 10.5px;">@CalendarManager.Translate("Search"):</label>
+                        <input type="text" class="form-control form-control-sm" @bind="SearchQuery" @bind:event="oninput"
+                               placeholder="@CalendarManager.Translate("PCal_Notif_SearchPlaceholder")" style="font-size: 11.5px; height: 31px;" />
+                    </div>
+
+                    <div class="col-md-2 col-6">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 10.5px;">@CalendarManager.Translate("PCal_Notif_FilterCategory"):</label>
+                        <select class="form-select form-select-sm fw-bold" value="@SelectedCategory" @onchange="OnCategoryChanged" style="font-size: 11.5px; height: 31px;">
+                            <option value="ALL">@CalendarManager.Translate("PCal_NotifCat_All")</option>
+                            <option value="Kiosk">Kiosk</option>
+                            <option value="AdminPanel">AdminPanel</option>
+                            <option value="ManageAdmins">ManageAdmins</option>
+                            <option value="System">System</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 col-6">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 10.5px;">@CalendarManager.Translate("PCal_Notif_FilterSubCategory"):</label>
+                        <select class="form-select form-select-sm fw-bold" @bind="SelectedSubCategory" style="font-size: 11.5px; height: 31px;">
+                            <option value="ALL">@CalendarManager.Translate("PCal_NotifCat_All")</option>
+                            @foreach (var sub in AvailableSubCategories)
+                            {
+                                <option value="@sub">@sub</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-1 col-4">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 10.5px;">@CalendarManager.Translate("PCal_Notif_FilterType"):</label>
+                        <select class="form-select form-select-sm fw-bold" @bind="SelectedType" style="font-size: 11px; height: 31px;">
+                            <option value="ALL">All</option>
+                            <option value="Success">Success</option>
+                            <option value="Error">Error</option>
+                            <option value="Info">Info</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2 col-4">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 10.5px;">@CalendarManager.Translate("PCal_Notif_FilterDate"):</label>
+                        <input type="date" class="form-control form-control-sm text-center font-monospace" @bind="FilterDate" style="font-size: 11px; height: 31px;" />
+                    </div>
+
+                    <div class="col-md-2 col-4">
+                        <label class="form-label text-muted small fw-bold mb-1" style="font-size: 10.5px;">@CalendarManager.Translate("PCal_Notif_FilterTimeRange"):</label>
+                        <div class="input-group input-group-sm" style="direction: ltr;">
+                            <input type="text" class="form-control text-center font-monospace px-1" placeholder="00:00" maxlength="5" @bind="FilterTimeFrom" style="font-size: 10.5px; height: 31px;" />
+                            <span class="input-group-text px-1">-</span>
+                            <input type="text" class="form-control text-center font-monospace px-1" placeholder="23:59" maxlength="5" @bind="FilterTimeTo" style="font-size: 10.5px; height: 31px;" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+                <div class="card shadow-sm border-0" style="border-radius: 8px; overflow: hidden;">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover text-center align-middle m-0 table-sm" style="background-color: #ffffff; font-size: 12px;">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 135px;">Category / Sub</th>
+                            <th style="width: 120px;">@CalendarManager.Translate("PCal_AdminNotif_ThAdmin")</th>
+                            <th style="width: 150px;">@CalendarManager.Translate("PCal_AdminNotif_ThEmployee")</th>
+                            <th>@CalendarManager.Translate("PCal_AdminNotif_ThMessage")</th>
+                            <th style="width: 125px;">@CalendarManager.Translate("PCal_AdminNotif_ThTime")</th>
+                            <th style="width: 45px;">#</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!FilteredLogs.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="text-muted py-4 fw-bold">
+                                    @CalendarManager.Translate("PCal_AdminNotif_NoLogs")
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var log in FilteredLogs)
+                            {
+                                bool isErr = log.NotificationType == "Error";
+                                bool isInfo = log.NotificationType == "Info";
+
+                                <tr style="background-color: @(isErr ? "rgba(255, 240, 243, 0.55)" : (isInfo ? "rgba(240, 248, 255, 0.55)" : "#ffffff"));">
+                                    <td>
+                                        <span class="badge bg-dark d-block mb-1" style="font-size: 10px;">@log.Category</span>
+                                        <span class="badge bg-secondary d-block" style="font-size: 9.5px; opacity: 0.85;">@log.SubCategory</span>
+                                    </td>
+
+                                    <td class="fw-bold">
+                                        @if (log.AdminUsername == "System" || log.AdminId == null)
+                                        {
+                                            <span class="badge bg-info text-dark" style="font-size: 10.5px;">🤖 @log.AdminUsername</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-primary">👤 @log.AdminUsername</span>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(log.EmployeeFullName) && log.EmployeeFullName != "-")
+                                        {
+                                            <div class="fw-bold text-dark" style="font-size: 11.5px;">@log.EmployeeFullName</div>
+                                            @if (!string.IsNullOrEmpty(log.EmployeePersonnelCode) && log.EmployeePersonnelCode != "-")
+                                            {
+                                                <small class="text-muted font-monospace" style="font-size: 10px;">@log.EmployeePersonnelCode</small>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td style="text-align: @(isRtl ? "right" : "left"); padding: 6px 10px; line-height: 1.5;"
+                                        class="fw-bold @(isErr ? "text-danger" : "text-dark")">
+                                        @((MarkupString)GetLocalizedLogMessage(log))
+
+                                        @if (!string.IsNullOrEmpty(log.EventDate) || !string.IsNullOrEmpty(log.EventTime))
+                                        {
+                                            <div class="mt-1">
+                                                <span class="badge bg-light text-secondary border font-monospace" style="font-size: 9.5px;">
+                                                    📅 @log.EventDate ⏱️ @log.EventTime
+                                                </span>
+                                            </div>
+                                        }
+                                    </td>
+
+                                    <td class="font-monospace" style="font-size: 11px;">
+                                        <div class="fw-bold text-dark">@CalendarManager.GetDynamicFormattedDate(log.CreatedAt)</div>
+                                        <div class="text-muted" style="font-size: 10.5px;">@log.CreatedTime</div>
+                                    </td>
+
+                                    <td>
+                                        <button type="button" class="btn btn-sm text-danger p-0" @onclick="() => DeleteSingleLogAsync(log.Id)" title="@CalendarManager.Translate("DeleteBBtn")">
+                                            🗑️
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<DeleteModal Show="@showClearConfirmModal"
+             Title="@CalendarManager.Translate("PCal_AdminNotif_ClearAllBtn")"
+             SelectedItemLabel="@CalendarManager.Translate("DeleteSelectedItem")"
+             TargetName="@CalendarManager.Translate("PCal_AdminNotif_ModalTitle")"
+             Message="@CalendarManager.Translate("PCal_Notif_ClearConfirmMsg")"
+             SubMessage="@CalendarManager.Translate("PCal_Notif_ClearConfirmSub")"
+             DeleteConfirmBtn="@CalendarManager.Translate("DeleteConfirmBtn")"
+             kancelBtn="@CalendarManager.Translate("kancelBtn")"
+             OnConfirm="ExecuteClearAllLogsAsync"
+             OnCancel="() => showClearConfirmModal = false" />

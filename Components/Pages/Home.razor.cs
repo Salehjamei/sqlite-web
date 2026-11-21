@@ -21,11 +21,6 @@ namespace sqlite_web.Components.Pages
         // Search
         private string searchQuery = "";
 
-        // Toast
-        private bool showToast = false;
-        private string toastMessage = "";
-        private System.Threading.CancellationTokenSource? _toastCts;
-
         private bool isAnyAdminLoggedIn => AdminState.IsAuthorized;
 
         private IEnumerable<Employee> DisplayEmployees
@@ -54,13 +49,11 @@ namespace sqlite_web.Components.Pages
                     // ۲. فراخوانی متد لود زبان و تقویم از کلاس پایه اختصاصی
                     await LoadStoredLanguageAndCalendarAsync();
 
-                    // ۳. 🟢 تزریق مستقیم و اجباری زبان و تنظیمات تقویم به شیء مدیریت تقویم شما
+                    // ۳. تزریق مستقیم زبان و تنظیمات تقویم به شیء مدیریت تقویم
                     if (CalendarManager != null)
                     {
-                        // همگام‌سازی زبان جاری با موتور مترجم
                         CalendarManager.GetType().GetProperty("CurrentLanguage")?.SetValue(CalendarManager, CurrentLanguage);
 
-                        // بازیابی وضعیت فعال بودن تقویم فارسی از حافظه مرورگر
                         var calendarResult = await LocalStorage.GetAsync<bool>("UsePersianCalendarSetting");
                         if (calendarResult.Success)
                         {
@@ -84,48 +77,66 @@ namespace sqlite_web.Components.Pages
             }
         }
 
-
-
         private async Task LoadData()
         {
             try
             {
                 if (DbContext != null)
                 {
-                    // بارگذاری قوانین کاری فعال سیستم از دیتابیس
                     var settings = AdminState.CurrentSettings;
                     bool applyAutoLogout = settings?.ApplyAutoLogout ?? true;
                     string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
 
-                    // واکشی تمامی ترددهایی که هنوز خروج ندارند و تاریخ ورودشان قبل از امروز است
+                    // واکشی ترددهای باز گذشته همراه با اطلاعات کارمند جهت ثبت در لاگ سیستم
                     var overdueRecords = await DbContext.Attendances
+                        .Include(a => a.Employee)
                         .Where(a => a.ClockOutTime == null && a.ClockInTime.HasValue && a.ClockInTime.Value.Date < DateTime.Today)
                         .ToListAsync();
 
-                    // بستن خودکار و فیکس کردن رکوردهای باز گذشته روی ساعت تعیین شده
+                    var now = DateTime.Now;
+
                     foreach (var oldRecord in overdueRecords)
                     {
-                        if (applyAutoLogout)
-                        {
-                            var parsedTime = TimeSpan.Parse(autoTimeStr);
-                            oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(parsedTime);
-                        }
-                        else
-                        {
-                            oldRecord.ClockOutTime = oldRecord.ClockInTime.Value.Date.Add(TimeSpan.Parse("23:59"));
-                        }
+                        var parsedTime = applyAutoLogout ? TimeSpan.Parse(autoTimeStr) : TimeSpan.Parse("23:59");
+                        var autoClockOut = oldRecord.ClockInTime!.Value.Date.Add(parsedTime);
+
+                        oldRecord.ClockOutTime = autoClockOut;
                         oldRecord.EntrySource = "AutoClose";
                         DbContext.Attendances.Update(oldRecord);
+
+                        // ثبت مستقیم لاگ خروج خودکار در سرور بدون نام ادمین (توسط System)
+                        var empName = oldRecord.Employee?.FullName ?? "-";
+                        string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
+                        var args = new object[] { coloredEmpName, autoClockOut.ToString("HH:mm") };
+                        var template = CalendarManager.Translate("PCal_System_AutoLogoutSuccess");
+
+                        DbContext.AdminNotificationLogs.Add(new AdminNotificationLog
+                        {
+                            Category = "System",
+                            SubCategory = "AutoLogout",
+                            MessageKey = "PCal_System_AutoLogoutSuccess",
+                            MessageArgs = System.Text.Json.JsonSerializer.Serialize(args),
+                            Message = System.Text.RegularExpressions.Regex.Replace(string.Format(template, args), "<.*?>", string.Empty),
+                            NotificationType = "Info",
+                            CreatedAt = now,
+                            CreatedDate = now.ToString("yyyy-MM-dd"),
+                            CreatedTime = now.ToString("HH:mm:ss"),
+                            EventDate = autoClockOut.ToString("yyyy-MM-dd"),
+                            EventTime = autoClockOut.ToString("HH:mm:ss"),
+                            AdminId = null,
+                            AdminUsername = "System",
+                            EmployeeId = oldRecord.EmployeeId,
+                            EmployeeFullName = empName,
+                            EmployeePersonnelCode = oldRecord.Employee?.PersonnelCode ?? "-",
+                            EmployeePhone = oldRecord.Employee?.Phone ?? "-"
+                        });
                     }
 
-                    // ذخیره نهایی تغییرات در دیتابیس SQLite
                     if (overdueRecords.Any())
                     {
                         await DbContext.SaveChangesAsync();
                     }
 
-                    // بارگذاری مجدد لیست نهایی و به روز شده برای نمایش در جدول
-                    // واکشی کارمندان فعال مجاز به نمایش در صفحه کیوسک
                     employees = await DbContext.Employees
                         .Where(e => !e.IsHiddenFromKiosk)
                         .AsNoTracking()
@@ -135,125 +146,127 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                string errorFormat = CalendarManager.Translate("PCal_MainHome_LoadError");
-                message = string.Format(errorFormat, ex.Message);
+                // ثبت و نمایش خطای بارگذاری داده‌های کیوسک
+                TriggerToast(
+                    category: "Kiosk",
+                    subCategory: "SystemError",
+                    messageKey: "PCal_MainHome_LoadError",
+                    args: new object[] { ex.Message },
+                    isError: true
+                );
             }
-        }       
+        }
+
+
         private void ClearSearch()
         {
             searchQuery = "";
         }
 
-        private async Task ShowToastAsync(string text, int milliseconds = 3500)
-        {
-            try
-            {
-                // ۱. اگر از قبل تایمری در حال اجراست، آن را متوقف و ابطال کن
-                if (_toastCts != null)
-                {
-                    _toastCts.Cancel();
-                    _toastCts.Dispose();
-                }
-
-                // ۲. ساخت یک توکن اختصاصی جدید برای پیام فعلی
-                _toastCts = new System.Threading.CancellationTokenSource();
-                var currentToken = _toastCts.Token;
-
-                toastMessage = text;
-                showToast = true;
-                StateHasChanged();
-
-                // ۳. صبر کردن با قابلیت لغو شدن؛ اگر دکمه دیگری زده شود، این خط خطای لغو صادر می‌کند
-                await Task.Delay(milliseconds, currentToken);
-
-                // ۴. اگر تا پایان زمان تعیین‌شده لغو نشد، کادر را ببند
-                if (!currentToken.IsCancellationRequested)
-                {
-                    showToast = false;
-                    StateHasChanged();
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                // این بخش زمانی اجرا می‌شود که عملیات قبلی لغو شده است؛ عمداً خالی می‌گذاریم تا پیام جدید مدیریت را به دست بگیرد
-            }
-        }
         private async Task ClockIn(int employeeId)
         {
+            var targetEmp = employees.FirstOrDefault(e => e.Id == employeeId)
+                            ?? await DbContext.Employees.FindAsync(employeeId);
+
             try
             {
-                // گارد امنیتی: بررسی وجود هرگونه تردد باز فعال در سیستم برای این کارمند
                 bool hasOpenRecord = await DbContext.Attendances
                     .AnyAsync(a => a.EmployeeId == employeeId && a.ClockOutTime == null);
 
                 if (hasOpenRecord)
                 {
-                    string errFormat = CalendarManager.Translate("PCal_MainHome_ClockInError");
-                    string validationMsg = CalendarManager.Translate("PCal_MainHome_AlreadyHasOpenRecord");
-                    message = string.Format(errFormat, validationMsg);
+                    // ثبت و نمایش خطای تردد باز قبلی با زیردسته Validation
+                    TriggerToast(
+                        category: "Kiosk",
+                        subCategory: "Validation",
+                        messageKey: "PCal_MainHome_AlreadyHasOpenRecord",
+                        isError: true,
+                        targetEmp: targetEmp
+                    );
                     return;
                 }
 
-                // ثبت رکورد ورود جدید با منبع کیوسک
+                var now = DateTime.Now;
                 var attendance = new Attendance
                 {
                     EmployeeId = employeeId,
-                    ClockInTime = DateTime.Now,
-                    CreationDate = DateTime.Now,
+                    ClockInTime = now,
+                    CreationDate = now,
                     EntrySource = "Kiosk"
                 };
 
                 DbContext.Attendances.Add(attendance);
                 await DbContext.SaveChangesAsync();
 
-                var empName = employees.FirstOrDefault(e => e.Id == employeeId)?.FullName;
-                if (string.IsNullOrEmpty(empName))
-                {
-                    var emp = await DbContext.Employees.FindAsync(employeeId);
-                    empName = emp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
-                }
-
+                var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                 await LoadData();
-                string successFormat = CalendarManager.Translate("PCal_MainHome_ClockInSuccess");
-                await ShowToastAsync(string.Format(successFormat, empName));
+
+                TriggerToast(
+                    category: "Kiosk",
+                    subCategory: "Attendance",
+                    messageKey: "PCal_MainHome_ClockInSuccess",
+                    args: new object[] { empName },
+                    isError: false,
+                    targetEmp: targetEmp,
+                    eventDate: now.ToString("yyyy-MM-dd"),
+                    eventTime: now.ToString("HH:mm:ss")
+                );
             }
             catch (Exception ex)
             {
-                string errFormat = CalendarManager.Translate("PCal_MainHome_ClockInError");
-                message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
+                TriggerToast(
+                    category: "Kiosk",
+                    subCategory: "Attendance",
+                    messageKey: "PCal_MainHome_ClockInError",
+                    args: new object[] { ex.InnerException?.Message ?? ex.Message },
+                    isError: true,
+                    targetEmp: targetEmp
+                );
             }
         }
 
-
-
         private async Task ClockOut(int attendanceId)
         {
+            Employee? targetEmp = null;
             try
             {
                 var record = await DbContext.Attendances.FindAsync(attendanceId);
                 if (record != null)
                 {
-                    record.ClockOutTime = DateTime.Now;
+                    targetEmp = employees.FirstOrDefault(e => e.Id == record.EmployeeId)
+                                ?? await DbContext.Employees.FindAsync(record.EmployeeId);
+
+                    var now = DateTime.Now;
+                    record.ClockOutTime = now;
 
                     DbContext.Attendances.Update(record);
                     await DbContext.SaveChangesAsync();
 
-                    var empName = employees.FirstOrDefault(e => e.Id == record.EmployeeId)?.FullName;
-                    if (string.IsNullOrEmpty(empName))
-                    {
-                        var emp = await DbContext.Employees.FindAsync(record.EmployeeId);
-                        empName = emp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
-                    }
-
+                    var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                     await LoadData();
-                    string successFormat = CalendarManager.Translate("PCal_MainHome_ClockOutSuccess");
-                    await ShowToastAsync(string.Format(successFormat, empName));
+
+                    TriggerToast(
+                        category: "Kiosk",
+                        subCategory: "Attendance",
+                        messageKey: "PCal_MainHome_ClockOutSuccess",
+                        args: new object[] { empName },
+                        isError: false,
+                        targetEmp: targetEmp,
+                        eventDate: now.ToString("yyyy-MM-dd"),
+                        eventTime: now.ToString("HH:mm:ss")
+                    );
                 }
             }
             catch (Exception ex)
             {
-                string errFormat = CalendarManager.Translate("PCal_MainHome_ClockOutError");
-                message = string.Format(errFormat, ex.InnerException?.Message ?? ex.Message);
+                TriggerToast(
+                    category: "Kiosk",
+                    subCategory: "Attendance",
+                    messageKey: "PCal_MainHome_ClockOutError",
+                    args: new object[] { ex.InnerException?.Message ?? ex.Message },
+                    isError: true,
+                    targetEmp: targetEmp
+                );
             }
         }
 

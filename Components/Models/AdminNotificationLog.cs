@@ -8,17 +8,34 @@ namespace sqlite_web.Components.Models
         [Key]
         public int Id { get; set; }
 
-        // بخش یا ماژول صادرکننده اعلان (مقادیر: "Kiosk", "AdminPanel", "ManageAdmins", "Leaves", ...)
+        // بخش یا صفحه صادرکننده اعلان (مقادیر: "Kiosk", "AdminPanel", "ManageAdmins")
         public string Category { get; set; } = "General";
 
-        // متن کامل پیام اعلان
+        // موضوع یا زیرمجموعه دقیق رویداد (مقادیر: "Attendance", "EmployeeInfo", "Settings", "AdminAccess")
+        public string SubCategory { get; set; } = "General";
+
+        // کلید ترجمه پیام در کلاس PCalendar (برای نمایش چندزبانه در پنل سوپر ادمین)
+        public string MessageKey { get; set; } = string.Empty;
+
+        // پارامترهای متغیر پیام به فرمت JSON (مثلاً: ["نام کارمند"])
+        public string? MessageArgs { get; set; }
+
+        // متن کامل پیام اعلان (به عنوان پشتیبان و سازگاری با لاگ‌های قبلی)
         public string Message { get; set; } = string.Empty;
 
         // نوع اعلان (Success, Error, Info)
         public string NotificationType { get; set; } = "Success";
 
-        // زمان دقیق ایجاد اعلان
+        // زمان دقیق ایجاد اعلان (برای مرتب‌سازی سیستمی)
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        // فیلدهای مجزای تاریخ و ساعت ثبت اعلان (برای کنترل، فیلتر و سفارشی‌سازی ادمین)
+        public string CreatedDate { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
+        public string CreatedTime { get; set; } = DateTime.Now.ToString("HH:mm:ss");
+
+        // فیلدهای اختیاری تاریخ و ساعت رویداد هدف (مثلاً در زمان ثبت دستی تردد توسط ادمین)
+        public string? EventDate { get; set; }
+        public string? EventTime { get; set; }
 
         // مشخصات ادمینی که عملیات را انجام داده یا اعلان برای او صادر شده است
         public int? AdminId { get; set; }

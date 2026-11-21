@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace sqlite_web.Components.Pages
 {
-  public partial class AdminPanel : AppBaseComponent, IDisposable
+    public partial class AdminPanel : AppBaseComponent, IDisposable
     {
         [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
@@ -21,19 +21,26 @@ namespace sqlite_web.Components.Pages
         // نگهداری نام فیلدی که دچار خطای اعتبارسنجی شده است ("Name", "Code", "Phone")
         protected string EmpErrorField { get; set; } = string.Empty;
         // ثبت نام فیلد دارای خطا و فوکوس خودکار روی المنت HTML مربوطه
-        private async Task SetEmpValidationErrorAsync(string fieldName, string elementId, string errorMessage)
-{
-    EmpErrorField = fieldName;
-    SystemMessage = errorMessage;
-    await InvokeAsync(StateHasChanged);
+        private async Task SetEmpValidationErrorAsync(string fieldName, string elementId, string messageKey)
+        {
+            EmpErrorField = fieldName;
 
-    try
-    {
-        // استفاده از تاخیر کوتاه جاوااسکریپت برای اطمینان از اتمام رندر DOM قبل از فوکوس
-        await JSRuntime.InvokeVoidAsync("eval", $"setTimeout(function() {{ var el = document.getElementById('{elementId}'); if(el) {{ el.focus(); el.select(); }} }}, 50);");
-    }
-    catch { }
-}
+            // صدور اعلان خطای اعتبارسنجی فرم با زیردسته Validation و ثبت در سرور
+            TriggerToast(
+                category: "AdminPanel",
+                subCategory: "Validation",
+                messageKey: messageKey,
+                isError: true
+            );
+
+            await InvokeAsync(StateHasChanged);
+
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval", $"setTimeout(function() {{ var el = document.getElementById('{elementId}'); if(el) {{ el.focus(); el.select(); }} }}, 50);");
+            }
+            catch { }
+        }
 
         protected bool canAddPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false);
         protected bool canEditPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false);
@@ -52,7 +59,7 @@ namespace sqlite_web.Components.Pages
 
         protected string newEmpName { get; set; } = string.Empty;
         protected string newEmpCode { get; set; } = string.Empty;
-        
+
 
         protected string newEmpPhone { get; set; } = string.Empty;
         protected bool newEmpHiddenFromKiosk { get; set; } = false;
@@ -174,7 +181,7 @@ namespace sqlite_web.Components.Pages
         }
 
 
-       
+
 
         protected async Task SetSystemLanguage(string lang)
         {
@@ -292,10 +299,17 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_ImageUploadError"), ex.Message);
+                TriggerToast(
+                    category: "AdminPanel",
+                    subCategory: "EmployeeInfo",
+                    messageKey: "PCal_AdminPanel_ImageUploadError",
+                    args: new object[] { ex.Message },
+                    isError: true
+                );
             }
         }
 
+        // اعتبارسنجی مجزای فیلدها و ذخیره اطلاعات کارمند در دیتابیس
         // اعتبارسنجی مجزای فیلدها و ذخیره اطلاعات کارمند در دیتابیس
         protected async Task SaveEmployeeData()
         {
@@ -340,7 +354,7 @@ namespace sqlite_web.Components.Pages
             // ساخت نام برجسته و رنگی کارمند برای نمایش در بنر اعلان بالای صفحه
             string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{newEmpName}»</span>";
 
-            // بررسی حالت ویرایش کارمند موجود
+            // حالت اول: بررسی حالت ویرایش کارمند موجود
             if (isEmpEditMode && _editingEmployeeId.HasValue)
             {
                 // کنترل سطح دسترسی مدیر برای انجام عملیات ویرایش
@@ -365,12 +379,22 @@ namespace sqlite_web.Components.Pages
                     emp.ImagePath = previewImageUrl;
                     emp.IsHiddenFromKiosk = newEmpHiddenFromKiosk;
 
-                    // ثبت تغییرات در بافت دیتابیس و تنظیم پیام موفقیت همراه با نام کارمند
+                    // ثبت تغییرات در بافت دیتابیس و ذخیره نهایی در فایل SQLite
                     DbContext.Employees.Update(emp);
-                    SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_EmpEditSuccess"), coloredEmpName);
+                    await DbContext.SaveChangesAsync();
+
+                    // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
+                    TriggerToast(
+                        category: "AdminPanel",
+                        subCategory: "EmployeeInfo",
+                        messageKey: "PCal_AdminPanel_EmpEditSuccess",
+                        args: new object[] { coloredEmpName },
+                        isError: false,
+                        targetEmp: emp
+                    );
                 }
             }
-            // حالت ثبت کارمند جدید در سیستم
+            // حالت دوم: ثبت کارمند جدید در سیستم
             else
             {
                 // کنترل سطح دسترسی مدیر برای افزودن کارمند جدید
@@ -384,27 +408,36 @@ namespace sqlite_web.Components.Pages
                     return;
                 }
 
-                // ایجاد و افزودن رکورد جدید کارمند به جدول دیتابیس همراه با وضعیت کیوسک
-                DbContext.Employees.Add(new Employee
+                // ایجاد شیء کارمند جدید همراه با وضعیت نمایش در کیوسک
+                var newEmp = new Employee
                 {
                     FullName = newEmpName,
                     Phone = newEmpPhone,
                     PersonnelCode = newEmpCode,
                     ImagePath = previewImageUrl,
                     IsHiddenFromKiosk = newEmpHiddenFromKiosk
-                });
+                };
 
-                // تنظیم پیام موفقیت ثبت کارمند جدید همراه با نام کارمند
-                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_EmpAddSuccess"), coloredEmpName);
+                // افزودن رکورد جدید به جدول دیتابیس و ذخیره نهایی
+                DbContext.Employees.Add(newEmp);
+                await DbContext.SaveChangesAsync();
+
+                // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
+                TriggerToast(
+                    category: "AdminPanel",
+                    subCategory: "EmployeeInfo",
+                    messageKey: "PCal_AdminPanel_EmpAddSuccess",
+                    args: new object[] { coloredEmpName },
+                    isError: false,
+                    targetEmp: newEmp
+                );
             }
-
-            // ذخیره نهایی تغییرات در فایل دیتابیس SQLite
-            await DbContext.SaveChangesAsync();
 
             // بارگذاری مجدد لیست پرسنل در جدول صفحه و بستن مودال فرم
             await RefreshDataAsync();
             CloseEmpFormModal();
         }
+
 
 
         // مقداردهی اولیه فیلدهای فرم برای ویرایش اطلاعات یک کارمند مشخص
@@ -459,8 +492,7 @@ namespace sqlite_web.Components.Pages
             await RefreshDataAsync();
         }
 
-        // ثبت ورود و خروج سریع از جدول پنل مدیریت همراه با ثبت شناسه ادمین
-        // ثبت سریع ورود کارمند از جدول اصلی پنل همراه با ثبت نام کارمند در بنر اعلان
+        // ثبت سریع ورود کارمند از جدول اصلی پنل همراه با ثبت نام کارمند در بنر اعلان و تاریخچه سرور
         protected async Task StartAttendanceNow(int employeeId)
         {
             // بررسی سطح دسترسی مدیر برای انجام عملیات ویرایش و ثبت تردد
@@ -468,28 +500,41 @@ namespace sqlite_web.Components.Pages
 
             try
             {
-                // دریافت شناسه ادمین آنلاین جهت ثبت در تاریخچه رکورد
+                // دریافت شناسه ادمین آنلاین و زمان دقیق فعلی جهت ثبت در تاریخچه رکورد
                 int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
+                var now = DateTime.Now;
 
                 // ایجاد رکورد تردد جدید با منبع ثبت سریع ادمین
                 var attendance = new Attendance
                 {
                     EmployeeId = employeeId,
-                    ClockInTime = DateTime.Now,
+                    ClockInTime = now,
                     ClockOutTime = null,
-                    CreationDate = DateTime.Now,
+                    CreationDate = now,
                     EntrySource = "AdminFast",
                     CreatedByAdminId = currentAdminId
                 };
 
-                // افزودن رکورد به دیتابیس و ذخیره تغییرات
+                // افزودن رکورد به دیتابیس و ذخیره تغییرات در فایل SQLite
                 DbContext.Attendances.Add(attendance);
                 await DbContext.SaveChangesAsync();
 
-                // استخراج نام کارمند و قالب‌بندی آن با رنگ قرمز جهت نمایش در اعلان بالای صفحه
-                string empName = employees.FirstOrDefault(e => e.Id == employeeId)?.FullName ?? string.Empty;
+                // واکشی شیء کامل کارمند و قالب‌بندی نام او با رنگ قرمز جهت نمایش در اعلان
+                var targetEmp = employees.FirstOrDefault(e => e.Id == employeeId);
+                string empName = targetEmp?.FullName ?? string.Empty;
                 string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
-                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastInSuccess"), coloredEmpName);
+
+                // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته QuickAttendance
+                TriggerToast(
+                    category: "AdminPanel",
+                    subCategory: "QuickAttendance",
+                    messageKey: "PCal_AdminPanel_FastInSuccess",
+                    args: new object[] { coloredEmpName },
+                    isError: false,
+                    targetEmp: targetEmp,
+                    eventDate: now.ToString("yyyy-MM-dd"),
+                    eventTime: now.ToString("HH:mm:ss")
+                );
 
                 // بارگذاری مجدد داده‌های صفحه
                 await RefreshDataAsync();
@@ -497,14 +542,14 @@ namespace sqlite_web.Components.Pages
             catch (Exception ex)
             {
                 // نمایش پیام خطا در صورت بروز مشکل هنگام ثبت ورود سریع
-                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastInError"), ex.Message);
+                TriggerToast("AdminPanel", "QuickAttendance", "PCal_AdminPanel_FastInError", new object[] { ex.Message }, isError: true);
             }
 
             // بازرندر رابط کاربری برای نمایش وضعیت جدید و بنر اعلان
             await InvokeAsync(StateHasChanged);
         }
 
-        // ثبت سریع خروج کارمند از جدول اصلی یا کارنامه همراه با نمایش نام کارمند در بنر اعلان
+        // ثبت سریع خروج کارمند از جدول اصلی یا کارنامه همراه با ثبت در تاریخچه سرور
         protected async Task StopAttendanceNow(int attendanceId)
         {
             // بررسی سطح دسترسی مدیر برای انجام عملیات ویرایش و ثبت خروج
@@ -518,17 +563,30 @@ namespace sqlite_web.Components.Pages
                 {
                     // دریافت شناسه ادمین آنلاین و ثبت ساعت خروج به عنوان زمان فعلی
                     int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
-                    attendance.ClockOutTime = DateTime.Now;
+                    var now = DateTime.Now;
+                    attendance.ClockOutTime = now;
                     attendance.LastModifiedByAdminId = currentAdminId;
 
                     // به‌روزرسانی رکورد در دیتابیس و ذخیره تغییرات
                     DbContext.Attendances.Update(attendance);
                     await DbContext.SaveChangesAsync();
 
-                    // استخراج نام کارمند و قالب‌بندی آن با رنگ قرمز جهت نمایش در اعلان بالای صفحه
-                    string empName = employees.FirstOrDefault(e => e.Id == attendance.EmployeeId)?.FullName ?? string.Empty;
+                    // واکشی شیء کامل کارمند و قالب‌بندی نام او با رنگ قرمز جهت نمایش در اعلان
+                    var targetEmp = employees.FirstOrDefault(e => e.Id == attendance.EmployeeId);
+                    string empName = targetEmp?.FullName ?? string.Empty;
                     string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
-                    SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastOutSuccess"), coloredEmpName);
+
+                    // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته QuickAttendance
+                    TriggerToast(
+                        category: "AdminPanel",
+                        subCategory: "QuickAttendance",
+                        messageKey: "PCal_AdminPanel_FastOutSuccess",
+                        args: new object[] { coloredEmpName },
+                        isError: false,
+                        targetEmp: targetEmp,
+                        eventDate: now.ToString("yyyy-MM-dd"),
+                        eventTime: now.ToString("HH:mm:ss")
+                    );
 
                     // بارگذاری مجدد داده‌های صفحه
                     await RefreshDataAsync();
@@ -537,14 +595,13 @@ namespace sqlite_web.Components.Pages
             catch (Exception ex)
             {
                 // نمایش پیام خطا در صورت بروز مشکل هنگام ثبت خروج سریع
-                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_FastOutError"), ex.Message);
+                TriggerToast("AdminPanel", "QuickAttendance", "PCal_AdminPanel_FastOutError", new object[] { ex.Message }, isError: true);
             }
 
             // بازرندر رابط کاربری برای نمایش وضعیت جدید و بنر اعلان
             await InvokeAsync(StateHasChanged);
         }
-
-        // ثبت دستی یا ویرایش ساعت کاری پرسنل همراه با ذخیره تاریخچه تغییرات ادمین و نمایش نام کارمند در اعلان
+        // ثبت دستی یا ویرایش ساعت کاری پرسنل همراه با ذخیره تاریخچه تغییرات ادمین و ثبت خطاها/موفقیت در سرور
         protected async Task AddManualAttendance()
         {
             // بررسی سطح دسترسی مدیر و انتخاب شدن کارمند هدف
@@ -564,17 +621,35 @@ namespace sqlite_web.Components.Pages
                 var inTime = DateTime.Parse($"{manualDate:yyyy-MM-dd} {manualInTime}");
                 var outTime = DateTime.Parse($"{manualOutDate:yyyy-MM-dd} {manualOutTime}");
 
-                // بررسی یکسان بودن تاریخ روز ورود و روز خروج
+                // ۱. بررسی یکسان بودن تاریخ روز ورود و روز خروج
                 if (inTime.Date != outTime.Date)
                 {
                     CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_ManualDateMismatch");
+
+                    // ثبت خطای عدم تطابق تاریخ در تاریخچه اعلان‌های سرور با زیردسته ReportCard
+                    TriggerToast(
+                        category: "AdminPanel",
+                        subCategory: "ReportCard",
+                        messageKey: "PCal_AdminPanel_ManualDateMismatch",
+                        isError: true,
+                        targetEmp: selectedEmployee
+                    );
                     return;
                 }
 
-                // جلوگیری از ثبت ساعت خروج زودتر از ساعت ورود
+                // ۲. جلوگیری از ثبت ساعت خروج زودتر از ساعت ورود
                 if (outTime < inTime)
                 {
                     CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_ManualTimeOrderError");
+
+                    // ثبت خطای ترتیب ساعت در تاریخچه اعلان‌های سرور با زیردسته ReportCard
+                    TriggerToast(
+                        category: "AdminPanel",
+                        subCategory: "ReportCard",
+                        messageKey: "PCal_AdminPanel_ManualTimeOrderError",
+                        isError: true,
+                        targetEmp: selectedEmployee
+                    );
                     return;
                 }
 
@@ -634,11 +709,21 @@ namespace sqlite_web.Components.Pages
                 // ذخیره نهایی تغییرات در فایل دیتابیس SQLite
                 await DbContext.SaveChangesAsync();
 
-                // قالب‌بندی نام کارمند با رنگ قرمز جهت نمایش در بنر شیشه‌ای بالای صفحه
+                // قالب‌بندی نام کارمند با رنگ قرمز و انتخاب کلید ترجمه مناسب برای ویرایش یا افزودن
                 string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{selectedEmployee.FullName}»</span>";
-                SystemMessage = isAttEditMode
-                    ? string.Format(CalendarManager.Translate("PCal_AdminPanel_ManualEditSuccess"), coloredEmpName)
-                    : string.Format(CalendarManager.Translate("PCal_AdminPanel_ManualAddSuccess"), coloredEmpName);
+                string msgKey = isAttEditMode ? "PCal_AdminPanel_ManualEditSuccess" : "PCal_AdminPanel_ManualAddSuccess";
+
+                // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته ReportCard و زمان رویداد
+                TriggerToast(
+                    category: "AdminPanel",
+                    subCategory: "ReportCard",
+                    messageKey: msgKey,
+                    args: new object[] { coloredEmpName },
+                    isError: false,
+                    targetEmp: selectedEmployee,
+                    eventDate: inTime.ToString("yyyy-MM-dd"),
+                    eventTime: $"{inTime:HH:mm} - {outTime:HH:mm}"
+                );
 
                 // بستن مودال ثبت دستی، بازمحاسبه ساعات کارنامه و بازنشانی فرم
                 showManualAddModal = false;
@@ -648,12 +733,19 @@ namespace sqlite_web.Components.Pages
             }
             catch
             {
-                // نمایش خطا در صورت نامعتبر بودن فرمت ساعت تایپ شده
+                // ۳. نمایش خطا در صورت نامعتبر بودن فرمت ساعت تایپ شده
                 CalendarManager.AttendanceValidationMessage = CalendarManager.Translate("PCal_AdminPanel_InvalidTimeFormat");
+
+                // ثبت خطای فرمت زمان در تاریخچه اعلان‌های سرور با زیردسته ReportCard
+                TriggerToast(
+                    category: "AdminPanel",
+                    subCategory: "ReportCard",
+                    messageKey: "PCal_AdminPanel_InvalidTimeFormat",
+                    isError: true,
+                    targetEmp: selectedEmployee
+                );
             }
         }
-
-
         protected void CloseModal() { showModal = false; selectedEmployee = null; }
         protected void ClearSystemMessage() => SystemMessage = string.Empty;
 
@@ -798,7 +890,7 @@ namespace sqlite_web.Components.Pages
             showDeleteModal = true;
         }
         protected void CancelDeleteModal() => showDeleteModal = false;
-        // اجرای عملیات حذف تایید شده (پرونده پرسنل یا رکورد تردد) و نمایش نام کارمند در بنر اعلان
+        // اجرای عملیات حذف تایید شده (پرونده پرسنل یا رکورد تردد) و ثبت در تاریخچه اعلان‌های سرور
         protected async Task ExecuteConfirmedDelete()
         {
             // بستن پنجره مودال تاییدیه حذف
@@ -822,11 +914,19 @@ namespace sqlite_web.Components.Pages
                         var attendances = DbContext.Attendances.Where(a => a.EmployeeId == _targetIdToDelete);
                         DbContext.Attendances.RemoveRange(attendances);
 
-                        // حذف رکورد اصلی کارمند از جدول پرسنل
+                        // حذف رکورد اصلی کارمند از جدول پرسنل و ذخیره نهایی در دیتابیس
                         DbContext.Employees.Remove(employee);
+                        await DbContext.SaveChangesAsync();
 
-                        // تنظیم پیام موفقیت حذف همراه با نام کارمند
-                        SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_EmpDeletedMsg"), coloredEmpName);
+                        // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
+                        TriggerToast(
+                            category: "AdminPanel",
+                            subCategory: "EmployeeInfo",
+                            messageKey: "PCal_AdminPanel_EmpDeletedMsg",
+                            args: new object[] { coloredEmpName },
+                            isError: false,
+                            targetEmp: employee
+                        );
                     }
                 }
                 // حالت دوم: حذف یک رکورد تردد خاص از کارنامه کارمند
@@ -835,29 +935,40 @@ namespace sqlite_web.Components.Pages
                     var att = await DbContext.Attendances.FirstOrDefaultAsync(a => a.Id == _targetIdToDelete);
                     if (att != null)
                     {
-                        // استخراج نام کارمند مرتبط با این تردد (از کارمند انتخاب‌شده در کارنامه یا لیست کل پرسنل)
-                        string empName = selectedEmployee?.FullName
-                                         ?? employees.FirstOrDefault(e => e.Id == att.EmployeeId)?.FullName
-                                         ?? string.Empty;
+                        // واکشی شیء کارمند مرتبط با این تردد (از کارمند انتخاب‌شده در کارنامه یا لیست کل پرسنل)
+                        var targetEmp = selectedEmployee ?? employees.FirstOrDefault(e => e.Id == att.EmployeeId);
+                        string empName = targetEmp?.FullName ?? string.Empty;
 
                         // قالب‌بندی نام کارمند با رنگ قرمز و فونت ضخیم جهت نمایش در اعلان
                         string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
 
-                        // حذف رکورد تردد از جدول دیتابیس
-                        DbContext.Attendances.Remove(att);
+                        // استخراج تاریخ و ساعت رکورد تردد پیش از حذف جهت ثبت در لاگ رویداد
+                        string? evDate = att.ClockInTime?.ToString("yyyy-MM-dd");
+                        string? evTime = att.ClockInTime?.ToString("HH:mm");
 
-                        // تنظیم پیام موفقیت ابطال تردد همراه با نام کارمند
-                        SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_AttDeletedMsg"), coloredEmpName);
+                        // حذف رکورد تردد از جدول دیتابیس و ذخیره نهایی
+                        DbContext.Attendances.Remove(att);
+                        await DbContext.SaveChangesAsync();
+
+                        // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته ReportCard
+                        TriggerToast(
+                            category: "AdminPanel",
+                            subCategory: "ReportCard",
+                            messageKey: "PCal_AdminPanel_AttDeletedMsg",
+                            args: new object[] { coloredEmpName },
+                            isError: false,
+                            targetEmp: targetEmp,
+                            eventDate: evDate,
+                            eventTime: evTime
+                        );
                     }
                 }
-
-                // ذخیره نهایی تغییرات حذف در فایل دیتابیس SQLite
-                await DbContext.SaveChangesAsync();
             }
             catch (Exception ex)
             {
                 // نمایش پیغام خطا در صورت بروز مشکل در عملیات حذف دیتابیس
-                SystemMessage = string.Format(CalendarManager.Translate("PCal_AdminPanel_DeleteError"), ex.Message);
+                string subCat = _deleteType == "Employee" ? "EmployeeInfo" : "ReportCard";
+                TriggerToast("AdminPanel", subCat, "PCal_AdminPanel_DeleteError", new object[] { ex.Message }, isError: true);
             }
 
             // بازمحاسبه ساعات کاری ماهانه در صورت حذف شدن یک تردد از داخل کارنامه
@@ -867,6 +978,7 @@ namespace sqlite_web.Components.Pages
             await RefreshDataAsync();
             await InvokeAsync(StateHasChanged);
         }
+
 
         // محاسبه تفکیک شده ساعات موظفی و اضافه کاری بدون تداخل با رکوردهای با کارکرد صفر
         private void CalculateFilteredHours(int employeeId)

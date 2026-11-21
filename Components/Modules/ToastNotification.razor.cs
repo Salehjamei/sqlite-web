@@ -3,6 +3,7 @@ using sqlite_web.Components.Models;
 using sqlite_web.Components.Models.Calendar;
 using sqlite_web.Services;
 using System;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,13 +17,27 @@ namespace sqlite_web.Components.Modules
         // پارامترهای کنترل نمایش و محتوای اعلان
         [Parameter] public bool Show { get; set; }
         [Parameter] public EventCallback<bool> ShowChanged { get; set; }
+
+        // کلید ترجمه پیام در کلاس PCalendar (اولویت اول برای چندزبانه‌سازی)
+        [Parameter] public string MessageKey { get; set; } = string.Empty;
+
+        // پارامترهای متغیر داخل متن پیام (مثلاً نام کارمند)
+        [Parameter] public object[]? MessageArgs { get; set; }
+
+        // متن مستقیم (برای سازگاری با بخش‌هایی که هنوز از روش قبلی استفاده می‌کنند)
         [Parameter] public string Message { get; set; } = string.Empty;
+
         [Parameter] public bool IsError { get; set; } = false;
         [Parameter] public string CurrentLanguage { get; set; } = "fa";
         [Parameter] public PCalendar CalendarManager { get; set; } = new();
 
-        // دسته‌بندی بخش صادرکننده اعلان (Kiosk, AdminPanel, ManageAdmins, ...)
+        // دسته‌بندی اصلی و زیردسته بخش صادرکننده اعلان (ثبت مستقیم به انگلیسی در سرور)
         [Parameter] public string Category { get; set; } = "General";
+        [Parameter] public string SubCategory { get; set; } = "General";
+
+        // پارامترهای اختیاری تاریخ و ساعت رویداد هدف (مثلاً در زمان ثبت دستی تردد)
+        [Parameter] public string? EventDate { get; set; }
+        [Parameter] public string? EventTime { get; set; }
 
         // زمان بسته شدن خودکار به میلی‌ثانیه (مقدار 0 به معنای باز ماندن تا زمان بستن دستی است)
         [Parameter] public int AutoCloseMilliseconds { get; set; } = 0;
@@ -34,15 +49,38 @@ namespace sqlite_web.Components.Modules
         [Parameter] public Employee? TargetEmployee { get; set; }
 
         private DateTime _shownAt;
-        private string _lastSavedMessage = string.Empty;
+        private string _lastSavedSignature = string.Empty;
         private Timer? _liveTimer;
+
+        // تولید متن نهایی و ترجمه‌شده برای نمایش در کامپوننت Toast
+        protected string DisplayMessage
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(MessageKey))
+                {
+                    var template = CalendarManager.Translate(MessageKey);
+                    return (MessageArgs != null && MessageArgs.Length > 0)
+                        ? string.Format(template, MessageArgs)
+                        : template;
+                }
+                return Message;
+            }
+        }
 
         protected override async Task OnParametersSetAsync()
         {
-            if (Show && !string.IsNullOrEmpty(Message) && Message != _lastSavedMessage)
+            var serializedArgs = (MessageArgs != null && MessageArgs.Length > 0)
+                ? JsonSerializer.Serialize(MessageArgs)
+                : string.Empty;
+
+            var currentSignature = $"{Category}|{SubCategory}|{MessageKey}|{Message}|{serializedArgs}";
+
+            if (Show && !string.IsNullOrEmpty(DisplayMessage) && currentSignature != _lastSavedSignature)
             {
-                _lastSavedMessage = Message;
-                _shownAt = DateTime.Now;
+                _lastSavedSignature = currentSignature;
+                var now = DateTime.Now;
+                _shownAt = now;
 
                 // ذخیره خودکار اعلان و اطلاعات پرسنل در دیتابیس سرور
                 if (SaveToDatabase && DbContext != null)
@@ -51,11 +89,26 @@ namespace sqlite_web.Components.Modules
                     {
                         var log = new AdminNotificationLog
                         {
-                            // ثبت نام بخش صادرکننده اعلان
+                            // ثبت نام بخش و زیردسته صادرکننده اعلان به صورت انگلیسی
                             Category = Category,
-                            Message = Regex.Replace(Message, "<.*?>", string.Empty),
+                            SubCategory = SubCategory,
+
+                            // ذخیره کلید ترجمه و پارامترها برای نمایش چندزبانه در پنل سوپر ادمین
+                            MessageKey = MessageKey,
+                            MessageArgs = string.IsNullOrEmpty(serializedArgs) ? null : serializedArgs,
+
+                            // ذخیره متن خام بدون تگ HTML به عنوان پشتیبان
+                            Message = Regex.Replace(DisplayMessage, "<.*?>", string.Empty),
+
                             NotificationType = IsError ? "Error" : "Success",
-                            CreatedAt = DateTime.Now,
+
+                            // ثبت زمان کامل به همراه فیلدهای مجزای تاریخ و ساعت
+                            CreatedAt = now,
+                            CreatedDate = now.ToString("yyyy-MM-dd"),
+                            CreatedTime = now.ToString("HH:mm:ss"),
+                            EventDate = EventDate,
+                            EventTime = EventTime,
+
                             AdminId = AdminId,
                             AdminUsername = string.IsNullOrWhiteSpace(AdminUsername) ? "Kiosk / System" : AdminUsername,
                             EmployeeId = TargetEmployee?.Id,
@@ -86,7 +139,7 @@ namespace sqlite_web.Components.Modules
             }
             else if (!Show)
             {
-                _lastSavedMessage = string.Empty;
+                _lastSavedSignature = string.Empty;
                 _liveTimer?.Dispose();
             }
         }
@@ -110,7 +163,7 @@ namespace sqlite_web.Components.Modules
         protected async Task CloseToastAsync()
         {
             Show = false;
-            _lastSavedMessage = string.Empty;
+            _lastSavedSignature = string.Empty;
             _liveTimer?.Dispose();
             await ShowChanged.InvokeAsync(false);
         }

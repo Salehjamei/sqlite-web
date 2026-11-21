@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
+using sqlite_web.Components.Models;
 using sqlite_web.Components.Models.Calendar;
 using System.Threading.Tasks;
 
@@ -43,6 +44,47 @@ namespace sqlite_web.Components
                 // مهار خطای لود اولیه در Blazor Server
             }
         }
-    
+        /// <summary>
+        /// ToastNotification
+        /// </summary> !
+        // متغیرهای مشترک کنترل کامپوننت ToastNotification برای تمام صفحات
+        protected bool showToast = false;
+        protected bool isToastError = false;
+        protected string toastCategory = "General";
+        protected string toastSubCategory = "General";
+        protected string toastMessageKey = string.Empty;
+        protected object[]? toastMessageArgs = null;
+        protected string toastMessage = string.Empty;
+        protected string? toastEventDate = null;
+        protected string? toastEventTime = null;
+        protected Employee? toastTargetEmployee = null;
+
+        // متد سراسری صدور اعلان چندزبانه با دریافت نام صفحه و زیردسته
+        protected void TriggerToast(
+            string category,
+            string subCategory,
+            string messageKey,
+            object[]? args = null,
+            bool isError = false,
+            Employee? targetEmp = null,
+            string? eventDate = null,
+            string? eventTime = null)
+        {
+            toastCategory = category;
+            toastSubCategory = subCategory;
+            toastMessageKey = messageKey;
+            toastMessageArgs = args;
+            toastMessage = string.Empty;
+            isToastError = isError;
+            toastTargetEmployee = targetEmp;
+            toastEventDate = eventDate;
+            toastEventTime = eventTime;
+            showToast = true;
+        }
+
+
+        /// <summary> ^
+        /// ToastNotification
+        /// </summary>
     }
 }
