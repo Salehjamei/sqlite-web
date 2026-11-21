@@ -84,11 +84,13 @@
                         </select>
                     </div>
 
+                    @* فیلتر تاریخ ثبت اعلان *@
                     <div class="col-md-2 col-4">
                         <label class="form-label text-muted small fw-bold mb-1" style="font-size: 10.5px;">@CalendarManager.Translate("PCal_Notif_FilterDate"):</label>
                         <input type="date" class="form-control form-control-sm text-center font-monospace" @bind="FilterDate" style="font-size: 11px; height: 31px;" />
                     </div>
 
+                    @* فیلتر بازه ساعتی ثبت اعلان *@
                     <div class="col-md-2 col-4">
                         <label class="form-label text-muted small fw-bold mb-1" style="font-size: 10.5px;">@CalendarManager.Translate("PCal_Notif_FilterTimeRange"):</label>
                         <div class="input-group input-group-sm" style="direction: ltr;">
@@ -97,6 +99,8 @@
                             <input type="text" class="form-control text-center font-monospace px-1" placeholder="23:59" maxlength="5" @bind="FilterTimeTo" style="font-size: 10.5px; height: 31px;" />
                         </div>
                     </div>
+
+
                 </div>
             </div>
         </div>

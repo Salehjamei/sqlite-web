@@ -23,7 +23,8 @@ namespace sqlite_web.Components.Pages.Admin
         protected string SelectedCategory { get; set; } = "ALL";
         protected string SelectedSubCategory { get; set; } = "ALL";
         protected string SelectedType { get; set; } = "ALL";
-        protected string FilterDate { get; set; } = string.Empty; // فرمت yyyy-MM-dd
+        // فیلتر تاریخ انتخاب‌شده در کادر تاریخ جهت جستجوی رکوردها
+        protected DateTime? FilterDate { get; set; } = null; // فرمت yyyy-MM-dd
         protected string FilterTimeFrom { get; set; } = string.Empty; // فرمت HH:mm
         protected string FilterTimeTo { get; set; } = string.Empty;   // فرمت HH:mm
 
@@ -38,31 +39,41 @@ namespace sqlite_web.Components.Pages.Admin
             .Distinct()
             .OrderBy(s => s);
 
-        // اعمال هم‌زمان تمام فیلترهای ترکیبی روی لیست اعلان‌ها
+        // اعمال هم‌زمان تمام فیلترهای ترکیبی روی لیست اعلان‌ها و مرتب‌سازی نزولی بر اساس زمان ثبت
         protected IEnumerable<AdminNotificationLog> FilteredLogs
         {
             get
             {
                 var query = allLogs.AsEnumerable();
 
+                // فیلتر کردن رکوردها بر اساس بخش اصلی صادرکننده اعلان (Category)
                 if (SelectedCategory != "ALL")
                     query = query.Where(l => l.Category == SelectedCategory);
 
+                // فیلتر کردن رکوردها بر اساس موضوع فرعی رویداد (SubCategory)
                 if (SelectedSubCategory != "ALL")
                     query = query.Where(l => l.SubCategory == SelectedSubCategory);
 
+                // فیلتر کردن رکوردها بر اساس وضعیت اعلان (موفق، خطا یا سیستمی)
                 if (SelectedType != "ALL")
                     query = query.Where(l => l.NotificationType == SelectedType);
 
-                if (!string.IsNullOrWhiteSpace(FilterDate))
-                    query = query.Where(l => l.CreatedDate == FilterDate.Trim());
+                // اعمال فیلتر تاریخ روی لیست اعلان‌ها بر اساس فرمت استاندارد سال-ماه-روز
+                if (FilterDate.HasValue)
+                {
+                    string targetDateStr = FilterDate.Value.ToString("yyyy-MM-dd");
+                    query = query.Where(l => l.CreatedDate == targetDateStr);
+                }
 
+                // فیلتر کردن رکوردها از ساعت شروع مشخص‌شده به بعد
                 if (!string.IsNullOrWhiteSpace(FilterTimeFrom))
                     query = query.Where(l => string.Compare(l.CreatedTime, FilterTimeFrom.Trim(), StringComparison.Ordinal) >= 0);
 
+                // فیلتر کردن رکوردها تا سقف ساعت پایان مشخص‌شده
                 if (!string.IsNullOrWhiteSpace(FilterTimeTo))
                     query = query.Where(l => string.Compare(l.CreatedTime, FilterTimeTo.Trim() + ":59", StringComparison.Ordinal) <= 0);
 
+                // جستجوی متنی زنده در نام کارمند، کد ملی، نام کاربری ادمین و متن پیام اعلان
                 if (!string.IsNullOrWhiteSpace(SearchQuery))
                 {
                     var q = SearchQuery.Trim();
@@ -74,9 +85,11 @@ namespace sqlite_web.Components.Pages.Admin
                     );
                 }
 
+                // مرتب‌سازی نهایی لیست از جدیدترین به قدیمی‌ترین اعلان
                 return query.OrderByDescending(l => l.CreatedAt);
             }
         }
+
 
         protected override async Task OnInitializedAsync()
         {
@@ -180,7 +193,7 @@ namespace sqlite_web.Components.Pages.Admin
             SelectedCategory = "ALL";
             SelectedSubCategory = "ALL";
             SelectedType = "ALL";
-            FilterDate = string.Empty;
+            FilterDate = null;
             FilterTimeFrom = string.Empty;
             FilterTimeTo = string.Empty;
         }

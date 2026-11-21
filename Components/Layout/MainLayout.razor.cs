@@ -24,6 +24,21 @@ namespace sqlite_web.Components.Layout
 
         // متغیر کنترل وضعیت بک‌گراند دکمه فعال
         protected string ActivePage { get; set; } = "home";
+        // وضعیت باز یا بسته بودن منوی کشویی زیرمجموعه دکمه سطوح دسترسی
+        protected bool IsAccessDropdownOpen { get; set; } = false;
+
+        // تغییر وضعیت باز و بسته شدن منوی کشویی سطوح دسترسی
+        protected void ToggleAccessDropdown()
+        {
+            IsAccessDropdownOpen = !IsAccessDropdownOpen;
+        }
+
+        // بستن منوی کشویی سطوح دسترسی
+        protected void CloseAccessDropdown()
+        {
+            IsAccessDropdownOpen = false;
+        }
+
         protected bool IsMobileMenuOpen { get; set; } = false;
 
         protected void OpenLogoutModal()
@@ -46,12 +61,7 @@ namespace sqlite_web.Components.Layout
             InvokeAsync(StateHasChanged);
         }
 
-        protected void CloseMobileMenu()
-        {
-            IsMobileMenuOpen = false;
-            InvokeAsync(StateHasChanged);
-        }
-
+       
         private bool IsCurrentlyInAdminPanel => NavigationManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase);
 
         protected override void OnInitialized()
@@ -102,29 +112,7 @@ namespace sqlite_web.Components.Layout
             UpdateActivePageIndicator(e.Location);
             EvaluateUrlSecurity(e.Location);
             InvokeAsync(StateHasChanged);
-        }
-
-        private void EvaluateUrlSecurity(string url)
-        {
-            if (AdminState.CurrentOnlineAdmin == null) return;
-            var user = AdminState.CurrentOnlineAdmin;
-
-            if (url.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase) && !user.IsSuperAdmin)
-            {
-                ShowUrlHijackModal = true;
-                NavigationManager.NavigateTo("/admin/panel", forceLoad: false);
-            }
-
-            if (url.Contains("/admin/panel", StringComparison.OrdinalIgnoreCase) && !user.IsSuperAdmin)
-            {
-                if (!user.CanAddEmployee && !user.CanEditEmployee && !user.CanDeleteEmployee)
-                {
-                    ShowUrlHijackModal = true;
-                    NavigationManager.NavigateTo("/", forceLoad: false);
-                }
-            }
-        }
-
+        }      
         protected void CloseUrlHijackModal() => ShowUrlHijackModal = false;
 
         protected void NavigateToDashboardSafe()
@@ -174,40 +162,77 @@ namespace sqlite_web.Components.Layout
             // بازرندر آنی و لحظه‌ای کل هدر برنامه بدون نیاز به رفرش فیزیکی صفحه
             await InvokeAsync(StateHasChanged);
         }
+        public void Dispose()
+        {
+            AdminState.OnChange -= OnAdminStateChanged;
+            NavigationManager.LocationChanged -= OnLocationChanged;
+        }
 
+        // بستن هم‌زمان منوی کشویی موبایل و زیرمنوی سطوح دسترسی و بازرندر رابط کاربری
+        protected void CloseMobileMenu()
+        {
+            IsMobileMenuOpen = false;
+            IsAccessDropdownOpen = false;
+            InvokeAsync(StateHasChanged);
+        }
 
-        /// <summary>
-        /// 🟢 بازنویسی متد پایش آدرس فعال با حذف کامل تداخل حروف کوچک و بزرگ برای تثبیت حاشیه سبز دکمه‌ها
-        /// </summary>
+        // بستن منوهای باز هدر و هدایت پویا به مسیر مقصد بدون بارگذاری مجدد صفحه
+        protected void NavigateToPage(string targetUrl)
+        {
+            IsMobileMenuOpen = false;
+            IsAccessDropdownOpen = false;
+            NavigationManager.NavigateTo(targetUrl, forceLoad: false);
+        }
+
+        // ارزیابی سطح دسترسی مدیر آنلاین به آدرس فعلی و جلوگیری از ورود غیرمجاز از طریق نوار آدرس
+        private void EvaluateUrlSecurity(string url)
+        {
+            if (AdminState.CurrentOnlineAdmin == null) return;
+            var user = AdminState.CurrentOnlineAdmin;
+
+            // بررسی دسترسی سوپر ادمین برای صفحات مدیریت مدیران و تاریخچه اعلانات
+            if ((url.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase) ||
+                 url.Contains("/admin/notifications", StringComparison.OrdinalIgnoreCase)) && !user.IsSuperAdmin)
+            {
+                ShowUrlHijackModal = true;
+                NavigationManager.NavigateTo("/admin/panel", forceLoad: false);
+            }
+
+            // بررسی حداقل مجوزهای پرسنلی برای ورود مدیران محدود به پنل مدیریت پرسنل
+            if (url.Contains("/admin/panel", StringComparison.OrdinalIgnoreCase) && !user.IsSuperAdmin)
+            {
+                if (!user.CanAddEmployee && !user.CanEditEmployee && !user.CanDeleteEmployee)
+                {
+                    ShowUrlHijackModal = true;
+                    NavigationManager.NavigateTo("/", forceLoad: false);
+                }
+            }
+        }
+
+        // تشخیص صفحه فعال بر اساس نشانی فعلی مرورگر جهت اعمال حاشیه سبز روی دکمه مربوطه در هدر
         private void UpdateActivePageIndicator(string url)
         {
+            // بررسی فعال بودن صفحه مدیریت پرسنل
             if (url.Contains("/admin/panel", StringComparison.OrdinalIgnoreCase))
             {
                 ActivePage = "panel";
             }
+            // بررسی فعال بودن صفحه مدیریت سطوح دسترسی و مدیران
             else if (url.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase))
             {
                 ActivePage = "manage";
             }
+            // بررسی فعال بودن صفحه تاریخچه اعلانات سیستم
+            else if (url.Contains("/admin/notifications", StringComparison.OrdinalIgnoreCase))
+            {
+                ActivePage = "notifications";
+            }
+            // حالت پیش‌فرض برای صفحه اصلی کیوسک تردد
             else
             {
                 ActivePage = "home";
             }
         }
 
-        public void Dispose()
-        {
-            AdminState.OnChange -= OnAdminStateChanged;
-            NavigationManager.LocationChanged -= OnLocationChanged;
-        }
-        /// <summary>
-        /// 🟢 متد جدید هدایت هوشمند آدرس مرورگر به محض فشردن دکمه‌های فیزیکی هدر سیستم
-        /// </summary>
-        protected void NavigateToPage(string targetUrl)
-        {
-            IsMobileMenuOpen = false; // منوی همبرگری موبایل را در صورت باز بودن ببند
-            NavigationManager.NavigateTo(targetUrl, forceLoad: false); // تغییر آدرس زنده صفحه بدون لود مجدد کل مرورگر
-        }
-          
     }
 }

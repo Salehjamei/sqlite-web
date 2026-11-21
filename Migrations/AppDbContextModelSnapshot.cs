@@ -117,6 +117,14 @@ namespace sqlite_web.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CreatedDate")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedTime")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EmployeeFullName")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -132,10 +140,23 @@ namespace sqlite_web.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EventDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventTime")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsReadBySuperAdmin")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MessageArgs")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MessageKey")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
