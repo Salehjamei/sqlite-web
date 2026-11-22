@@ -19,31 +19,40 @@ namespace sqlite_web.Components
         // متغیر کنترل زبان فعال
         protected string CurrentLanguage { get; set; } = "fa";
 
-        /// <summary>
-        /// متد مشترک برای لود هم‌زمان زبان و تقویم در تمام صفحات بدون تکرار کد
-        /// </summary>
+        /// متد مشترک جهت بازیابی هم‌زمان تنظیمات زبان و نوع تقویم از حافظه مرورگر در تمام صفحات برنامه
         protected async Task LoadStoredLanguageAndCalendarAsync()
         {
             try
             {
-                var calendarResult = await LocalStorage.GetAsync<bool>("UsePersianCalendarSetting");
-                if (calendarResult.Success)
+                // بازیابی نوع تقویم سه‌گانه ذخیره‌شده (شمسی، میلادی یا هجری قمری) از حافظه مرورگر
+                var calTypeResult = await LocalStorage.GetAsync<string>("SystemCalendarTypeSetting");
+                if (calTypeResult.Success && !string.IsNullOrEmpty(calTypeResult.Value) && CalendarManager != null)
                 {
-                    CalendarManager.UsePersianCalendar = calendarResult.Value;
+                    CalendarManager.CalendarType = calTypeResult.Value;
+                }
+                else
+                {
+                    // بازیابی تنظیمات تقویم از کلید قدیمی در صورت عدم وجود تنظیمات جدید در حافظه مرورگر
+                    var calendarResult = await LocalStorage.GetAsync<bool>("UsePersianCalendarSetting");
+                    if (calendarResult.Success && CalendarManager != null)
+                    {
+                        CalendarManager.UsePersianCalendar = calendarResult.Value;
+                    }
                 }
 
+                // بازیابی زبان فعال سیستم (فارسی، انگلیسی، ترکی یا عربی) از حافظه مرورگر
                 var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
                 if (langResult.Success && !string.IsNullOrEmpty(langResult.Value))
                 {
                     CurrentLanguage = langResult.Value;
-                    CurrentLanguage = CurrentLanguage;
                 }
             }
             catch
             {
-                // مهار خطای لود اولیه در Blazor Server
+                // مهار خطاهای احتمالی ارتباط با حافظه مرورگر در زمان پیش‌رندر اولیه سرور
             }
         }
+
         /// <summary>
         /// ToastNotification
         /// </summary> !
@@ -81,8 +90,6 @@ namespace sqlite_web.Components
             toastEventTime = eventTime;
             showToast = true;
         }
-
-
         /// <summary> ^
         /// ToastNotification
         /// </summary>

@@ -235,7 +235,7 @@
                        CurrentLanguage="@CurrentLanguage"
                        CalendarManager="@CalendarManager"
                        AdminId="@AdminState.CurrentOnlineAdmin?.Id"
-                       AdminUsername="@AdminState.CurrentOnlineAdmin?.Username"
+                       AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Kiosk")"
                        TargetEmployee="@toastTargetEmployee" />
 
 

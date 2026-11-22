@@ -27,6 +27,21 @@ namespace sqlite_web.Components.Pages.Admin
         protected DateTime? FilterDate { get; set; } = null; // فرمت yyyy-MM-dd
         protected string FilterTimeFrom { get; set; } = string.Empty; // فرمت HH:mm
         protected string FilterTimeTo { get; set; } = string.Empty;   // فرمت HH:mm
+        // متغیرهای فیلتر تاریخ پویا متصل به تقویم فعال سیستم (شمسی، قمری یا میلادی)
+        protected string FilterYear { get; set; } = string.Empty;
+        protected string FilterMonth { get; set; } = string.Empty;
+        protected string FilterDay { get; set; } = string.Empty;
+
+        // تبدیل تاریخ رویداد ثبت‌شده در سرور به فرمت تقویم فعال کاربر (شمسی، قمری یا میلادی)
+        protected string GetFormattedEventDate(string? eventDateStr)
+        {
+            if (string.IsNullOrWhiteSpace(eventDateStr)) return string.Empty;
+            if (DateTime.TryParse(eventDateStr, out var parsedDate) && CalendarManager != null)
+            {
+                return CalendarManager.GetDynamicFormattedDate(parsedDate);
+            }
+            return eventDateStr;
+        }
 
         // کنترل مودال تاییدیه پاکسازی تاریخچه
         protected bool showClearConfirmModal { get; set; } = false;
@@ -58,11 +73,16 @@ namespace sqlite_web.Components.Pages.Admin
                 if (SelectedType != "ALL")
                     query = query.Where(l => l.NotificationType == SelectedType);
 
-                // اعمال فیلتر تاریخ روی لیست اعلان‌ها بر اساس فرمت استاندارد سال-ماه-روز
-                if (FilterDate.HasValue)
+                // اعمال فیلتر تاریخ بر اساس سال، ماه و روز انتخاب‌شده در تقویم فعال سیستم (شمسی، قمری یا میلادی)
+                if (!string.IsNullOrEmpty(FilterYear) && !string.IsNullOrEmpty(FilterMonth) && !string.IsNullOrEmpty(FilterDay) && CalendarManager != null)
                 {
-                    string targetDateStr = FilterDate.Value.ToString("yyyy-MM-dd");
-                    query = query.Where(l => l.CreatedDate == targetDateStr);
+                    try
+                    {
+                        DateTime targetGregorianDate = CalendarManager.ParseFormFieldsToDateTime(FilterYear, FilterMonth, FilterDay, "00:00");
+                        string targetDateStr = targetGregorianDate.ToString("yyyy-MM-dd");
+                        query = query.Where(l => l.CreatedDate == targetDateStr);
+                    }
+                    catch { }
                 }
 
                 // فیلتر کردن رکوردها از ساعت شروع مشخص‌شده به بعد
@@ -89,6 +109,21 @@ namespace sqlite_web.Components.Pages.Admin
                 return query.OrderByDescending(l => l.CreatedAt);
             }
         }
+
+        // پاکسازی تمام فیلترهای متنی، دسته‌بندی، تاریخ و ساعت
+        protected void ResetFilters()
+        {
+            SearchQuery = string.Empty;
+            SelectedCategory = "ALL";
+            SelectedSubCategory = "ALL";
+            SelectedType = "ALL";
+            FilterYear = string.Empty;
+            FilterMonth = string.Empty;
+            FilterDay = string.Empty;
+            FilterTimeFrom = string.Empty;
+            FilterTimeTo = string.Empty;
+        }
+
 
 
         protected override async Task OnInitializedAsync()
@@ -169,6 +204,12 @@ namespace sqlite_web.Components.Pages.Admin
                         var args = JsonSerializer.Deserialize<string[]>(log.MessageArgs);
                         if (args != null && args.Length > 0)
                         {
+                            // ترجمه پویای نام صفحه مقصد در لاگ‌های جابه‌جایی بین صفحات
+                            if (log.MessageKey == "PCal_Navigation_PageVisitLog" && args.Length > 1)
+                            {
+                                string translatedPageName = CalendarManager.Translate(args[1]);
+                                args[1] = $"<span style='color: #0d6efd; font-weight: 900;'>«{translatedPageName}»</span>";
+                            }
                             return string.Format(template, args);
                         }
                     }
@@ -179,25 +220,13 @@ namespace sqlite_web.Components.Pages.Admin
             return log.Message;
         }
 
+
         // تغییر دسته‌بندی اصلی و بازنشانی زیردسته
         protected void OnCategoryChanged(ChangeEventArgs e)
         {
             SelectedCategory = e.Value?.ToString() ?? "ALL";
             SelectedSubCategory = "ALL";
         }
-
-        // پاکسازی تمام فیلترها
-        protected void ResetFilters()
-        {
-            SearchQuery = string.Empty;
-            SelectedCategory = "ALL";
-            SelectedSubCategory = "ALL";
-            SelectedType = "ALL";
-            FilterDate = null;
-            FilterTimeFrom = string.Empty;
-            FilterTimeTo = string.Empty;
-        }
-
         // حذف تکی یک رکورد لاگ
         protected async Task DeleteSingleLogAsync(int id)
         {

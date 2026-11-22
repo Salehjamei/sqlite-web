@@ -179,10 +179,6 @@ namespace sqlite_web.Components.Pages
         {
             AdminState.OnChange -= HandleStateChanged;
         }
-
-
-
-
         protected async Task SetSystemLanguage(string lang)
         {
             CurrentLanguage = lang;
@@ -191,10 +187,9 @@ namespace sqlite_web.Components.Pages
 
             try { await LocalStorage.SetAsync("SystemLanguageSetting", lang); } catch { }
 
-            if (AdminState != null)
-            {
-                await AdminState.SaveWorkSettingsAsync(settingsStartTime, settingsEndTime, selectedOffDays);
-            }
+            // اطلاع‌رسانی آنی به هدر سایت (MainLayout) جهت تغییر هم‌زمان زبان دکمه‌های نوار بالا
+            AdminState?.RefreshUIState();
+
             if (selectedEmployee != null)
             {
                 LoadAvailableMonths(selectedEmployee.Id);
@@ -203,12 +198,13 @@ namespace sqlite_web.Components.Pages
             await InvokeAsync(StateHasChanged);
         }
 
-        protected async Task SetCalendarType(bool isPersian)
+        // تنظیم نوع تقویم سیستم (شمسی، میلادی یا هجری قمری) و ذخیره ماندگار در حافظه مرورگر
+        protected async Task SetCalendarType(string calendarType)
         {
             if (CalendarManager == null) CalendarManager = new sqlite_web.Components.Models.Calendar.PCalendar();
-            CalendarManager.UsePersianCalendar = isPersian;
+            CalendarManager.CalendarType = calendarType;
 
-            try { await LocalStorage.SetAsync("UsePersianCalendarSetting", isPersian); } catch { }
+            try { await LocalStorage.SetAsync("SystemCalendarTypeSetting", calendarType); } catch { }
 
             if (selectedEmployee != null)
             {
@@ -217,7 +213,6 @@ namespace sqlite_web.Components.Pages
             }
             await InvokeAsync(StateHasChanged);
         }
-
         private async Task RefreshDataAsync()
         {
             if (DbContext == null) return;
@@ -309,8 +304,7 @@ namespace sqlite_web.Components.Pages
             }
         }
 
-        // اعتبارسنجی مجزای فیلدها و ذخیره اطلاعات کارمند در دیتابیس
-        // اعتبارسنجی مجزای فیلدها و ذخیره اطلاعات کارمند در دیتابیس
+        // اعتبارسنجی مجزای فیلدها و ذخیره یا ویرایش اطلاعات کارمند در دیتابیس همراه با ثبت در تاریخچه اعلان‌ها
         protected async Task SaveEmployeeData()
         {
             // پاکسازی وضعیت خطای قبلی از روی تمام فیلدهای فرم پیش از بررسی مجدد
@@ -319,35 +313,35 @@ namespace sqlite_web.Components.Pages
             // بررسی پر بودن فیلد اجباری نام و فوکوس روی آن در صورت خالی بودن
             if (string.IsNullOrWhiteSpace(newEmpName))
             {
-                await SetEmpValidationErrorAsync("Name", "empNameInput", CalendarManager.Translate("PCal_AdminPanel_EmpNameRequired"));
+                await SetEmpValidationErrorAsync("Name", "empNameInput", "PCal_AdminPanel_EmpNameRequired");
                 return;
             }
 
             // بررسی پر بودن فیلد اجباری کد ملی و فوکوس روی آن در صورت خالی بودن
             if (string.IsNullOrWhiteSpace(newEmpCode))
             {
-                await SetEmpValidationErrorAsync("Code", "empCodeInput", CalendarManager.Translate("PCal_AdminPanel_EmpCodeRequired"));
+                await SetEmpValidationErrorAsync("Code", "empCodeInput", "PCal_AdminPanel_EmpCodeRequired");
                 return;
             }
 
             // کنترل سقف مجاز ۴۰ کاراکتر برای نام و نام خانوادگی همراه با قرمز کردن کادر
             if (newEmpName.Length > 40)
             {
-                await SetEmpValidationErrorAsync("Name", "empNameInput", CalendarManager.Translate("PCal_AdminPanel_ErrNameLength"));
+                await SetEmpValidationErrorAsync("Name", "empNameInput", "PCal_AdminPanel_ErrNameLength");
                 return;
             }
 
             // کنترل بازه مجاز طول کد ملی (حداقل ۱۰ و حداکثر ۲۰ رقم) همراه با فوکوس
             if (newEmpCode.Length < 10 || newEmpCode.Length > 20)
             {
-                await SetEmpValidationErrorAsync("Code", "empCodeInput", CalendarManager.Translate("PCal_AdminPanel_ErrCodeLength"));
+                await SetEmpValidationErrorAsync("Code", "empCodeInput", "PCal_AdminPanel_ErrCodeLength");
                 return;
             }
 
             // کنترل سقف مجاز ۱۵ رقم برای شماره تماس در صورت وارد شدن همراه با فوکوس
             if (!string.IsNullOrWhiteSpace(newEmpPhone) && newEmpPhone.Length > 15)
             {
-                await SetEmpValidationErrorAsync("Phone", "empPhoneInput", CalendarManager.Translate("PCal_AdminPanel_ErrPhoneLength"));
+                await SetEmpValidationErrorAsync("Phone", "empPhoneInput", "PCal_AdminPanel_ErrPhoneLength");
                 return;
             }
 
@@ -364,7 +358,7 @@ namespace sqlite_web.Components.Pages
                 bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode && e.Id != _editingEmployeeId.Value);
                 if (isCodeDuplicate)
                 {
-                    await SetEmpValidationErrorAsync("Code", "empCodeInput", CalendarManager.Translate("PCal_AdminPanel_DuplicateCodeEdit"));
+                    await SetEmpValidationErrorAsync("Code", "empCodeInput", "PCal_AdminPanel_DuplicateCodeEdit");
                     return;
                 }
 
@@ -372,6 +366,9 @@ namespace sqlite_web.Components.Pages
                 var emp = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _editingEmployeeId.Value);
                 if (emp != null)
                 {
+                    // نگهداری وضعیت قبلی نمایش کارمند در کیوسک جهت تشخیص تغییر وضعیت پنهان‌سازی
+                    bool wasHidden = emp.IsHiddenFromKiosk;
+
                     // به‌روزرسانی فیلدهای متنی، تصویر و وضعیت نمایش در کیوسک
                     emp.FullName = newEmpName;
                     emp.Phone = newEmpPhone;
@@ -383,15 +380,34 @@ namespace sqlite_web.Components.Pages
                     DbContext.Employees.Update(emp);
                     await DbContext.SaveChangesAsync();
 
-                    // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
-                    TriggerToast(
-                        category: "AdminPanel",
-                        subCategory: "EmployeeInfo",
-                        messageKey: "PCal_AdminPanel_EmpEditSuccess",
-                        args: new object[] { coloredEmpName },
-                        isError: false,
-                        targetEmp: emp
-                    );
+                    // ثبت تغییر وضعیت نمایش یا عدم نمایش کارمند در صفحه کیوسک در صورت تغییر وضعیت تیک مربوطه
+                    if (wasHidden != newEmpHiddenFromKiosk)
+                    {
+                        string visibilityKey = newEmpHiddenFromKiosk
+                            ? "PCal_AdminPanel_EmpHiddenFromKioskLog"
+                            : "PCal_AdminPanel_EmpShownInKioskLog";
+
+                        TriggerToast(
+                            category: "AdminPanel",
+                            subCategory: "KioskVisibility",
+                            messageKey: visibilityKey,
+                            args: new object[] { coloredEmpName },
+                            isError: false,
+                            targetEmp: emp
+                        );
+                    }
+                    else
+                    {
+                        // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
+                        TriggerToast(
+                            category: "AdminPanel",
+                            subCategory: "EmployeeInfo",
+                            messageKey: "PCal_AdminPanel_EmpEditSuccess",
+                            args: new object[] { coloredEmpName },
+                            isError: false,
+                            targetEmp: emp
+                        );
+                    }
                 }
             }
             // حالت دوم: ثبت کارمند جدید در سیستم
@@ -404,7 +420,7 @@ namespace sqlite_web.Components.Pages
                 bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode);
                 if (isCodeDuplicate)
                 {
-                    await SetEmpValidationErrorAsync("Code", "empCodeInput", CalendarManager.Translate("PCal_AdminPanel_DuplicateCodeAdd"));
+                    await SetEmpValidationErrorAsync("Code", "empCodeInput", "PCal_AdminPanel_DuplicateCodeAdd");
                     return;
                 }
 
@@ -437,8 +453,6 @@ namespace sqlite_web.Components.Pages
             await RefreshDataAsync();
             CloseEmpFormModal();
         }
-
-
 
         // مقداردهی اولیه فیلدهای فرم برای ویرایش اطلاعات یک کارمند مشخص
         protected void StartEmpEdit(Employee emp)
@@ -787,20 +801,24 @@ namespace sqlite_web.Components.Pages
             }
         }
 
+        // واکشی لیست ماه‌های دارای سابقه تردد برای پرسنل انتخاب‌شده بر اساس نوع تقویم فعال (شمسی، قمری یا میلادی)
         private void LoadAvailableMonths(int employeeId)
         {
             AvailableMonths.Clear();
 
+            // افزودن گزینه پیش‌فرض نمایش تمامی ماه‌ها در ابتدای لیست
             AvailableMonths.Add(new MonthOption
             {
                 Value = "ALL",
                 Text = CalendarManager.Translate("PCal_AdminPanel_AllMonths")
             });
 
+            // فیلتر کردن رکوردهای تردد دارای تاریخ ورود معتبر برای کارمند انتخاب‌شده
             var allRecords = allAttendances
                 .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue).ToList();
 
-            if (CalendarManager.UsePersianCalendar)
+            // استخراج سال و ماه یکتا بر اساس تقویم هجری شمسی
+            if (CalendarManager.CalendarType == "Persian")
             {
                 System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
                 var pDates = allRecords.Select(a => new
@@ -815,6 +833,23 @@ namespace sqlite_web.Components.Pages
                     AvailableMonths.Add(new MonthOption { Value = $"{d.Year}-{d.Month}", Text = monthText });
                 }
             }
+            // استخراج سال و ماه یکتا بر اساس تقویم هجری قمری
+            else if (CalendarManager.CalendarType == "Hijri")
+            {
+                System.Globalization.HijriCalendar hc = new System.Globalization.HijriCalendar();
+                var hDates = allRecords.Select(a => new
+                {
+                    Year = hc.GetYear(a.ClockInTime!.Value),
+                    Month = hc.GetMonth(a.ClockInTime!.Value)
+                }).Distinct().OrderByDescending(d => d.Year).ThenByDescending(d => d.Month).ToList();
+
+                foreach (var d in hDates)
+                {
+                    string monthText = CalendarManager.GetDynamicMonthText(d.Year, d.Month);
+                    AvailableMonths.Add(new MonthOption { Value = $"{d.Year}-{d.Month}", Text = monthText });
+                }
+            }
+            // استخراج سال و ماه یکتا بر اساس تقویم میلادی
             else
             {
                 var mDates = allRecords.Select(a => new
@@ -830,6 +865,7 @@ namespace sqlite_web.Components.Pages
                 }
             }
 
+            // تنظیم حالت پیش‌فرض روی نمایش همه ماه‌ها در صورت خالی بودن فیلتر
             if (string.IsNullOrEmpty(SelectedMonthFilter)) SelectedMonthFilter = "ALL";
         }
 
@@ -978,71 +1014,93 @@ namespace sqlite_web.Components.Pages
             await RefreshDataAsync();
             await InvokeAsync(StateHasChanged);
         }
-
-
-        // محاسبه تفکیک شده ساعات موظفی و اضافه کاری بدون تداخل با رکوردهای با کارکرد صفر
+        // محاسبه تفکیک شده ساعات موظفی و اضافه کاری در بازه ماهانه انتخاب‌شده با پشتیبانی از تقویم‌های شمسی، قمری و میلادی
         private void CalculateFilteredHours(int employeeId)
         {
             var allRecords = allAttendances
-            .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue).ToList();
+                .Where(a => a.EmployeeId == employeeId && a.ClockInTime.HasValue).ToList();
             List<Attendance> monthlyRecords = new List<Attendance>();
 
+            // اعمال فیلتر ماه و سال بر اساس تقویم انتخاب‌شده در تنظیمات سیستم
             if (!string.IsNullOrEmpty(SelectedMonthFilter) && SelectedMonthFilter != "ALL")
             {
                 var parts = SelectedMonthFilter.Split('-');
                 int targetYear = int.Parse(parts[0]);
                 int targetMonth = int.Parse(parts[1]);
 
-                if (CalendarManager.UsePersianCalendar)
+                // جداسازی رکوردهای ماه هدف در تقویم شمسی
+                if (CalendarManager.CalendarType == "Persian")
                 {
                     System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
                     monthlyRecords = allRecords.Where(a => pc.GetYear(a.ClockInTime!.Value) == targetYear
-                    && pc.GetMonth(a.ClockInTime!.Value) == targetMonth).ToList();
+                        && pc.GetMonth(a.ClockInTime!.Value) == targetMonth).ToList();
                 }
+                // جداسازی رکوردهای ماه هدف در تقویم هجری قمری
+                else if (CalendarManager.CalendarType == "Hijri")
+                {
+                    System.Globalization.HijriCalendar hc = new System.Globalization.HijriCalendar();
+                    monthlyRecords = allRecords.Where(a => hc.GetYear(a.ClockInTime!.Value) == targetYear
+                        && hc.GetMonth(a.ClockInTime!.Value) == targetMonth).ToList();
+                }
+                // جداسازی رکوردهای ماه هدف در تقویم میلادی
                 else
                 {
                     monthlyRecords = allRecords.Where(a => a.ClockInTime!.Value.Year == targetYear
-                    && a.ClockInTime!.Value.Month == targetMonth).ToList();
+                        && a.ClockInTime!.Value.Month == targetMonth).ToList();
                 }
             }
             else
             {
                 monthlyRecords = allRecords;
             }
+
             double totalRegularMinutes = 0;
             double totalOvertimeMinutes = 0;
             double totalDeficitMinutes = 0;
+
+            // دریافت قوانین ساعت کاری و روزهای تعطیل از تنظیمات سرور
             var settings = AdminState.CurrentSettings;
             string startTimeStr = settings?.RegularStartTime ?? "07:00";
             string endTimeStr = settings?.RegularEndTime ?? "17:30";
             string offDaysStr = settings?.OffDaysOfWeek ?? "Saturday,Sunday";
             int thresholdMinutes = settings?.DeficitThresholdMinutes ?? 15;
+
             TimeSpan regStart = TimeSpan.Parse(startTimeStr);
             TimeSpan regEnd = TimeSpan.Parse(endTimeStr);
             double maxExpectedRegularMinutes = (regEnd - regStart).TotalMinutes;
             var offDaysList = offDaysStr.Split(',').ToList();
+
+            // پیمایش رکوردهای ماهانه جهت محاسبه دقیق دقایق موظفی، اضافه کاری و کسری کار
             foreach (var rec in monthlyRecords)
             {
                 DateTime clockIn = rec.ClockInTime!.Value;
                 DateTime clockOut = rec.ClockOutTime ?? DateTime.Now;
                 double totalDuration = (clockOut - clockIn).TotalMinutes;
-                // نادیده گرفتن ردیف های با کارکرد صفر در محاسبات
+
+                // نادیده گرفتن ردیف‌های با کارکرد صفر در محاسبات
                 if (totalDuration <= 0)
                 {
                     continue;
                 }
+
+                // احتساب کل زمان کارکرد روزهای تعطیل هفته به عنوان ۱۰۰٪ اضافه کاری
                 if (offDaysList.Contains(clockIn.DayOfWeek.ToString()))
                 {
                     totalOvertimeMinutes += totalDuration;
                     continue;
                 }
+
                 DateTime regularStartThreshold = clockIn.Date.Add(regStart);
                 DateTime regularEndThreshold = clockIn.Date.Add(regEnd);
+
+                // محاسبه اضافه کاری پیش از شروع رسمی شیفت
                 if (clockIn < regularStartThreshold)
                 {
                     var endOfEarlyOvertime = clockOut < regularStartThreshold ? clockOut : regularStartThreshold;
                     totalOvertimeMinutes += (endOfEarlyOvertime - clockIn).TotalMinutes;
                 }
+
+                // محاسبه کارکرد عادی در بازه مجاز ساعت موظفی
                 DateTime effectiveIn = clockIn < regularStartThreshold ? regularStartThreshold : clockIn;
                 DateTime effectiveOut = clockOut > regularEndThreshold ? regularEndThreshold : clockOut;
                 double dayRegularMinutes = 0;
@@ -1051,26 +1109,34 @@ namespace sqlite_web.Components.Pages
                     dayRegularMinutes = (effectiveOut - effectiveIn).TotalMinutes;
                     totalRegularMinutes += dayRegularMinutes;
                 }
+
                 // محاسبه کسری کار تنها برای روزهایی که کارکرد واقعی انجام شده است
                 if (rec.ClockOutTime.HasValue && dayRegularMinutes > 0 && dayRegularMinutes < maxExpectedRegularMinutes)
                 {
                     totalDeficitMinutes += (maxExpectedRegularMinutes - dayRegularMinutes);
                 }
+
+                // محاسبه اضافه کاری پس از پایان رسمی شیفت
                 if (clockOut > regularEndThreshold)
                 {
                     DateTime effectiveOvertimeStart = clockIn > regularEndThreshold ? clockIn : regularEndThreshold;
                     totalOvertimeMinutes += (clockOut - effectiveOvertimeStart).TotalMinutes;
                 }
             }
+
+            // اعمال تهاتر کسری کار از اضافه کاری در صورت رسیدن مجموع کسری به آستانه تعیین‌شده
             if (totalDeficitMinutes >= thresholdMinutes)
             {
                 double compensation = Math.Min(totalOvertimeMinutes, totalDeficitMinutes);
                 totalOvertimeMinutes -= compensation;
                 totalRegularMinutes += compensation;
             }
+
+            // قالب‌بندی خروجی نهایی ساعات موظفی و اضافه کاری به فرمت ساعت و دقیقه
             int regHours = (int)(totalRegularMinutes / 60);
             int regMins = (int)(totalRegularMinutes % 60);
             TotalRegularHours = $"{regHours:00}:{regMins:00}";
+
             int overHours = (int)(totalOvertimeMinutes / 60);
             int overMins = (int)(totalOvertimeMinutes % 60);
             TotalOvertimeHours = $"{overHours:00}:{overMins:00}";
@@ -1088,9 +1154,19 @@ namespace sqlite_web.Components.Pages
         protected async Task SaveSettingsData()
         {
             bool success = await AdminState.SaveWorkSettingsAsync(settingsStartTime, settingsEndTime, selectedOffDays);
-            if (success) showSettingsModal = false;
+            if (success)
+            {
+                showSettingsModal = false;
+                TriggerToast(
+                    category: "AdminPanel",
+                    subCategory: "Settings",
+                    messageKey: "PCal_AdminPanel_SettingsSavedSuccess",
+                    isError: false
+                );
+            }
             await InvokeAsync(StateHasChanged);
         }
+
         protected void ToggleOffDaySelection(string dayName, object? checkedValue)
         {
             bool isChecked = checkedValue is bool b && b;

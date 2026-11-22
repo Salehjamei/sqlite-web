@@ -12,7 +12,12 @@ namespace sqlite_web.Components.Layout
         [Inject] public NavigationManager NavigationManager { get; set; } = default!;
         [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
         // 💾 تزریق سرویس حافظه محلی مرورگر در بالای کلاس لایوت برای لود زبان
-        [Inject] public Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage LocalStorage { get; set; } = default!;    
+        [Inject] public Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage.ProtectedLocalStorage LocalStorage { get; set; } = default!;
+        [Inject] public Microsoft.Extensions.DependencyInjection.IServiceScopeFactory ScopeFactory { get; set; } = default!;
+
+        // نگهداری آخرین نشانی ثبت‌شده جهت جلوگیری از ثبت لاگ تکراری برای یک صفحه
+        private string _lastLoggedUri = string.Empty;
+
         // 📅 نمونه‌سازی از کلاس مستقل و جدید مدیریت تقویم و ویژگی‌های داینامیک
         protected sqlite_web.Components.Models.Calendar.PCalendar CalendarManager { get; set; } = new();
         // 🟢 خصوصیت جدید جهت مهار زبان فعال در کل لایه منطق برنامه (fa، en، tr)
@@ -26,7 +31,6 @@ namespace sqlite_web.Components.Layout
         protected string ActivePage { get; set; } = "home";
         // وضعیت باز یا بسته بودن منوی کشویی زیرمجموعه دکمه سطوح دسترسی
         protected bool IsAccessDropdownOpen { get; set; } = false;
-
         // تغییر وضعیت باز و بسته شدن منوی کشویی سطوح دسترسی
         protected void ToggleAccessDropdown()
         {
@@ -77,7 +81,7 @@ namespace sqlite_web.Components.Layout
         {
             if (firstRender)
             {
-                // 🟢 گام اول: بازیابی خودکار و ماندگار زبان ذخیره‌شده کاربر از حافظه مرورگر کلاینت
+                // بازیابی خودکار و ماندگار زبان ذخیره‌شده کاربر از حافظه مرورگر کلاینت
                 try
                 {
                     var langResult = await LocalStorage.GetAsync<string>("SystemLanguageSetting");
@@ -91,28 +95,92 @@ namespace sqlite_web.Components.Layout
                         }
                     }
                 }
-                catch
-                {
-                    // مهار خطاهای احتمالی ارتباط اولیه سشن بلیزور
-                }
+                catch { }
 
-                // 🛡️ گام دوم: اجرای گارد دسترسی و پایش امنیتی آدرس بومی پروژه شما
+                // اجرای گارد دسترسی و پایش امنیتی آدرس
                 await AdminState.CheckAccessAndRedirectAsync();
                 EvaluateUrlSecurity(NavigationManager.Uri);
 
-                // 🔄 گام سوم: تازه‌سازی مجدد وضعیت دکمه‌ها و فعال‌سازی تعاملی رویدادها در مرورگر
+                // ثبت ورود اولیه ادمین آنلاین به صفحه فعلی در تاریخچه اعلانات
+                await LogPageNavigationAsync(NavigationManager.Uri);
+
+                // تازه‌سازی مجدد وضعیت دکمه‌های فعال هدر
                 UpdateActivePageIndicator(NavigationManager.Uri);
                 await InvokeAsync(StateHasChanged);
             }
         }
 
-
-        private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+        // واکنش به تغییر نشانی صفحه، به‌روزرسانی دکمه فعال و ثبت بازدید صفحه در سرور
+        private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
         {
             UpdateActivePageIndicator(e.Location);
             EvaluateUrlSecurity(e.Location);
-            InvokeAsync(StateHasChanged);
-        }      
+            await LogPageNavigationAsync(e.Location);
+            await InvokeAsync(StateHasChanged);
+        }
+
+        // ثبت رویداد ورود ادمین آنلاین به هر یک از صفحات برنامه در جدول تاریخچه اعلانات سرور
+        private async Task LogPageNavigationAsync(string url)
+        {
+            if (AdminState.CurrentOnlineAdmin == null) return;
+            if (url.Contains("/login", StringComparison.OrdinalIgnoreCase)) return;
+
+            var uriPath = new Uri(url).AbsolutePath.TrimEnd('/').ToLowerInvariant();
+            if (string.IsNullOrEmpty(uriPath)) uriPath = "/";
+
+            // جلوگیری از ثبت مجدد همان صفحه در صورت رفرش لحظه‌ای وضعیت
+            if (_lastLoggedUri == uriPath) return;
+            _lastLoggedUri = uriPath;
+
+            // نگاشت مسیر صفحه به کلید ترجمه چندزبانه متناظر
+            string pageKey = uriPath switch
+            {
+                "/" => "KioskBtn",
+                "/admin/panel" => "PersonnelManagementBtn",
+                "/admin/manage-admins" => "AccessPageTitle",
+                "/admin/notifications" or "/admin/notificationlogs" => "PCal_AdminNotif_ModalTitle",
+                _ => uriPath
+            };
+
+            try
+            {
+                using var scope = ScopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var admin = AdminState.CurrentOnlineAdmin;
+                string coloredAdmin = $"<span style='color: #dc3545; font-weight: 900;'>«{admin.Username}»</span>";
+                string pageNameFa = CalendarManager.Translate(pageKey);
+                string coloredPage = $"<span style='color: #0d6efd; font-weight: 900;'>«{pageNameFa}»</span>";
+
+                // ذخیره کلید ترجمه صفحه در آرگومان دوم جهت بازسازی چندزبانه در پنل سوپر ادمین
+                var storageArgs = new object[] { coloredAdmin, pageKey };
+                var displayArgs = new object[] { coloredAdmin, coloredPage };
+                var template = CalendarManager.Translate("PCal_Navigation_PageVisitLog");
+                var now = DateTime.Now;
+
+                db.AdminNotificationLogs.Add(new sqlite_web.Components.Models.AdminNotificationLog
+                {
+                    Category = "Navigation",
+                    SubCategory = "PageVisit",
+                    MessageKey = "PCal_Navigation_PageVisitLog",
+                    MessageArgs = System.Text.Json.JsonSerializer.Serialize(storageArgs),
+                    Message = System.Text.RegularExpressions.Regex.Replace(string.Format(template, displayArgs), "<.*?>", string.Empty),
+                    NotificationType = "Info",
+                    CreatedAt = now,
+                    CreatedDate = now.ToString("yyyy-MM-dd"),
+                    CreatedTime = now.ToString("HH:mm:ss"),
+                    AdminId = admin.Id,
+                    AdminUsername = admin.Username,
+                    EmployeeFullName = "-",
+                    EmployeePersonnelCode = "-",
+                    EmployeePhone = "-"
+                });
+
+                await db.SaveChangesAsync();
+            }
+            catch { }
+        }
+
         protected void CloseUrlHijackModal() => ShowUrlHijackModal = false;
 
         protected void NavigateToDashboardSafe()

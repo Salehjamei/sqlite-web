@@ -6,7 +6,7 @@
 
 <div class="login-container" dir="@(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "rtl" : "ltr")" style="max-width: 400px; margin: 60px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: Tahoma; text-align: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left");">
 
-    <!-- دکمه های انتخاب و سوییچ سریع زبان پیش از ورود به پنل -->
+    @* دکمه‌های انتخاب و تغییر سریع زبان پیش از ورود به پنل *@
     <div class="mb-4 d-flex justify-content-center">
         <div class="btn-group btn-group-sm w-100" role="group" style="direction: ltr;">
             <button type="button" class="btn @(CurrentLanguage == "tr" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")" @onclick='() => ChangeLoginLanguage("tr")' style="font-size: 11px; padding: 5px;">
@@ -15,8 +15,11 @@
             <button type="button" class="btn @(CurrentLanguage == "en" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")" @onclick='() => ChangeLoginLanguage("en")' style="font-size: 11px; padding: 5px;">
                 English 🇬🇧
             </button>
-            <button type="button" class="btn @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")" @onclick='() => ChangeLoginLanguage("fa")' style="font-size: 11px; padding: 5px;">
+            <button type="button" class="btn @(CurrentLanguage == "fa" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")" @onclick='() => ChangeLoginLanguage("fa")' style="font-size: 11px; padding: 5px;">
                 فارسی 🇮🇷
+            </button>
+            <button type="button" class="btn @(CurrentLanguage == "ar" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")" @onclick='() => ChangeLoginLanguage("ar")' style="font-size: 11px; padding: 5px;">
+                العربية 🇸🇦
             </button>
         </div>
     </div>

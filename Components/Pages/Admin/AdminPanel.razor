@@ -22,21 +22,21 @@
             else if (AdminState.IsChecked && AdminState.IsAuthorized)
             {
                 @* فراخوانی ماژول هوشمند اعلان شیشه‌ای (بدون حذف خودکار و با ثبت در تاریخچه سوپر ادمین) *@
-              <ToastNotification @bind-Show="showToast"
-                   Category="@toastCategory"
-                   SubCategory="@toastSubCategory"
-                   MessageKey="@toastMessageKey"
-                   MessageArgs="@toastMessageArgs"
-                   Message="@toastMessage"
-                   EventDate="@toastEventDate"
-                   EventTime="@toastEventTime"
-                   IsError="@isToastError"
-                   AutoCloseMilliseconds="0"
-                   CurrentLanguage="@CurrentLanguage"
-                   CalendarManager="@CalendarManager"
-                   AdminId="@AdminState.CurrentOnlineAdmin?.Id"
-                   AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Admin")"
-                   TargetEmployee="@toastTargetEmployee" />
+                <ToastNotification @bind-Show="showToast"
+                                   Category="@toastCategory"
+                                   SubCategory="@toastSubCategory"
+                                   MessageKey="@toastMessageKey"
+                                   MessageArgs="@toastMessageArgs"
+                                   Message="@toastMessage"
+                                   EventDate="@toastEventDate"
+                                   EventTime="@toastEventTime"
+                                   IsError="@isToastError"
+                                   AutoCloseMilliseconds="0"
+                                   CurrentLanguage="@CurrentLanguage"
+                                   CalendarManager="@CalendarManager"
+                                   AdminId="@AdminState.CurrentOnlineAdmin?.Id"
+                                   AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Admin")"
+                                   TargetEmployee="@toastTargetEmployee" />
 
 
 
@@ -307,19 +307,30 @@
 
                                                 List<sqlite_web.Components.Models.Attendance> displayRecords = new List<sqlite_web.Components.Models.Attendance>();
 
+                                                @* اعمال فیلتر ماه و سال انتخاب‌شده روی رکوردهای کارنامه بر اساس نوع تقویم فعال *@
                                                 if (!string.IsNullOrEmpty(SelectedMonthFilter) && SelectedMonthFilter != "ALL")
                                                 {
                                                     var filterParts = SelectedMonthFilter.Split('-');
                                                     int filterYear = int.Parse(filterParts[0]);
                                                     int filterMonth = int.Parse(filterParts[1]);
 
-                                                    if (CalendarManager.UsePersianCalendar)
+                                                    @* فیلتر کردن رکوردها بر اساس تقویم هجری شمسی *@
+                                                    if (CalendarManager.CalendarType == "Persian")
                                                     {
                                                         System.Globalization.PersianCalendar pc = new System.Globalization.PersianCalendar();
                                                         displayRecords = localEmpRecordsTable.Where(a => a.ClockInTime.HasValue
                                                             && pc.GetYear(a.ClockInTime.Value) == filterYear
                                                             && pc.GetMonth(a.ClockInTime.Value) == filterMonth).ToList();
                                                     }
+                                                    @* فیلتر کردن رکوردها بر اساس تقویم هجری قمری *@
+                                                    else if (CalendarManager.CalendarType == "Hijri")
+                                                    {
+                                                        System.Globalization.HijriCalendar hc = new System.Globalization.HijriCalendar();
+                                                        displayRecords = localEmpRecordsTable.Where(a => a.ClockInTime.HasValue
+                                                            && hc.GetYear(a.ClockInTime.Value) == filterYear
+                                                            && hc.GetMonth(a.ClockInTime.Value) == filterMonth).ToList();
+                                                    }
+                                                    @* فیلتر کردن رکوردها بر اساس تقویم میلادی *@
                                                     else
                                                     {
                                                         displayRecords = localEmpRecordsTable.Where(a => a.ClockInTime.HasValue
@@ -660,9 +671,13 @@
                                                     @onclick='() => SetSystemLanguage("en")' style="font-size: 11px; padding: 6px;">
                                                 English
                                             </button>
-                                            <button type="button" class="btn @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                            <button type="button" class="btn @(CurrentLanguage == "fa" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
                                                     @onclick='() => SetSystemLanguage("fa")' style="font-size: 11px; padding: 6px;">
                                                 فارسی
+                                            </button>
+                                            <button type="button" class="btn @(CurrentLanguage == "ar" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                                    @onclick='() => SetSystemLanguage("ar")' style="font-size: 11px; padding: 6px;">
+                                                العربية
                                             </button>
                                         </div>
                                     </div>
@@ -670,13 +685,17 @@
                                     <div class="mb-3">
                                         <label class="form-label text-muted small mb-1">@CalendarManager.Translate("CalendarLang")</label>
                                         <div class="btn-group btn-group-sm w-100" role="group" style="direction: ltr;">
-                                            <button type="button" class="btn @(CalendarManager != null && !CalendarManager.UsePersianCalendar ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
-                                                    @onclick="() => SetCalendarType(false)" style="font-size: 11px; padding: 5px;">
-                                                Miladi Calendar
+                                            <button type="button" class="btn @(CalendarManager != null && CalendarManager.CalendarType == "Gregorian" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                                    @onclick='() => SetCalendarType("Gregorian")' style="font-size: 11px; padding: 5px;">
+                                                Miladi
                                             </button>
-                                            <button type="button" class="btn @(CalendarManager != null && CalendarManager.UsePersianCalendar ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
-                                                    @onclick="() => SetCalendarType(true)" style="font-size: 11px; padding: 5px;">
+                                            <button type="button" class="btn @(CalendarManager != null && CalendarManager.CalendarType == "Persian" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                                    @onclick='() => SetCalendarType("Persian")' style="font-size: 11px; padding: 5px;">
                                                 تقویم شمسی
+                                            </button>
+                                            <button type="button" class="btn @(CalendarManager != null && CalendarManager.CalendarType == "Hijri" ? "btn-dark text-warning fw-bold" : "btn-outline-dark")"
+                                                    @onclick='() => SetCalendarType("Hijri")' style="font-size: 11px; padding: 5px;">
+                                                التقويم الهجري
                                             </button>
                                         </div>
                                     </div>
