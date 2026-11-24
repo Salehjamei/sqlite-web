@@ -16,5 +16,17 @@
 
         // پرچم عدم نمایش در کیوسک (در صورت مرخصی طولانی مد یا تعلیق، true می‌شود)
         public bool IsHiddenFromKiosk { get; set; } = false;
+        // شناسه کتگوری اصلی پرسنل (سطح اول)
+        public int? MainCategoryId { get; set; }
+        public PersonnelCategory? MainCategory { get; set; }
+
+        // شناسه کتگوری فرزند اول پرسنل (سطح دوم - دسته شغلی / واحد)
+        public int? SubCategory1Id { get; set; }
+        public PersonnelCategory? SubCategory1 { get; set; }
+
+        // شناسه کتگوری فرزند دوم پرسنل (سطح سوم - عنوان کاری)
+        public int? SubCategory2Id { get; set; }
+        public PersonnelCategory? SubCategory2 { get; set; }
+
     }
 }

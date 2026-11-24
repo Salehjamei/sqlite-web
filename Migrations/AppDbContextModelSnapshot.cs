@@ -173,13 +173,62 @@ namespace sqlite_web.Migrations
                     b.ToTable("AdminNotificationLogs");
                 });
 
+            modelBuilder.Entity("sqlite_web.Components.Models.AllowedLocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AllowedMainCategoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AllowedSubCategory1Id")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AllowedSubCategory2Id")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RadiusMeters")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AllowedMainCategoryId");
+
+                    b.HasIndex("AllowedSubCategory1Id");
+
+                    b.HasIndex("AllowedSubCategory2Id");
+
+                    b.ToTable("AllowedLocations");
+                });
+
             modelBuilder.Entity("sqlite_web.Components.Models.Attendance", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ClockInLocation")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("ClockInTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClockOutLocation")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ClockOutTime")
@@ -200,6 +249,9 @@ namespace sqlite_web.Migrations
 
                     b.Property<int?>("LastModifiedByAdminId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("LocationName")
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -270,6 +322,9 @@ namespace sqlite_web.Migrations
                     b.Property<bool>("IsHiddenFromKiosk")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("MainCategoryId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("PersonnelCode")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -278,9 +333,66 @@ namespace sqlite_web.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("SubCategory1Id")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("SubCategory2Id")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("MainCategoryId");
+
+                    b.HasIndex("SubCategory1Id");
+
+                    b.HasIndex("SubCategory2Id");
+
                     b.ToTable("Employees");
+                });
+
+            modelBuilder.Entity("sqlite_web.Components.Models.PersonnelCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("PersonelCategorys");
+                });
+
+            modelBuilder.Entity("sqlite_web.Components.Models.AllowedLocation", b =>
+                {
+                    b.HasOne("sqlite_web.Components.Models.PersonnelCategory", "AllowedMainCategory")
+                        .WithMany()
+                        .HasForeignKey("AllowedMainCategoryId");
+
+                    b.HasOne("sqlite_web.Components.Models.PersonnelCategory", "AllowedSubCategory1")
+                        .WithMany()
+                        .HasForeignKey("AllowedSubCategory1Id");
+
+                    b.HasOne("sqlite_web.Components.Models.PersonnelCategory", "AllowedSubCategory2")
+                        .WithMany()
+                        .HasForeignKey("AllowedSubCategory2Id");
+
+                    b.Navigation("AllowedMainCategory");
+
+                    b.Navigation("AllowedSubCategory1");
+
+                    b.Navigation("AllowedSubCategory2");
                 });
 
             modelBuilder.Entity("sqlite_web.Components.Models.Attendance", b =>
@@ -305,9 +417,44 @@ namespace sqlite_web.Migrations
                     b.Navigation("Attendance");
                 });
 
+            modelBuilder.Entity("sqlite_web.Components.Models.Employee", b =>
+                {
+                    b.HasOne("sqlite_web.Components.Models.PersonnelCategory", "MainCategory")
+                        .WithMany()
+                        .HasForeignKey("MainCategoryId");
+
+                    b.HasOne("sqlite_web.Components.Models.PersonnelCategory", "SubCategory1")
+                        .WithMany()
+                        .HasForeignKey("SubCategory1Id");
+
+                    b.HasOne("sqlite_web.Components.Models.PersonnelCategory", "SubCategory2")
+                        .WithMany()
+                        .HasForeignKey("SubCategory2Id");
+
+                    b.Navigation("MainCategory");
+
+                    b.Navigation("SubCategory1");
+
+                    b.Navigation("SubCategory2");
+                });
+
+            modelBuilder.Entity("sqlite_web.Components.Models.PersonnelCategory", b =>
+                {
+                    b.HasOne("sqlite_web.Components.Models.PersonnelCategory", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId");
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("sqlite_web.Components.Models.Attendance", b =>
                 {
                     b.Navigation("EditLogs");
+                });
+
+            modelBuilder.Entity("sqlite_web.Components.Models.PersonnelCategory", b =>
+                {
+                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }

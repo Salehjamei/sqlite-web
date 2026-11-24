@@ -21,6 +21,10 @@ builder.Services.AddRazorComponents()
 // ثبت سرویس مدیریت وضعیت ادمین به صورت Scoped (مخصوص هر سشن کاربر)
 builder.Services.AddScoped<sqlite_web.Services.AdminStateService>();
 
+// ثبت سرویس مرکزی دریافت موقعیت جغرافیایی و اعتبارسنجی محدوده مکانی به صورت Scoped
+builder.Services.AddScoped<sqlite_web.Services.GeoLocationService>();
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

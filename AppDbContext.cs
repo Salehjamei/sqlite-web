@@ -19,6 +19,7 @@ namespace sqlite_web
         public DbSet<AttendanceEditLog> AttendanceEditLogs { get; set; } = default!;
         //اعلانات جاری نمایش داده شده و ثبت تغییرات جاری سیستم
         public DbSet<AdminNotificationLog> AdminNotificationLogs { get; set; }
-
+        public DbSet<PersonnelCategory> PersonelCategorys { get; set; }
+        public DbSet<AllowedLocation> AllowedLocations { get; set; }
     }
 }

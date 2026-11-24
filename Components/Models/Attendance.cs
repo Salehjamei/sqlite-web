@@ -33,5 +33,14 @@ namespace sqlite_web.Components.Models
         /// 📜 لیست تمام ویرایش‌ها و تغییراتی که ادمین‌ها روی این تایم تردد انجام داده‌اند
         /// </summary>
         public List<AttendanceEditLog> EditLogs { get; set; } = new();
+        // مختصات جغرافیایی ثبت‌شده در لحظه ورود (عرض و طول جغرافیایی)
+        public string? ClockInLocation { get; set; }
+
+        // مختصات جغرافیایی ثبت‌شده در لحظه خروج (عرض و طول جغرافیایی)
+        public string? ClockOutLocation { get; set; }
+
+        // نام مکان مجاز شناسایی‌شده در لحظه ثبت تردد
+        public string? LocationName { get; set; }
+
     }
 }
