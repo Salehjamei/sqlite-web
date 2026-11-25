@@ -23,9 +23,28 @@ builder.Services.AddScoped<sqlite_web.Services.AdminStateService>();
 
 // ثبت سرویس مرکزی دریافت موقعیت جغرافیایی و اعتبارسنجی محدوده مکانی به صورت Scoped
 builder.Services.AddScoped<sqlite_web.Services.GeoLocationService>();
+// ثبت سرویس پس‌زمینه خودکار سرور
+builder.Services.AddHostedService<sqlite_web.Services.SPNBackgroundService>();
+
+// ثبت سرویس مرکزی ثبت خطاهای سیستمی و سروری در جدول اعلانات
+builder.Services.AddSingleton<sqlite_web.Services.SystemErrorLoggerService>();
 
 
 var app = builder.Build();
+// شکار سراسری خطاهای پیش‌بینی‌نشده سرور و ثبت آنی در تاریخچه اعلانات سوپر ادمین
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exceptionFeature = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerPathFeature>();
+        if (exceptionFeature?.Error != null)
+        {
+            var errorLogger = context.RequestServices.GetRequiredService<sqlite_web.Services.SystemErrorLoggerService>();
+            await errorLogger.LogBackendErrorAsync($"ServerPath: {exceptionFeature.Path}", exceptionFeature.Error);
+        }
+        context.Response.Redirect("/Error");
+    });
+});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

@@ -313,6 +313,15 @@ namespace sqlite_web.Components.Models.Calendar
 
                 // اعلان‌های جابه‌جایی و بازدید صفحات توسط مدیران
                 { "PCal_Navigation_PageVisitLog", new Dictionary<string, string> { { "fa", "مدیر {0} وارد صفحه {1} شد." }, { "en", "Admin {0} navigated to {1}." }, { "tr", "Yönetici {0}, {1} sayfasına geçiş yaptı." }, { "ar", "انتقل المدير {0} إلى صفحة {1}." } } },
+                { "PCal_System_AutoLogoutRetryScheduled", new Dictionary<string, string> { { "fa", "⚠️ خطا در خروج خودکار سیستم ({0}). عملیات تا ۵ دقیقه دیگر مجدداً تکرار خواهد شد." }, { "en", "⚠️ System auto-logout failed ({0}). The operation will retry once in 5 minutes." }, { "tr", "⚠️ Sistem otomatik çıkışı başarısız oldu ({0}). İşlem 5 dakika içinde bir kez daha tekrarlanacak." }, { "ar", "⚠️ فشل الخروج التلقائي للنظام ({0}). ستتم إعادة المحاولة مرة واحدة بعد ٥ دقائق." } } },
+                { "PCal_System_AutoLogoutRetryFailed", new Dictionary<string, string> { { "fa", "❌ تلاش مجدد خروج خودکار سیستم نیز ناموفق بود ({0}). لطفاً وضعیت دیتابیس را بررسی نمایید." }, { "en", "❌ System auto-logout retry also failed ({0}). Please check the database status." }, { "tr", "❌ Sistem otomatik çıkış yeniden denemesi de başarısız oldu ({0}). Lütfen veritabanını kontrol edin." }, { "ar", "❌ فشلت إعادة محاولة الخروج التلقائي للنظام أيضاً ({0}). يرجى التحقق من قاعدة البيانات." } } },
+                // اعلان خطاهای فنی و سیستمی بک‌اند
+                { "PCal_System_BackendErrorLog", new Dictionary<string, string> { { "fa", "🚨 خطای سیستمی در بخش {0}: {1}" }, { "en", "🚨 System backend error in {0}: {1}" }, { "tr", "🚨 {0} bölümünde sistem sunucu hatası: {1}" }, { "ar", "🚨 خطأ تقني في النظام ضمن القسم {0}: {1}" } } },
+                // پیام‌های بازخورد صفحه ورود ادمین
+                { "PCal_Login_InvalidCredentials", new Dictionary<string, string> { { "fa", "❌ نام کاربری یا رمز عبور اشتباه است!" }, { "en", "❌ Invalid username or password!" }, { "tr", "❌ Kullanıcı adı veya şifre hatalı!" }, { "ar", "❌ اسم المستخدم أو كلمة المرور غير صحيحة!" } } },
+                { "PCal_Login_AccountFrozen", new Dictionary<string, string> { { "fa", "❄️ حساب کاربری شما فریز شده است و اجازه ورود ندارید!" }, { "en", "❄️ Your account is frozen and login is denied!" }, { "tr", "❄️ Hesabınız dondurulmuştur ve giriş izniniz yoktur!" }, { "ar", "❄️ حسابك مجمد ولا يمكنك تسجيل الدخول!" } } },
+                { "PCal_Login_SuccessFeedback", new Dictionary<string, string> { { "fa", "✅ ورود با موفقیت انجام شد." }, { "en", "✅ Login successful." }, { "tr", "✅ Giriş başarıyla tamamlandı." }, { "ar", "✅ تم تسجيل الدخول بنجاح." } } },
+                { "PCal_Login_SystemError", new Dictionary<string, string> { { "fa", "❌ خطایی در فرآیند ورود رخ داد!" }, { "en", "❌ An error occurred during login!" }, { "tr", "❌ Giriş işlemi sırasında bir hata oluştu!" }, { "ar", "❌ حدث خطأ أثناء عملية تسجيل الدخول!" } } },
 
 
             };

@@ -17,6 +17,7 @@ namespace sqlite_web.Components.Pages
         [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
         [Inject] public Microsoft.JSInterop.IJSRuntime JSRuntime { get; set; } = default!;
+        [Inject] public SystemErrorLoggerService ErrorLogger { get; set; } = default!;
 
         // نگهداری نام فیلدی که دچار خطای اعتبارسنجی شده است ("Name", "Code", "Phone")
         protected string EmpErrorField { get; set; } = string.Empty;
@@ -345,114 +346,123 @@ namespace sqlite_web.Components.Pages
                 return;
             }
 
-            // ساخت نام برجسته و رنگی کارمند برای نمایش در بنر اعلان بالای صفحه
-            string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{newEmpName}»</span>";
-
-            // حالت اول: بررسی حالت ویرایش کارمند موجود
-            if (isEmpEditMode && _editingEmployeeId.HasValue)
+            try
             {
-                // کنترل سطح دسترسی مدیر برای انجام عملیات ویرایش
-                if (!canEditPerm && !AdminState.isCurrentUserSuperAdmin) return;
+                // ساخت نام برجسته و رنگی کارمند برای نمایش در بنر اعلان بالای صفحه
+                string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{newEmpName}»</span>";
 
-                // جلوگیری از ثبت کد ملی تکراری متعلق به کارمند دیگر و فوکوس روی فیلد کد ملی
-                bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode && e.Id != _editingEmployeeId.Value);
-                if (isCodeDuplicate)
+                // حالت اول: بررسی حالت ویرایش کارمند موجود
+                if (isEmpEditMode && _editingEmployeeId.HasValue)
                 {
-                    await SetEmpValidationErrorAsync("Code", "empCodeInput", "PCal_AdminPanel_DuplicateCodeEdit");
-                    return;
+                    // کنترل سطح دسترسی مدیر برای انجام عملیات ویرایش
+                    if (!canEditPerm && !AdminState.isCurrentUserSuperAdmin) return;
+
+                    // جلوگیری از ثبت کد ملی تکراری متعلق به کارمند دیگر و فوکوس روی فیلد کد ملی
+                    bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode && e.Id != _editingEmployeeId.Value);
+                    if (isCodeDuplicate)
+                    {
+                        await SetEmpValidationErrorAsync("Code", "empCodeInput", "PCal_AdminPanel_DuplicateCodeEdit");
+                        return;
+                    }
+
+                    // واکشی رکورد کارمند از دیتابیس برای اعمال تغییرات
+                    var emp = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _editingEmployeeId.Value);
+                    if (emp != null)
+                    {
+                        // نگهداری وضعیت قبلی نمایش کارمند در کیوسک جهت تشخیص تغییر وضعیت پنهان‌سازی
+                        bool wasHidden = emp.IsHiddenFromKiosk;
+
+                        // به‌روزرسانی فیلدهای متنی، تصویر و وضعیت نمایش در کیوسک
+                        emp.FullName = newEmpName;
+                        emp.Phone = newEmpPhone;
+                        emp.PersonnelCode = newEmpCode;
+                        emp.ImagePath = previewImageUrl;
+                        emp.IsHiddenFromKiosk = newEmpHiddenFromKiosk;
+
+                        // ثبت تغییرات در بافت دیتابیس و ذخیره نهایی در فایل SQLite
+                        DbContext.Employees.Update(emp);
+                        await DbContext.SaveChangesAsync();
+
+                        // ثبت تغییر وضعیت نمایش یا عدم نمایش کارمند در صفحه کیوسک در صورت تغییر وضعیت تیک مربوطه
+                        if (wasHidden != newEmpHiddenFromKiosk)
+                        {
+                            string visibilityKey = newEmpHiddenFromKiosk
+                                ? "PCal_AdminPanel_EmpHiddenFromKioskLog"
+                                : "PCal_AdminPanel_EmpShownInKioskLog";
+
+                            TriggerToast(
+                                category: "AdminPanel",
+                                subCategory: "KioskVisibility",
+                                messageKey: visibilityKey,
+                                args: new object[] { coloredEmpName },
+                                isError: false,
+                                targetEmp: emp
+                            );
+                        }
+                        else
+                        {
+                            // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
+                            TriggerToast(
+                                category: "AdminPanel",
+                                subCategory: "EmployeeInfo",
+                                messageKey: "PCal_AdminPanel_EmpEditSuccess",
+                                args: new object[] { coloredEmpName },
+                                isError: false,
+                                targetEmp: emp
+                            );
+                        }
+                    }
                 }
-
-                // واکشی رکورد کارمند از دیتابیس برای اعمال تغییرات
-                var emp = await DbContext.Employees.FirstOrDefaultAsync(e => e.Id == _editingEmployeeId.Value);
-                if (emp != null)
+                // حالت دوم: ثبت کارمند جدید در سیستم
+                else
                 {
-                    // نگهداری وضعیت قبلی نمایش کارمند در کیوسک جهت تشخیص تغییر وضعیت پنهان‌سازی
-                    bool wasHidden = emp.IsHiddenFromKiosk;
+                    // کنترل سطح دسترسی مدیر برای افزودن کارمند جدید
+                    if (!canAddPerm && !AdminState.isCurrentUserSuperAdmin) return;
 
-                    // به‌روزرسانی فیلدهای متنی، تصویر و وضعیت نمایش در کیوسک
-                    emp.FullName = newEmpName;
-                    emp.Phone = newEmpPhone;
-                    emp.PersonnelCode = newEmpCode;
-                    emp.ImagePath = previewImageUrl;
-                    emp.IsHiddenFromKiosk = newEmpHiddenFromKiosk;
+                    // جلوگیری از ثبت کد ملی تکراری در سیستم و فوکوس روی فیلد کد ملی
+                    bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode);
+                    if (isCodeDuplicate)
+                    {
+                        await SetEmpValidationErrorAsync("Code", "empCodeInput", "PCal_AdminPanel_DuplicateCodeAdd");
+                        return;
+                    }
 
-                    // ثبت تغییرات در بافت دیتابیس و ذخیره نهایی در فایل SQLite
-                    DbContext.Employees.Update(emp);
+                    // ایجاد شیء کارمند جدید همراه با وضعیت نمایش در کیوسک
+                    var newEmp = new Employee
+                    {
+                        FullName = newEmpName,
+                        Phone = newEmpPhone,
+                        PersonnelCode = newEmpCode,
+                        ImagePath = previewImageUrl,
+                        IsHiddenFromKiosk = newEmpHiddenFromKiosk
+                    };
+
+                    // افزودن رکورد جدید به جدول دیتابیس و ذخیره نهایی
+                    DbContext.Employees.Add(newEmp);
                     await DbContext.SaveChangesAsync();
 
-                    // ثبت تغییر وضعیت نمایش یا عدم نمایش کارمند در صفحه کیوسک در صورت تغییر وضعیت تیک مربوطه
-                    if (wasHidden != newEmpHiddenFromKiosk)
-                    {
-                        string visibilityKey = newEmpHiddenFromKiosk
-                            ? "PCal_AdminPanel_EmpHiddenFromKioskLog"
-                            : "PCal_AdminPanel_EmpShownInKioskLog";
-
-                        TriggerToast(
-                            category: "AdminPanel",
-                            subCategory: "KioskVisibility",
-                            messageKey: visibilityKey,
-                            args: new object[] { coloredEmpName },
-                            isError: false,
-                            targetEmp: emp
-                        );
-                    }
-                    else
-                    {
-                        // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
-                        TriggerToast(
-                            category: "AdminPanel",
-                            subCategory: "EmployeeInfo",
-                            messageKey: "PCal_AdminPanel_EmpEditSuccess",
-                            args: new object[] { coloredEmpName },
-                            isError: false,
-                            targetEmp: emp
-                        );
-                    }
+                    // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
+                    TriggerToast(
+                        category: "AdminPanel",
+                        subCategory: "EmployeeInfo",
+                        messageKey: "PCal_AdminPanel_EmpAddSuccess",
+                        args: new object[] { coloredEmpName },
+                        isError: false,
+                        targetEmp: newEmp
+                    );
                 }
+
+                // بارگذاری مجدد لیست پرسنل در جدول صفحه و بستن مودال فرم
+                await RefreshDataAsync();
+                CloseEmpFormModal();
             }
-            // حالت دوم: ثبت کارمند جدید در سیستم
-            else
+            catch (Exception ex)
             {
-                // کنترل سطح دسترسی مدیر برای افزودن کارمند جدید
-                if (!canAddPerm && !AdminState.isCurrentUserSuperAdmin) return;
-
-                // جلوگیری از ثبت کد ملی تکراری در سیستم و فوکوس روی فیلد کد ملی
-                bool isCodeDuplicate = await DbContext.Employees.AnyAsync(e => e.PersonnelCode == newEmpCode);
-                if (isCodeDuplicate)
-                {
-                    await SetEmpValidationErrorAsync("Code", "empCodeInput", "PCal_AdminPanel_DuplicateCodeAdd");
-                    return;
-                }
-
-                // ایجاد شیء کارمند جدید همراه با وضعیت نمایش در کیوسک
-                var newEmp = new Employee
-                {
-                    FullName = newEmpName,
-                    Phone = newEmpPhone,
-                    PersonnelCode = newEmpCode,
-                    ImagePath = previewImageUrl,
-                    IsHiddenFromKiosk = newEmpHiddenFromKiosk
-                };
-
-                // افزودن رکورد جدید به جدول دیتابیس و ذخیره نهایی
-                DbContext.Employees.Add(newEmp);
-                await DbContext.SaveChangesAsync();
-
-                // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته EmployeeInfo
-                TriggerToast(
-                    category: "AdminPanel",
-                    subCategory: "EmployeeInfo",
-                    messageKey: "PCal_AdminPanel_EmpAddSuccess",
-                    args: new object[] { coloredEmpName },
-                    isError: false,
-                    targetEmp: newEmp
-                );
+                // ثبت جزئیات فنی خطای رخ‌داده در تاریخچه اعلانات سرور جهت بررسی سوپر ادمین
+                await ErrorLogger.LogBackendErrorAsync("AdminPanel.SaveEmployeeData", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
             }
-
-            // بارگذاری مجدد لیست پرسنل در جدول صفحه و بستن مودال فرم
-            await RefreshDataAsync();
-            CloseEmpFormModal();
         }
+
 
         // مقداردهی اولیه فیلدهای فرم برای ویرایش اطلاعات یک کارمند مشخص
         protected void StartEmpEdit(Employee emp)

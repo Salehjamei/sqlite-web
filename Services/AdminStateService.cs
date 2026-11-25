@@ -17,7 +17,7 @@ namespace sqlite_web.Services
         private readonly AppDbContext _dbContext;
         private readonly IJSRuntime _jsRuntime;
         private readonly NavigationManager _navigationManager;
-
+        private readonly SystemErrorLoggerService _errorLogger;
         // 🔘 شیء زنده ادمین آنلاین واکشی شده از دیتابیس
         public AdminUser? CurrentOnlineAdmin { get; private set; }
 
@@ -48,11 +48,12 @@ namespace sqlite_web.Services
         public WorkSettings CurrentSettings { get; set; } = new();
         private int? _editingAdminId = null;
 
-        public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime, NavigationManager navigationManager)
+        public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime, NavigationManager navigationManager, SystemErrorLoggerService errorLogger)
         {
             _dbContext = dbContext;
             _jsRuntime = jsRuntime;
             _navigationManager = navigationManager;
+            _errorLogger = errorLogger;
         }
 
         public void RedirectToLogin() => _navigationManager.NavigateTo("/login", forceLoad: false);
@@ -174,10 +175,12 @@ namespace sqlite_web.Services
                     _navigationManager.NavigateTo("/login", forceLoad: false);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                await _errorLogger.LogBackendErrorAsync("AdminStateService.CheckAccessAndRedirectAsync", ex, CurrentOnlineAdmin?.Id, adminUsername);
                 return;
             }
+
             finally
             {
                 if (!IsChecked)
@@ -212,10 +215,25 @@ namespace sqlite_web.Services
                 await _dbContext.SaveChangesAsync();
             }
         }
-        /// متد احراز هویت، تولید توکن امن، ایجاد سشن فعال و ثبت رویداد ورود در تاریخچه اعلانات
+        // احراز هویت مدیر، تولید توکن نشست و ثبت رویداد ورود چندزبانه در تاریخچه اعلانات
         public async Task<bool> LoginAsync(string username, string password)
         {
             if (_dbContext == null) return false;
+
+            // بازیابی زبان فعلی سیستم از حافظه مرورگر برای ترجمه پیام‌های بازخورد ورود
+            string currentLang = "fa";
+            try
+            {
+                var storedLang = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "SystemLanguageSetting");
+                if (!string.IsNullOrWhiteSpace(storedLang))
+                {
+                    currentLang = storedLang.Trim('"');
+                }
+            }
+            catch { }
+
+            var pCal = new sqlite_web.Components.Models.Calendar.PCalendar { CurrentLanguage = currentLang };
+
             try
             {
                 // بررسی صحت نام کاربری و رمز عبور در جدول ادمین‌ها
@@ -225,7 +243,7 @@ namespace sqlite_web.Services
                 // ثبت تلاش ورود ناموفق در صورت اشتباه بودن نام کاربری یا رمز عبور
                 if (admin == null)
                 {
-                    FeedbackMessage = "❌ نام کاربری یا رمز عبور اشتباه است!";
+                    FeedbackMessage = pCal.Translate("PCal_Login_InvalidCredentials");
                     string coloredAttempt = $"<span style='color: #dc3545; font-weight: 900;'>«{username}»</span>";
                     await RecordSecurityLogAsync(
                         subCategory: "AdminLogin",
@@ -241,7 +259,7 @@ namespace sqlite_web.Services
                 // ثبت تلاش ورود حساب مسدودشده (فریز) در تاریخچه امنیتی سرور
                 if (admin.IsFrozen)
                 {
-                    FeedbackMessage = "❄️ حساب کاربری شما فریز شده است و اجازه ورود ندارید!";
+                    FeedbackMessage = pCal.Translate("PCal_Login_AccountFrozen");
                     string coloredFrozen = $"<span style='color: #dc3545; font-weight: 900;'>«{admin.Username}»</span>";
                     await RecordSecurityLogAsync(
                         subCategory: "TokenRestricted",
@@ -281,19 +299,21 @@ namespace sqlite_web.Services
                 await _jsRuntime.InvokeVoidAsync("localStorage.setItem", "admin_session_token", newToken);
                 FillAdminData(admin);
 
-                FeedbackMessage = "✅ ورود با موفقیت انجام شد.";
+                FeedbackMessage = pCal.Translate("PCal_Login_SuccessFeedback");
                 NotifyStateChanged();
 
                 // انتقال مستقیم به صفحه مدیریت پرسنل
                 _navigationManager.NavigateTo("/admin/panel", forceLoad: false);
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
-                FeedbackMessage = "❌ خطایی در فرآیند ورود رخ داد!";
+                await _errorLogger.LogBackendErrorAsync("AdminStateService.LoginAsync", ex, null, username, null, currentLang);
+                FeedbackMessage = pCal.Translate("PCal_Login_SystemError");
                 return false;
             }
         }
+
 
         /// متد خروج مرکزی سیستم، ابطال همزمان سشن و ثبت رویداد خروج در تاریخچه اعلانات
         public async Task LogoutAsync()
@@ -568,10 +588,12 @@ namespace sqlite_web.Services
                 }
                 return false;
             }
-            catch
+            catch (Exception ex)
             {
+                await _errorLogger.LogBackendErrorAsync("AdminStateService.SaveWorkSettingsAsync", ex, CurrentOnlineAdmin?.Id, adminUsername);
                 return false;
             }
+
         }
         // ثبت مستقیم رویدادهای امنیتی (ورود، خروج، انقضای توکن و مسدودسازی) در جدول تاریخچه اعلانات سرور
         private async Task RecordSecurityLogAsync(

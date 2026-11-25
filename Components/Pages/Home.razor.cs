@@ -13,6 +13,7 @@ namespace sqlite_web.Components.Pages
     {
         [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
+        [Inject] public SystemErrorLoggerService ErrorLogger { get; set; } = default!;
 
         private string message = "";
         private List<Employee> employees = new();
@@ -146,15 +147,16 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                // ثبت و نمایش خطای بارگذاری داده‌های کیوسک
+                await ErrorLogger.LogBackendErrorAsync("Home.LoadData", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
                 TriggerToast(
                     category: "Kiosk",
                     subCategory: "SystemError",
                     messageKey: "PCal_MainHome_LoadError",
-                    args: new object[] { ex.Message },
+                    args: new object[] { ex.InnerException?.Message ?? ex.Message },
                     isError: true
                 );
             }
+
         }
 
 
