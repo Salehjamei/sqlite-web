@@ -87,6 +87,41 @@
                         </div>
                     </div>
                 </div>
+                @* نوار فیلتر درختی سه‌سطحی پرسنل متصل به سرویس مشترک پرسنل *@
+                @if (PersonnelSvc.GetMainCategories(allCategories).Any())
+                {
+                    <div class="bg-light border rounded p-2 mb-2" style="direction: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "rtl" : "ltr");">
+                        <div class="row g-1 g-md-2 align-items-center">
+                            <div class="col-md-4 col-6">
+                                <select class="form-select form-select-sm fw-bold" value="@FilterMainCatId" @onchange="OnFilterMainCatChanged" style="font-size: 11px;">
+                                    <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllMainCats") --</option>
+                                    @foreach (var cat in PersonnelSvc.GetMainCategories(allCategories))
+                                    {
+                                        <option value="@cat.Id">@cat.Title</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4 col-6">
+                                <select class="form-select form-select-sm fw-bold" value="@FilterSub1CatId" @onchange="OnFilterSub1CatChanged" disabled="@(FilterMainCatId == 0)" style="font-size: 11px;">
+                                    <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllSub1Cats") --</option>
+                                    @foreach (var sub1 in PersonnelSvc.GetSub1Categories(allCategories, FilterMainCatId))
+                                    {
+                                        <option value="@sub1.Id">@sub1.Title</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-4 col-12">
+                                <select class="form-select form-select-sm fw-bold" @bind="FilterSub2CatId" disabled="@(FilterSub1CatId == 0)" style="font-size: 11px;">
+                                    <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllSub2Cats") --</option>
+                                    @foreach (var sub2 in PersonnelSvc.GetSub2Categories(allCategories, FilterSub1CatId))
+                                    {
+                                        <option value="@sub2.Id">@sub2.Title</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                }
 
                 @* جدول اصلی لیست و پرونده پرسنل *@
                 <table class="table table-bordered text-center align-middle m-0 table-sm" style="width: 100%; border-collapse: separate; background-color: #ffffff; direction: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "rtl" : "ltr");">
@@ -130,6 +165,9 @@
                                         <strong style="color: #212529;">
                                             @(emp.FullName?.Length > 40 ? emp.FullName.Substring(0, 37) + "..." : emp.FullName)
                                         </strong>
+                                        <div class="text-muted" style="font-size: 10px;">
+                                            @PersonnelSvc.FormatEmployeeCategoryPath(emp)
+                                        </div>
 
                                         @* نشانگر وضعیت پنهان‌سازی کارمند از صفحه کیوسک *@
                                         @if (emp.IsHiddenFromKiosk)
@@ -597,6 +635,39 @@
                                                disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))"
                                                class="form-control form-control-sm text-center @(EmpErrorField == "Phone" ? "is-invalid border-danger" : "")" placeholder="0912-000-0000" />
                                     </div>
+                                    @* انتخاب دسته‌بندی سه‌سطحی پرسنل (کتگوری اصلی -> فرزند اول -> فرزند دوم) *@
+                                    <div class="p-2 border rounded bg-light mb-2">
+                                        <label class="form-label text-dark fw-bold small mb-1">🗂️ @CalendarManager.Translate("PCal_Loc_CategoriesSectionTitle"):</label>
+                                        <select class="form-select form-select-sm mb-1.5" value="@newEmpMainCatId"
+                                                @onchange='(e) => { newEmpMainCatId = int.TryParse(e.Value?.ToString(), out int id) ? id : 0; newEmpSub1CatId = 0; newEmpSub2CatId = 0; }'
+                                                style="font-size: 11px;">
+                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_MainCatLabel") --</option>
+                                            @foreach (var m in PersonnelSvc.GetMainCategories(allCategories))
+                                            {
+                                                <option value="@m.Id">@m.Title</option>
+                                            }
+                                        </select>
+                                        <select class="form-select form-select-sm mb-1.5" value="@newEmpSub1CatId"
+                                                disabled="@(newEmpMainCatId == 0)"
+                                                @onchange='(e) => { newEmpSub1CatId = int.TryParse(e.Value?.ToString(), out int id) ? id : 0; newEmpSub2CatId = 0; }'
+                                                style="font-size: 11px;">
+                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_Sub1CatLabel") --</option>
+                                            @foreach (var s1 in PersonnelSvc.GetSub1Categories(allCategories, newEmpMainCatId))
+                                            {
+                                                <option value="@s1.Id">@s1.Title</option>
+                                            }
+                                        </select>
+                                        <select class="form-select form-select-sm" @bind="newEmpSub2CatId"
+                                                disabled="@(newEmpSub1CatId == 0)"
+                                                style="font-size: 11px;">
+                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_Sub2CatLabel") --</option>
+                                            @foreach (var s2 in PersonnelSvc.GetSub2Categories(allCategories, newEmpSub1CatId))
+                                            {
+                                                <option value="@s2.Id">@s2.Title</option>
+                                            }
+                                        </select>
+                                    </div>
+
                                     <div class="form-check form-switch mb-3 border-top pt-2">
                                         <input class="form-check-input" type="checkbox" id="chkHideKiosk" @bind="newEmpHiddenFromKiosk"
                                                disabled="@((isEmpEditMode && !canEditPerm && !AdminState.isCurrentUserSuperAdmin) || (!isEmpEditMode && !canAddPerm && !AdminState.isCurrentUserSuperAdmin))" />

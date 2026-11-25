@@ -48,12 +48,11 @@
                         @* دکمه مدیریت پرسنل *@
                         <button type="button" class="btn-modern btn-modern-primary @(ActivePage == "panel" ? "active-custom" : "")" @onclick='() => NavigateToPage("/admin/panel")'>
                             @CalendarManager.Translate("PersonnelManagementBtn")
-                        </button>
-
+                        </button>      
                         @* دکمه کشویی سطوح دسترسی مخصوص سوپر ادمین همراه با زیرمنوی صفحات مدیریتی *@
                         @if (AdminState.isCurrentUserSuperAdmin)
                         {
-                            bool isAccessGroupActive = ActivePage == "manage" || ActivePage == "notifications";
+                            bool isAccessGroupActive = ActivePage == "manage" || ActivePage == "notifications" || ActivePage == "locations";
 
                             <div style="position: relative; display: inline-block;" @onclick:stopPropagation>
                                 <button type="button"
@@ -64,7 +63,7 @@
 
                                 @if (IsAccessDropdownOpen)
                                 {
-                                    <div style="position: absolute; top: calc(100% + 6px); @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right: 0;" : "left: 0;"); background-color: #212529; border: 1px solid #495057; border-radius: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); z-index: 1000001; min-width: 185px; padding: 5px; display: flex; flex-direction: column; gap: 4px;">
+                                    <div style="position: absolute; top: calc(100% + 6px); @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right: 0;" : "left: 0;"); background-color: #212529; border: 1px solid #495057; border-radius: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); z-index: 1000001; min-width: 195px; padding: 5px; display: flex; flex-direction: column; gap: 4px;">
 
                                         @* گزینه اول زیرمنو: صفحه مدیریت سطوح دسترسی و مدیران *@
                                         <button type="button"
@@ -74,7 +73,15 @@
                                             🛡️ @CalendarManager.Translate("AccessPageTitle")
                                         </button>
 
-                                        @* گزینه دوم زیرمنو: صفحه تاریخچه و مدیریت اعلانات سیستم *@
+                                        @* گزینه دوم زیرمنو: صفحه مدیریت مکان‌های مجاز و دسته‌بندی پرسنل *@
+                                        <button type="button"
+                                                class="btn-modern w-100 justify-content-start @(ActivePage == "locations" ? "btn-modern-success active-custom" : "btn-modern-secondary")"
+                                                style="font-size: 11px; padding: 6px 10px;"
+                                                @onclick='() => NavigateToPage("/admin/locations")'>
+                                            📍 @CalendarManager.Translate("PCal_Loc_NavBtn")
+                                        </button>
+
+                                        @* گزینه سوم زیرمنو: صفحه تاریخچه و مدیریت اعلانات سیستم *@
                                         <button type="button"
                                                 class="btn-modern w-100 justify-content-start @(ActivePage == "notifications" ? "btn-modern-success active-custom" : "btn-modern-secondary")"
                                                 style="font-size: 11px; padding: 6px 10px;"
@@ -85,6 +92,7 @@
                                 }
                             </div>
                         }
+
                     </div>
                 }
                 else

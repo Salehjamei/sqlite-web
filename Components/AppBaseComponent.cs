@@ -2,7 +2,10 @@
 using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using sqlite_web.Components.Models;
 using sqlite_web.Components.Models.Calendar;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+
 
 namespace sqlite_web.Components
 {
@@ -68,7 +71,7 @@ namespace sqlite_web.Components
         protected string? toastEventTime = null;
         protected Employee? toastTargetEmployee = null;
 
-        // متد سراسری صدور اعلان چندزبانه با دریافت نام صفحه و زیردسته
+        // صدور اعلان چندزبانه و افزودن آن به صف نمایش حداکثر ۳ تایی
         protected void TriggerToast(
             string category,
             string subCategory,
@@ -79,6 +82,25 @@ namespace sqlite_web.Components
             string? eventDate = null,
             string? eventTime = null)
         {
+            if (ActiveToastList.Count >= 3)
+            {
+                ActiveToastList.RemoveAt(0);
+            }
+
+            ActiveToastList.Add(new ToastItemModel
+            {
+                Category = category,
+                SubCategory = subCategory,
+                MessageKey = messageKey,
+                MessageArgs = args,
+                Message = string.Empty,
+                IsError = isError,
+                TargetEmployee = targetEmp,
+                EventDate = eventDate,
+                EventTime = eventTime,
+                ShownAt = DateTime.Now
+            });
+
             toastCategory = category;
             toastSubCategory = subCategory;
             toastMessageKey = messageKey;
@@ -90,8 +112,29 @@ namespace sqlite_web.Components
             toastEventTime = eventTime;
             showToast = true;
         }
+        // مدل نگهداری مشخصات هر اعلان در صف نمایش حداکثر ۳ تایی
+        public class ToastItemModel
+        {
+            public Guid Id { get; set; } = Guid.NewGuid();
+            public string Category { get; set; } = "General";
+            public string SubCategory { get; set; } = "General";
+            public string MessageKey { get; set; } = string.Empty;
+            public object[]? MessageArgs { get; set; }
+            public string Message { get; set; } = string.Empty;
+            public string? EventDate { get; set; }
+            public string? EventTime { get; set; }
+            public bool IsError { get; set; } = false;
+            public Employee? TargetEmployee { get; set; }
+            public DateTime ShownAt { get; set; } = DateTime.Now;
+            public bool IsSavedToDb { get; set; } = false;
+        }
+
+        // صف زنده اعلان‌های باز در صفحه (حداکثر ۳ عدد به ترتیب ورود)
+        protected List<ToastItemModel> ActiveToastList { get; set; } = new();
+
         /// <summary> ^
         /// ToastNotification
         /// </summary>
+
     }
 }

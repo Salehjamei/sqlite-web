@@ -94,7 +94,7 @@ namespace sqlite_web.Components.Pages
         protected List<Employee> employees { get; set; } = new();
         protected string SearchQuery { get; set; } = string.Empty;
 
-         // لیست فیلترشده پرسنل متصل به متد مشترک سرویس پرسنل (ترکیب دسته‌بندی سه‌سطحی و عبارت جستجو)
+        // لیست فیلترشده پرسنل متصل به متد مشترک سرویس پرسنل (ترکیب دسته‌بندی سه‌سطحی و عبارت جستجو)
         protected IEnumerable<Employee> FilteredEmployees =>
             PersonnelSvc.FilterEmployees(employees, FilterMainCatId, FilterSub1CatId, FilterSub2CatId, SearchQuery);
         // تغییر فیلتر کتگوری اصلی جدول پرسنل و بازنشانی فرزندان
@@ -240,13 +240,14 @@ namespace sqlite_web.Components.Pages
             }
             await InvokeAsync(StateHasChanged);
         }
+        // واکشی ایزوله اطلاعات پرسنل، دسته‌بندی‌های سه‌سطحی و سوابق تردد از سرویس مشترک
         private async Task RefreshDataAsync()
         {
-            if (DbContext == null) return;
             try
             {
-                employees = await DbContext.Employees.AsNoTracking().ToListAsync() ?? new();
-                allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync() ?? new();
+                employees = await PersonnelSvc.GetEmployeesAsync(onlyVisibleInKiosk: false);
+                allAttendances = await PersonnelSvc.GetAllAttendancesAsync();
+                allCategories = await PersonnelSvc.GetAllCategoriesAsync();
 
                 if (selectedEmployee != null && selectedEmployee.Id > 0)
                 {
@@ -256,9 +257,10 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in RefreshDataAsync: {ex.Message}");
+                await ErrorLogger.LogBackendErrorAsync("AdminPanel.RefreshDataAsync", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
             }
         }
+
         // مدیریت مودال های فرم پرسنل و منوهای آبشاری
         public void OpenAddEmployeeModal()
         {
@@ -404,6 +406,9 @@ namespace sqlite_web.Components.Pages
                         emp.PersonnelCode = newEmpCode;
                         emp.ImagePath = previewImageUrl;
                         emp.IsHiddenFromKiosk = newEmpHiddenFromKiosk;
+                        emp.MainCategoryId = newEmpMainCatId > 0 ? newEmpMainCatId : null;
+                        emp.SubCategory1Id = newEmpSub1CatId > 0 ? newEmpSub1CatId : null;
+                        emp.SubCategory2Id = newEmpSub2CatId > 0 ? newEmpSub2CatId : null;
 
                         // ثبت تغییرات در بافت دیتابیس و ذخیره نهایی در فایل SQLite
                         DbContext.Employees.Update(emp);
@@ -460,7 +465,10 @@ namespace sqlite_web.Components.Pages
                         Phone = newEmpPhone,
                         PersonnelCode = newEmpCode,
                         ImagePath = previewImageUrl,
-                        IsHiddenFromKiosk = newEmpHiddenFromKiosk
+                        IsHiddenFromKiosk = newEmpHiddenFromKiosk,
+                        MainCategoryId = newEmpMainCatId > 0 ? newEmpMainCatId : null,
+                        SubCategory1Id = newEmpSub1CatId > 0 ? newEmpSub1CatId : null,
+                        SubCategory2Id = newEmpSub2CatId > 0 ? newEmpSub2CatId : null
                     };
 
                     // افزودن رکورد جدید به جدول دیتابیس و ذخیره نهایی
@@ -504,7 +512,9 @@ namespace sqlite_web.Components.Pages
             newEmpPhone = emp.Phone ?? string.Empty;
             previewImageUrl = emp.ImagePath;
             newEmpHiddenFromKiosk = emp.IsHiddenFromKiosk;
-
+            newEmpMainCatId = emp.MainCategoryId ?? 0;
+            newEmpSub1CatId = emp.SubCategory1Id ?? 0;
+            newEmpSub2CatId = emp.SubCategory2Id ?? 0;
             // نمایش پنجره مودال فرم
             showEmpFormModal = true;
         }
@@ -518,6 +528,9 @@ namespace sqlite_web.Components.Pages
             newEmpCode = string.Empty;
             previewImageUrl = string.Empty;
             newEmpHiddenFromKiosk = false;
+            newEmpMainCatId = 0;
+            newEmpSub1CatId = 0;
+            newEmpSub2CatId = 0;
             EmpErrorField = string.Empty;
         }
 
@@ -542,19 +555,21 @@ namespace sqlite_web.Components.Pages
             await RefreshDataAsync();
         }
 
-        // ثبت سریع ورود کارمند از جدول اصلی پنل همراه با ثبت نام کارمند در بنر اعلان و تاریخچه سرور
+        // ثبت سریع ورود کارمند از جدول پرسنل همراه با ثبت بی‌صدای مختصات جغرافیایی ادمین در لاگ اعلانات
         protected async Task StartAttendanceNow(int employeeId)
         {
-            // بررسی سطح دسترسی مدیر برای انجام عملیات ویرایش و ثبت تردد
             if (!canEditPerm) return;
 
             try
             {
-                // دریافت شناسه ادمین آنلاین و زمان دقیق فعلی جهت ثبت در تاریخچه رکورد
                 int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
+                string currentAdminName = AdminState.CurrentOnlineAdmin?.Username ?? "Admin";
                 var now = DateTime.Now;
 
-                // ایجاد رکورد تردد جدید با منبع ثبت سریع ادمین
+                // دریافت مختصات جغرافیایی لحظه‌ای دستگاه ادمین از مرورگر
+                var adminLoc = await GeoService.GetCurrentDeviceLocationAsync();
+
+                // ایجاد و ذخیره رکورد ورود سریع همراه با مختصات مکانی ادمین
                 var attendance = new Attendance
                 {
                     EmployeeId = employeeId,
@@ -562,19 +577,18 @@ namespace sqlite_web.Components.Pages
                     ClockOutTime = null,
                     CreationDate = now,
                     EntrySource = "AdminFast",
-                    CreatedByAdminId = currentAdminId
+                    CreatedByAdminId = currentAdminId,
+                    ClockInLocation = adminLoc.FormattedCoordinates
                 };
 
-                // افزودن رکورد به دیتابیس و ذخیره تغییرات در فایل SQLite
                 DbContext.Attendances.Add(attendance);
                 await DbContext.SaveChangesAsync();
 
-                // واکشی شیء کامل کارمند و قالب‌بندی نام او با رنگ قرمز جهت نمایش در اعلان
                 var targetEmp = employees.FirstOrDefault(e => e.Id == employeeId);
                 string empName = targetEmp?.FullName ?? string.Empty;
                 string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
 
-                // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته QuickAttendance
+                // نمایش اعلان شیشه‌ای ساده ثبت ورود سریع به ادمین بدون افشای مختصات روی صفحه
                 TriggerToast(
                     category: "AdminPanel",
                     subCategory: "QuickAttendance",
@@ -586,47 +600,66 @@ namespace sqlite_web.Components.Pages
                     eventTime: now.ToString("HH:mm:ss")
                 );
 
-                // بارگذاری مجدد داده‌های صفحه
+                // ثبت بی‌صدای مختصات مکانی ادمین در تاریخچه اعلانات سرور با زیردسته AdminLocation
+                if (adminLoc.Success && !string.IsNullOrEmpty(adminLoc.FormattedCoordinates))
+                {
+                    await GeoService.LogLocationAuditSilentlyAsync(
+                        subCategory: "AdminLocation",
+                        messageKey: "PCal_Loc_AdminFastInLocLog",
+                        args: new object[] { coloredEmpName, adminLoc.FormattedCoordinates },
+                        actorAdminId: currentAdminId,
+                        actorAdminUsername: currentAdminName,
+                        targetEmp: targetEmp,
+                        eventDate: now.ToString("yyyy-MM-dd"),
+                        eventTime: now.ToString("HH:mm:ss")
+                    );
+                }
+
                 await RefreshDataAsync();
             }
             catch (Exception ex)
             {
-                // نمایش پیام خطا در صورت بروز مشکل هنگام ثبت ورود سریع
+                // ثبت جزئیات فنی خطا در لاگر مرکزی و نمایش پیام خطای ساده در رابط کاربری
+                await ErrorLogger.LogBackendErrorAsync("AdminPanel.StartAttendanceNow", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
                 TriggerToast("AdminPanel", "QuickAttendance", "PCal_AdminPanel_FastInError", new object[] { ex.Message }, isError: true);
             }
 
-            // بازرندر رابط کاربری برای نمایش وضعیت جدید و بنر اعلان
             await InvokeAsync(StateHasChanged);
         }
 
-        // ثبت سریع خروج کارمند از جدول اصلی یا کارنامه همراه با ثبت در تاریخچه سرور
+
+        // ثبت سریع خروج کارمند از جدول پرسنل همراه با دریافت و ثبت موقعیت جغرافیایی ادمین آنلاین
+        // ثبت سریع خروج کارمند از جدول پرسنل همراه با ثبت بی‌صدای مختصات جغرافیایی ادمین در لاگ اعلانات
         protected async Task StopAttendanceNow(int attendanceId)
         {
-            // بررسی سطح دسترسی مدیر برای انجام عملیات ویرایش و ثبت خروج
             if (!canEditPerm) return;
 
             try
             {
-                // یافتن رکورد تردد باز بر اساس شناسه دریافتی
+                // واکشی رکورد تردد باز کارمند از دیتابیس
                 var attendance = await DbContext.Attendances.FindAsync(attendanceId);
                 if (attendance != null)
                 {
-                    // دریافت شناسه ادمین آنلاین و ثبت ساعت خروج به عنوان زمان فعلی
                     int? currentAdminId = AdminState.CurrentOnlineAdmin?.Id;
+                    string currentAdminName = AdminState.CurrentOnlineAdmin?.Username ?? "Admin";
                     var now = DateTime.Now;
+
+                    // دریافت مختصات جغرافیایی لحظه‌ای دستگاه ادمین از مرورگر
+                    var adminLoc = await GeoService.GetCurrentDeviceLocationAsync();
+
+                    // ثبت ساعت خروج و ذخیره مختصات مکانی ادمین در رکورد تردد
                     attendance.ClockOutTime = now;
                     attendance.LastModifiedByAdminId = currentAdminId;
+                    attendance.ClockOutLocation = adminLoc.FormattedCoordinates;
 
-                    // به‌روزرسانی رکورد در دیتابیس و ذخیره تغییرات
                     DbContext.Attendances.Update(attendance);
                     await DbContext.SaveChangesAsync();
 
-                    // واکشی شیء کامل کارمند و قالب‌بندی نام او با رنگ قرمز جهت نمایش در اعلان
                     var targetEmp = employees.FirstOrDefault(e => e.Id == attendance.EmployeeId);
                     string empName = targetEmp?.FullName ?? string.Empty;
                     string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
 
-                    // صدور اعلان شیشه‌ای چندزبانه و ثبت در تاریخچه سوپر ادمین با زیردسته QuickAttendance
+                    // نمایش اعلان شیشه‌ای ساده ثبت خروج سریع به ادمین بدون افشای مختصات روی صفحه
                     TriggerToast(
                         category: "AdminPanel",
                         subCategory: "QuickAttendance",
@@ -638,19 +671,34 @@ namespace sqlite_web.Components.Pages
                         eventTime: now.ToString("HH:mm:ss")
                     );
 
-                    // بارگذاری مجدد داده‌های صفحه
+                    // ثبت بی‌صدای مختصات مکانی ادمین در تاریخچه اعلانات سرور با زیردسته AdminLocation
+                    if (adminLoc.Success && !string.IsNullOrEmpty(adminLoc.FormattedCoordinates))
+                    {
+                        await GeoService.LogLocationAuditSilentlyAsync(
+                            subCategory: "AdminLocation",
+                            messageKey: "PCal_Loc_AdminFastOutLocLog",
+                            args: new object[] { coloredEmpName, adminLoc.FormattedCoordinates },
+                            actorAdminId: currentAdminId,
+                            actorAdminUsername: currentAdminName,
+                            targetEmp: targetEmp,
+                            eventDate: now.ToString("yyyy-MM-dd"),
+                            eventTime: now.ToString("HH:mm:ss")
+                        );
+                    }
+
                     await RefreshDataAsync();
                 }
             }
             catch (Exception ex)
             {
-                // نمایش پیام خطا در صورت بروز مشکل هنگام ثبت خروج سریع
+                // ثبت جزئیات فنی خطا در لاگر مرکزی و نمایش پیام خطای ساده در رابط کاربری
+                await ErrorLogger.LogBackendErrorAsync("AdminPanel.StopAttendanceNow", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
                 TriggerToast("AdminPanel", "QuickAttendance", "PCal_AdminPanel_FastOutError", new object[] { ex.Message }, isError: true);
             }
 
-            // بازرندر رابط کاربری برای نمایش وضعیت جدید و بنر اعلان
             await InvokeAsync(StateHasChanged);
         }
+
         // ثبت دستی یا ویرایش ساعت کاری پرسنل همراه با ذخیره تاریخچه تغییرات ادمین و ثبت خطاها/موفقیت در سرور
         protected async Task AddManualAttendance()
         {

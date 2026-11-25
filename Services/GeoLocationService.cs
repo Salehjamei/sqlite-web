@@ -149,5 +149,49 @@ namespace sqlite_web.Services
                 ErrorKey = "PCal_Loc_OutOfRange"
             };
         }
+        // ثبت بی‌صدای رویداد موقعیت مکانی در جدول تاریخچه اعلانات سرور بدون نمایش بنر در رابط کاربری
+        public async Task LogLocationAuditSilentlyAsync(
+            string subCategory,
+            string messageKey,
+            object[] args,
+            int? actorAdminId = null,
+            string actorAdminUsername = "Kiosk",
+            Employee? targetEmp = null,
+            string? eventDate = null,
+            string? eventTime = null)
+        {
+            try
+            {
+                var pCal = new sqlite_web.Components.Models.Calendar.PCalendar { CurrentLanguage = "fa" };
+                var template = pCal.Translate(messageKey);
+                var formattedMsg = (args != null && args.Length > 0) ? string.Format(template, args) : template;
+                var cleanMsg = System.Text.RegularExpressions.Regex.Replace(formattedMsg, "<.*?>", string.Empty);
+                var now = DateTime.Now;
+
+                _dbContext.AdminNotificationLogs.Add(new AdminNotificationLog
+                {
+                    Category = "Location",
+                    SubCategory = subCategory,
+                    MessageKey = messageKey,
+                    MessageArgs = (args != null && args.Length > 0) ? System.Text.Json.JsonSerializer.Serialize(args) : null,
+                    Message = cleanMsg,
+                    NotificationType = "Info",
+                    CreatedAt = now,
+                    CreatedDate = now.ToString("yyyy-MM-dd"),
+                    CreatedTime = now.ToString("HH:mm:ss"),
+                    EventDate = eventDate,
+                    EventTime = eventTime,
+                    AdminId = actorAdminId,
+                    AdminUsername = string.IsNullOrWhiteSpace(actorAdminUsername) ? "Kiosk" : actorAdminUsername,
+                    EmployeeId = targetEmp?.Id,
+                    EmployeeFullName = targetEmp?.FullName ?? "-",
+                    EmployeePersonnelCode = targetEmp?.PersonnelCode ?? "-",
+                    EmployeePhone = targetEmp?.Phone ?? "-"
+                });
+
+                await _dbContext.SaveChangesAsync();
+            }
+            catch { }
+        }
     }
 }

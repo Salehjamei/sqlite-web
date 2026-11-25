@@ -1,0 +1,253 @@
+﻿@page "/admin/locations"
+@rendermode InteractiveServer
+@namespace sqlite_web.Components.Pages.Admin
+@using sqlite_web.Services
+@using sqlite_web.Components.Modules
+@using sqlite_web.Components.Models
+@inherits sqlite_web.Components.AppBaseComponent
+
+@{
+    bool isRtl = CurrentLanguage == "fa" || CurrentLanguage == "ar";
+}
+
+<div class="container mt-2 modal-animation-fade" dir="@(isRtl ? "rtl" : "ltr")" style="text-align: @(isRtl ? "right" : "left"); font-family: Tahoma; max-width: 100%; padding-left: 10px; padding-right: 10px; min-height: 100vh;">
+
+    @if (AdminState.IsChecked && !AdminState.isCurrentUserSuperAdmin)
+    {
+        <div class="alert alert-danger text-center fw-bold p-3 my-3 shadow-sm mx-1" role="alert" style="font-size: 13px;">
+            @CalendarManager.Translate("PCal_AdminModal_AccessDeniedError")
+        </div>
+    }
+    else if (AdminState.IsChecked && AdminState.isCurrentUserSuperAdmin)
+    {
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 px-1">
+            <h4 class="m-0 fw-bold text-dark" style="font-size: calc(13.5px + 0.2vw);">
+                📍 @CalendarManager.Translate("PCal_Loc_PageTitle")
+            </h4>
+            <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm" @onclick="OpenAddLocationModal" style="font-size: 11.5px; height: 32px;">
+                ➕ @CalendarManager.Translate("PCal_Loc_AddLocationBtn")
+            </button>
+        </div>
+
+        @* کارت درخت دسته‌بندی سه‌سطحی پرسنل *@
+        <div class="card shadow-sm border-0 mb-3" style="border-radius: 8px;">
+            <div class="card-header bg-dark text-white fw-bold py-2 px-3" style="font-size: 12.5px;">
+                🗂️ @CalendarManager.Translate("PCal_Loc_CategoriesSectionTitle")
+            </div>
+            <div class="card-body p-3">
+                <div class="row g-3">
+                    @* سطح ۱: کتگوری اصلی *@
+                    <div class="col-md-4 col-12">
+                        <div class="border rounded p-2.5 bg-light h-100">
+                            <label class="form-label fw-bold text-primary small mb-1">1️⃣ @CalendarManager.Translate("PCal_Loc_MainCatLabel")</label>
+                            <div class="input-group input-group-sm mb-2" style="direction: ltr;">
+                                <input type="text" class="form-control" @bind="NewMainCategoryTitle" placeholder="@CalendarManager.Translate("PCal_Loc_CatPlaceholder")" style="font-size: 11.5px; direction: @(isRtl ? "rtl" : "ltr");" />
+                                <button type="button" class="btn btn-primary fw-bold" @onclick="AddMainCategoryAsync" style="font-size: 11px;">+</button>
+                            </div>
+                            <div style="max-height: 150px; overflow-y: auto;">
+                                @foreach (var cat in MainCategories)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center bg-white border rounded px-2 py-1 mb-1" style="font-size: 11.5px;">
+                                        <span class="fw-bold text-dark">@cat.Title</span>
+                                        <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => PromptDelete("Category", cat.Id, cat.Title)'>🗑️</button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    @* سطح ۲: کتگوری فرزند اول *@
+                    <div class="col-md-4 col-12">
+                        <div class="border rounded p-2.5 bg-light h-100">
+                            <label class="form-label fw-bold text-success small mb-1">2️⃣ @CalendarManager.Translate("PCal_Loc_Sub1CatLabel")</label>
+                            <select class="form-select form-select-sm mb-1.5" @bind="SelectedParentForSub1" style="font-size: 11px;">
+                                <option value="0">-- @CalendarManager.Translate("PCal_Loc_SelectMainParent") --</option>
+                                @foreach (var m in MainCategories)
+                                {
+                                    <option value="@m.Id">@m.Title</option>
+                                }
+                            </select>
+                            <div class="input-group input-group-sm mb-2" style="direction: ltr;">
+                                <input type="text" class="form-control" @bind="NewSub1CategoryTitle" placeholder="@CalendarManager.Translate("PCal_Loc_CatPlaceholder")" style="font-size: 11.5px; direction: @(isRtl ? "rtl" : "ltr");" />
+                                <button type="button" class="btn btn-success fw-bold" @onclick="AddSub1CategoryAsync" style="font-size: 11px;">+</button>
+                            </div>
+                            <div style="max-height: 120px; overflow-y: auto;">
+                                @foreach (var sub1 in Sub1Categories)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center bg-white border rounded px-2 py-1 mb-1" style="font-size: 11px;">
+                                        <span><strong class="text-dark">@sub1.Title</strong> <small class="text-muted">(@sub1.Parent?.Title)</small></span>
+                                        <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => PromptDelete("Category", sub1.Id, sub1.Title)'>🗑️</button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    @* سطح ۳: کتگوری فرزند دوم *@
+                    <div class="col-md-4 col-12">
+                        <div class="border rounded p-2.5 bg-light h-100">
+                            <label class="form-label fw-bold small mb-1" style="color: #856404 !important;">3️⃣ @CalendarManager.Translate("PCal_Loc_Sub2CatLabel")</label>
+                            <select class="form-select form-select-sm mb-1.5" @bind="SelectedParentForSub2" style="font-size: 11px;">
+                                <option value="0">-- @CalendarManager.Translate("PCal_Loc_SelectSub1Parent") --</option>
+                                @foreach (var s1 in Sub1Categories)
+                                {
+                                    <option value="@s1.Id">@s1.Title (@s1.Parent?.Title)</option>
+                                }
+                            </select>
+                            <div class="input-group input-group-sm mb-2" style="direction: ltr;">
+                                <input type="text" class="form-control" @bind="NewSub2CategoryTitle" placeholder="@CalendarManager.Translate("PCal_Loc_CatPlaceholder")" style="font-size: 11.5px; direction: @(isRtl ? "rtl" : "ltr");" />
+                                <button type="button" class="btn btn-warning text-dark fw-bold" @onclick="AddSub2CategoryAsync" style="font-size: 11px;">+</button>
+                            </div>
+                            <div style="max-height: 120px; overflow-y: auto;">
+                                @foreach (var sub2 in Sub2Categories)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center bg-white border rounded px-2 py-1 mb-1" style="font-size: 11px;">
+                                        <span><strong class="text-dark">@sub2.Title</strong> <small class="text-muted">(@sub2.Parent?.Title)</small></span>
+                                        <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => PromptDelete("Category", sub2.Id, sub2.Title)'>🗑️</button>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @* جدول مکان‌های جغرافیایی مجاز *@
+        <div class="card shadow-sm border-0 mb-4" style="border-radius: 8px; overflow: hidden;">
+            <div class="card-header bg-dark text-white fw-bold py-2 px-3" style="font-size: 12.5px;">
+                🗺️ @CalendarManager.Translate("PCal_Loc_LocationsListTitle")
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover text-center align-middle m-0 table-sm" style="font-size: 12px; background-color: #ffffff;">
+                    <thead class="table-light">
+                        <tr>
+                            <th>@CalendarManager.Translate("PCal_Loc_ThName")</th>
+                            <th>@CalendarManager.Translate("PCal_Loc_ThCoords")</th>
+                            <th style="width: 110px;">@CalendarManager.Translate("PCal_Loc_ThRadius")</th>
+                            <th>@CalendarManager.Translate("PCal_Loc_ThAllowedCats")</th>
+                            <th style="width: 90px;">@CalendarManager.Translate("StatusActive")</th>
+                            <th style="width: 95px;">@CalendarManager.Translate("ThActions")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (LocationsList.Any())
+                        {
+                            @foreach (var loc in LocationsList)
+                            {
+                                <tr>
+                                    <td class="fw-bold text-dark">@loc.Name</td>
+                                    <td class="font-monospace text-secondary" style="font-size: 11px; direction: ltr;">
+                                        @loc.Latitude.ToString("F6") , @loc.Longitude.ToString("F6")
+                                    </td>
+                                    <td><span class="badge bg-info text-dark fw-bold">@loc.RadiusMeters m</span></td>
+                                    <td style="font-size: 11px;">
+                                        @if (loc.AllowedMainCategory == null && loc.AllowedSubCategory1 == null && loc.AllowedSubCategory2 == null)
+                                        {
+                                            <span class="badge bg-secondary">@CalendarManager.Translate("PCal_Loc_AllCategoriesBadge")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-primary fw-bold">@(loc.AllowedMainCategory?.Title ?? "*")</span>
+                                            <span> / </span>
+                                            <span class="text-success fw-bold">@(loc.AllowedSubCategory1?.Title ?? "*")</span>
+                                            <span> / </span>
+                                            <span class="text-dark fw-bold">@(loc.AllowedSubCategory2?.Title ?? "*")</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge @(loc.IsActive ? "bg-success" : "bg-danger")">
+                                            @(loc.IsActive ? CalendarManager.Translate("StatusActive") : CalendarManager.Translate("StatusInactive"))
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm text-warning p-0 me-2" @onclick="() => OpenEditLocationModal(loc)">✏️</button>
+                                        <button type="button" class="btn btn-sm text-danger p-0" @onclick='() => PromptDelete("Location", loc.Id, loc.Name)'>🗑️</button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="6" class="text-muted py-3">@CalendarManager.Translate("PCal_Loc_NoLocationsFound")</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+@if (ShowLocationModal)
+{
+    <div style="position: fixed; inset: 0; background-color: rgba(0,0,0,0.6); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 15px;" @onclick="CloseLocationModal">
+        <div class="modal-animation-fade bg-white rounded shadow-lg w-100" style="max-width: 480px; overflow: hidden; direction: @(isRtl ? "rtl" : "ltr"); text-align: @(isRtl ? "right" : "left");" @onclick:stopPropagation>
+            <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
+                <h6 class="m-0 fw-bold">📍 @(IsLocationEditMode ? CalendarManager.Translate("PCal_Loc_EditModalTitle") : CalendarManager.Translate("PCal_Loc_AddModalTitle"))</h6>
+                <button type="button" class="btn-close btn-close-white" @onclick="CloseLocationModal"></button>
+            </div>
+            <div class="p-3">
+                <div class="mb-2">
+                    <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_Loc_ThName"):</label>
+                    <input type="text" class="form-control form-control-sm" @bind="LocName" />
+                </div>
+                <div class="mb-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold" @onclick="FetchCurrentGpsForFormAsync" disabled="@IsFetchingGps">
+                        @(IsFetchingGps ? "⏳ ..." : "📡 " + CalendarManager.Translate("PCal_Loc_GetMyLocationBtn"))
+                    </button>
+                </div>
+                <div class="row g-2 mb-2" style="direction: ltr;">
+                    <div class="col-6">
+                        <label class="form-label text-muted small mb-1">Latitude:</label>
+                        <input type="text" class="form-control form-control-sm font-monospace" @bind="LocLatitudeStr" />
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-muted small mb-1">Longitude:</label>
+                        <input type="text" class="form-control form-control-sm font-monospace" @bind="LocLongitudeStr" />
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-7">
+                        <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_Loc_ThRadius") (m):</label>
+                        <input type="number" class="form-control form-control-sm fw-bold text-center" @bind="LocRadiusMeters" min="10" max="50000" />
+                    </div>
+                    <div class="col-5 d-flex align-items-end">
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" id="chkLocActive" @bind="LocIsActive" />
+                            <label class="form-check-label small fw-bold" for="chkLocActive">@CalendarManager.Translate("StatusActive")</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-2 border rounded bg-light mb-3">
+                    <div class="fw-bold text-dark small mb-2">🗂️ @CalendarManager.Translate("PCal_Loc_ThAllowedCats"):</div>
+                    <select class="form-select form-select-sm mb-1.5" @bind="LocAllowedMainCatId" style="font-size: 11px;">
+                        <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllMainCats") --</option>
+                        @foreach (var m in MainCategories)
+                        {
+                            <option value="@m.Id">@m.Title</option>
+                        }
+                    </select>
+                    <select class="form-select form-select-sm mb-1.5" @bind="LocAllowedSub1CatId" style="font-size: 11px;">
+                        <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllSub1Cats") --</option>
+                        @foreach (var s1 in Sub1Categories.Where(x => LocAllowedMainCatId == 0 || x.ParentId == LocAllowedMainCatId))
+                        {
+                            <option value="@s1.Id">@s1.Title</option>
+                        }
+                    </select>
+                    <select class="form-select form-select-sm" @bind="LocAllowedSub2CatId" style="font-size: 11px;">
+                        <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllSub2Cats") --</option>
+                        @foreach (var s2 in Sub2Categories.Where(x => LocAllowedSub1CatId == 0 || x.ParentId == LocAllowedSub1CatId))
+                        {
+                            <option value="@s2.Id">@s2.Title</option>
+                        }
+                    </select>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-success btn-sm flex-grow-1 fw-bold" @onclick="SaveLocationAsync">@CalendarManager.Translate("SaveBtn")</button>
+                    <button type="button" class="btn btn-secondary btn-sm" @onclick="CloseLocationModal">@CalendarManager.Translate("CancelBtn")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<ToastNotification @bind-Show="showToast" Category="@toastCategory" SubCategory="@toastSubCategory" MessageKey="@toastMessageKey" MessageArgs="@toastMessageArgs" Message="@toastMessage" IsError="@isToastError" AutoCloseMilliseconds="0" CurrentLanguage="@CurrentLanguage" CalendarManager="@CalendarManager" AdminId="@AdminState.CurrentOnlineAdmin?.Id" AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Admin")" />
+<DeleteModal Show="@ShowDeleteModal" Title="@CalendarManager.Translate("DeleteTitle")" SelectedItemLabel="@CalendarManager.Translate("DeleteSelectedItem")" TargetName="@DeleteTargetName" Message="@CalendarManager.Translate("DeleteMsg")" SubMessage="@CalendarManager.Translate("DeleteSubMsg")" DeleteConfirmBtn="@CalendarManager.Translate("DeleteConfirmBtn")" kancelBtn="@CalendarManager.Translate("kancelBtn")" OnConfirm="ConfirmDeleteAsync" OnCancel="CancelDelete" />

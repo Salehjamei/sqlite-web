@@ -1,0 +1,129 @@
+/* کانتینر شناور صف اعلان‌ها با ارتفاع کم و فاصله نزدیک از هم */
+.glass-toast-stack {
+    position: fixed;
+    top: 3.4rem;
+    width: auto;
+    min-width: 250px;
+    max-width: 340px;
+    z-index: 9999999;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    pointer-events: none;
+}
+
+/* نمایش در گوشه بالا سمت راست برای زبان‌های فارسی و عربی */
+.glass-toast-rtl {
+    right: 0.85rem;
+    left: auto;
+}
+
+/* نمایش در گوشه بالا سمت چپ برای زبان‌های انگلیسی و ترکی */
+.glass-toast-ltr {
+    left: 0.85rem;
+    right: auto;
+}
+
+/* کارت شیشه‌ای سفید و جمع‌وجور (Compact White Glassmorphism) */
+.glass-toast-card {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+    padding: 6px 10px;
+    color: #212529;
+    font-family: Tahoma, Arial, sans-serif;
+    transition: all 0.2s ease;
+}
+
+/* خط نشانگر وضعیت موفقیت یا خطا متناسب با جهت زبان */
+.glass-toast-rtl .glass-toast-success-border {
+    border: 1px solid rgba(25, 135, 84, 0.3);
+    border-right: 3px solid #198754;
+}
+
+.glass-toast-rtl .glass-toast-error-border {
+    border: 1px solid rgba(220, 53, 69, 0.35);
+    border-right: 3px solid #dc3545;
+}
+
+.glass-toast-ltr .glass-toast-success-border {
+    border: 1px solid rgba(25, 135, 84, 0.3);
+    border-left: 3px solid #198754;
+}
+
+.glass-toast-ltr .glass-toast-error-border {
+    border: 1px solid rgba(220, 53, 69, 0.35);
+    border-left: 3px solid #dc3545;
+}
+
+/* هدر بسیار فشرده کارت اعلان */
+.glass-toast-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding-bottom: 2px;
+    margin-bottom: 3px;
+}
+
+.glass-toast-title {
+    font-weight: bold;
+    font-size: 10.5px;
+    color: #495057;
+}
+
+.glass-toast-time {
+    font-size: 9.5px;
+    color: #6c757d;
+}
+
+.glass-toast-close {
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    font-weight: bold;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+}
+
+    .glass-toast-close:hover {
+        color: #000000;
+    }
+
+/* متن پیام با فونت جمع‌وجور و ارتفاع کم */
+.glass-toast-body {
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1.35;
+    color: #212529;
+    word-break: break-word;
+}
+
+/* تنظیمات واکنش‌گرا برای موبایل */
+@media (max-width: 576px) {
+    .glass-toast-stack {
+        top: 2.7rem;
+        max-width: 285px;
+    }
+
+    .glass-toast-rtl {
+        right: 0.5rem;
+    }
+
+    .glass-toast-ltr {
+        left: 0.5rem;
+    }
+
+    .glass-toast-card {
+        padding: 5px 8px;
+    }
+
+    .glass-toast-body {
+        font-size: 10.5px;
+    }
+}

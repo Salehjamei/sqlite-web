@@ -42,7 +42,13 @@ namespace sqlite_web.Components.Layout
         {
             IsAccessDropdownOpen = false;
         }
+        // کنترل وضعیت باز یا بسته بودن زیرمنوی کشویی سطوح دسترسی در هدر
+        protected bool isAccessSubMenuOpen = false;
 
+        protected void ToggleAccessSubMenu()
+        {
+            isAccessSubMenuOpen = !isAccessSubMenuOpen;
+        }
         protected bool IsMobileMenuOpen { get; set; } = false;
 
         protected void OpenLogoutModal()
@@ -138,6 +144,7 @@ namespace sqlite_web.Components.Layout
                 "/" => "KioskBtn",
                 "/admin/panel" => "PersonnelManagementBtn",
                 "/admin/manage-admins" => "AccessPageTitle",
+                "/admin/locations" => "PCal_Loc_PageTitle",
                 "/admin/notifications" or "/admin/notificationlogs" => "PCal_AdminNotif_ModalTitle",
                 _ => uriPath
             };
@@ -258,8 +265,9 @@ namespace sqlite_web.Components.Layout
             if (AdminState.CurrentOnlineAdmin == null) return;
             var user = AdminState.CurrentOnlineAdmin;
 
-            // بررسی دسترسی سوپر ادمین برای صفحات مدیریت مدیران و تاریخچه اعلانات
+            // بررسی دسترسی سوپر ادمین برای صفحات مدیریت مدیران، مکان‌ها و تاریخچه اعلانات
             if ((url.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase) ||
+                 url.Contains("/admin/locations", StringComparison.OrdinalIgnoreCase) ||
                  url.Contains("/admin/notifications", StringComparison.OrdinalIgnoreCase)) && !user.IsSuperAdmin)
             {
                 ShowUrlHijackModal = true;
@@ -290,6 +298,11 @@ namespace sqlite_web.Components.Layout
             {
                 ActivePage = "manage";
             }
+            // بررسی فعال بودن صفحه مدیریت مکان‌ها و دسته‌بندی پرسنل
+            else if (url.Contains("/admin/locations", StringComparison.OrdinalIgnoreCase))
+            {
+                ActivePage = "locations";
+            }
             // بررسی فعال بودن صفحه تاریخچه اعلانات سیستم
             else if (url.Contains("/admin/notifications", StringComparison.OrdinalIgnoreCase))
             {
@@ -301,6 +314,7 @@ namespace sqlite_web.Components.Layout
                 ActivePage = "home";
             }
         }
+
 
     }
 }

@@ -123,15 +123,16 @@ namespace sqlite_web.Components.Pages
             searchQuery = "";
         }
 
-        // ثبت ورود پرسنل در کیوسک همراه با اعتبارسنجی محدوده مکانی، دسته‌بندی سه‌سطحی و ثبت لاگ‌های مکانی و خطا
+        // ثبت ورود پرسنل در کیوسک با بررسی محدوده مکانی، نمایش اعلان ساده ورود و ثبت بی‌صدای مختصات برای سوپر ادمین
         private async Task ClockIn(int employeeId)
         {
+            // واکشی اطلاعات کارمند هدف از لیست حافظه یا دیتابیس
             var targetEmp = employees.FirstOrDefault(e => e.Id == employeeId)
                             ?? await DbContext.Employees.FindAsync(employeeId);
 
             try
             {
-                // جلوگیری از ثبت ورود تکراری در صورت وجود رکورد تردد باز در سیستم
+                // بررسی نبود رکورد تردد باز قبلی برای جلوگیری از ثبت ورود تکراری
                 bool hasOpenRecord = await DbContext.Attendances
                     .AnyAsync(a => a.EmployeeId == employeeId && a.ClockOutTime == null);
 
@@ -147,11 +148,11 @@ namespace sqlite_web.Components.Pages
                     return;
                 }
 
-                // بررسی مجاز بودن موقعیت مکانی دستگاه نسبت به مکان‌های تعریف‌شده برای دسته‌بندی کارمند
+                // اعتبارسنجی موقعیت مکانی فعلی دستگاه نسبت به مکان‌های مجاز دسته‌بندی کارمند
                 var locCheck = await GeoService.ValidateEmployeeLocationAsync(targetEmp);
                 if (!locCheck.IsAllowed)
                 {
-                    // ثبت خطای خارج از محدوده یا عدم دسترسی موقعیت در دسته‌بندی Location و زیرکتگوری PersonnelLocation
+                    // نمایش خطای خارج از محدوده یا عدم دسترسی موقعیت به کاربر و ثبت در اعلانات مکانی
                     TriggerToast(
                         category: "Location",
                         subCategory: "PersonnelLocation",
@@ -163,6 +164,7 @@ namespace sqlite_web.Components.Pages
                     return;
                 }
 
+                // ساخت و ذخیره رکورد جدید ورود همراه با مختصات جغرافیایی و نام مکان مجاز
                 var now = DateTime.Now;
                 var attendance = new Attendance
                 {
@@ -180,7 +182,7 @@ namespace sqlite_web.Components.Pages
                 var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                 await LoadData();
 
-                // ثبت اعلان موفقیت ورود در بخش کیوسک
+                // نمایش اعلان شیشه‌ای موفقیت ورود به کارمند بدون افشای مختصات جغرافیایی روی صفحه
                 TriggerToast(
                     category: "Kiosk",
                     subCategory: "Attendance",
@@ -192,16 +194,16 @@ namespace sqlite_web.Components.Pages
                     eventTime: now.ToString("HH:mm:ss")
                 );
 
-                // ثبت مستقل موقعیت جغرافیایی ثبت ورود پرسنل در تاریخچه اعلانات مکانی
+                // ثبت بی‌صدای مختصات مکانی ورود در جدول اعلانات سرور جهت گزارش‌گیری سوپر ادمین
                 if (!string.IsNullOrEmpty(locCheck.Coordinates))
                 {
                     string locTitle = locCheck.MatchedLocationName == "FreeMode" ? "-" : locCheck.MatchedLocationName;
-                    TriggerToast(
-                        category: "Location",
+                    await GeoService.LogLocationAuditSilentlyAsync(
                         subCategory: "PersonnelLocation",
                         messageKey: "PCal_Loc_PersonnelClockInLog",
                         args: new object[] { empName, locTitle, locCheck.Coordinates },
-                        isError: false,
+                        actorAdminId: AdminState.CurrentOnlineAdmin?.Id,
+                        actorAdminUsername: AdminState.CurrentOnlineAdmin?.Username ?? "Kiosk",
                         targetEmp: targetEmp,
                         eventDate: now.ToString("yyyy-MM-dd"),
                         eventTime: now.ToString("HH:mm:ss")
@@ -210,6 +212,7 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
+                // ثبت جزئیات خطای فنی سرور در لاگر مرکزی و نمایش هشدار خطا به کاربر
                 await ErrorLogger.LogBackendErrorAsync("Home.ClockIn", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, targetEmp, CurrentLanguage);
                 TriggerToast(
                     category: "Kiosk",
@@ -221,24 +224,24 @@ namespace sqlite_web.Components.Pages
                 );
             }
         }
-
-
-        // ثبت خروج پرسنل در کیوسک همراه با اعتبارسنجی محدوده مکانی، دسته‌بندی سه‌سطحی و ثبت لاگ‌های مکانی و خطا
+        // ثبت خروج پرسنل در کیوسک با بررسی محدوده مکانی، نمایش اعلان ساده خروج و ثبت بی‌صدای مختصات برای سوپر ادمین
         private async Task ClockOut(int attendanceId)
         {
             Employee? targetEmp = null;
             try
             {
+                // واکشی رکورد تردد باز و اطلاعات کارمند مرتبط
                 var record = await DbContext.Attendances.FindAsync(attendanceId);
                 if (record != null)
                 {
                     targetEmp = employees.FirstOrDefault(e => e.Id == record.EmployeeId)
                                 ?? await DbContext.Employees.FindAsync(record.EmployeeId);
 
-                    // بررسی مجاز بودن موقعیت مکانی دستگاه در لحظه ثبت خروج کارمند
+                    // اعتبارسنجی موقعیت مکانی فعلی دستگاه در لحظه ثبت خروج کارمند
                     var locCheck = await GeoService.ValidateEmployeeLocationAsync(targetEmp);
                     if (!locCheck.IsAllowed)
                     {
+                        // نمایش خطای خارج از محدوده یا عدم دسترسی موقعیت به کاربر و ثبت در اعلانات مکانی
                         TriggerToast(
                             category: "Location",
                             subCategory: "PersonnelLocation",
@@ -250,6 +253,7 @@ namespace sqlite_web.Components.Pages
                         return;
                     }
 
+                    // به‌روزرسانی ساعت خروج و ذخیره مختصات جغرافیایی خروج در رکورد تردد
                     var now = DateTime.Now;
                     record.ClockOutTime = now;
                     record.ClockOutLocation = locCheck.Coordinates;
@@ -260,7 +264,7 @@ namespace sqlite_web.Components.Pages
                     var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                     await LoadData();
 
-                    // ثبت اعلان موفقیت خروج در بخش کیوسک
+                    // نمایش اعلان شیشه‌ای موفقیت خروج به کارمند بدون افشای مختصات جغرافیایی روی صفحه
                     TriggerToast(
                         category: "Kiosk",
                         subCategory: "Attendance",
@@ -272,16 +276,16 @@ namespace sqlite_web.Components.Pages
                         eventTime: now.ToString("HH:mm:ss")
                     );
 
-                    // ثبت مستقل موقعیت جغرافیایی ثبت خروج پرسنل در تاریخچه اعلانات مکانی
+                    // ثبت بی‌صدای مختصات مکانی خروج در جدول اعلانات سرور جهت گزارش‌گیری سوپر ادمین
                     if (!string.IsNullOrEmpty(locCheck.Coordinates))
                     {
                         string locTitle = locCheck.MatchedLocationName == "FreeMode" ? "-" : locCheck.MatchedLocationName;
-                        TriggerToast(
-                            category: "Location",
+                        await GeoService.LogLocationAuditSilentlyAsync(
                             subCategory: "PersonnelLocation",
                             messageKey: "PCal_Loc_PersonnelClockOutLog",
                             args: new object[] { empName, locTitle, locCheck.Coordinates },
-                            isError: false,
+                            actorAdminId: AdminState.CurrentOnlineAdmin?.Id,
+                            actorAdminUsername: AdminState.CurrentOnlineAdmin?.Username ?? "Kiosk",
                             targetEmp: targetEmp,
                             eventDate: now.ToString("yyyy-MM-dd"),
                             eventTime: now.ToString("HH:mm:ss")
@@ -291,6 +295,7 @@ namespace sqlite_web.Components.Pages
             }
             catch (Exception ex)
             {
+                // ثبت جزئیات خطای فنی سرور در لاگر مرکزی و نمایش هشدار خطا به کاربر
                 await ErrorLogger.LogBackendErrorAsync("Home.ClockOut", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, targetEmp, CurrentLanguage);
                 TriggerToast(
                     category: "Kiosk",
@@ -302,6 +307,7 @@ namespace sqlite_web.Components.Pages
                 );
             }
         }
+
 
     }
 }

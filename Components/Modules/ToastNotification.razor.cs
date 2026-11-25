@@ -3,6 +3,8 @@ using sqlite_web.Components.Models;
 using sqlite_web.Components.Models.Calendar;
 using sqlite_web.Services;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -13,164 +15,155 @@ namespace sqlite_web.Components.Modules
     public partial class ToastNotification : ComponentBase, IDisposable
     {
         [Inject] public AppDbContext DbContext { get; set; } = default!;
+        [Inject] public SystemErrorLoggerService ErrorLogger { get; set; } = default!;
 
-        // پارامترهای کنترل نمایش و محتوای اعلان
+        [Parameter] public List<AppBaseComponent.ToastItemModel> Items { get; set; } = new();
         [Parameter] public bool Show { get; set; }
         [Parameter] public EventCallback<bool> ShowChanged { get; set; }
-
-        // کلید ترجمه پیام در کلاس PCalendar (اولویت اول برای چندزبانه‌سازی)
         [Parameter] public string MessageKey { get; set; } = string.Empty;
-
-        // پارامترهای متغیر داخل متن پیام (مثلاً نام کارمند)
         [Parameter] public object[]? MessageArgs { get; set; }
-
-        // متن مستقیم (برای سازگاری با بخش‌هایی که هنوز از روش قبلی استفاده می‌کنند)
         [Parameter] public string Message { get; set; } = string.Empty;
-
         [Parameter] public bool IsError { get; set; } = false;
         [Parameter] public string CurrentLanguage { get; set; } = "fa";
         [Parameter] public PCalendar CalendarManager { get; set; } = new();
-
-        // دسته‌بندی اصلی و زیردسته بخش صادرکننده اعلان (ثبت مستقیم به انگلیسی در سرور)
         [Parameter] public string Category { get; set; } = "General";
         [Parameter] public string SubCategory { get; set; } = "General";
-
-        // پارامترهای اختیاری تاریخ و ساعت رویداد هدف (مثلاً در زمان ثبت دستی تردد)
         [Parameter] public string? EventDate { get; set; }
         [Parameter] public string? EventTime { get; set; }
-
-        // زمان بسته شدن خودکار به میلی‌ثانیه (مقدار 0 به معنای باز ماندن تا زمان بستن دستی است)
         [Parameter] public int AutoCloseMilliseconds { get; set; } = 0;
-
-        // پارامترهای ثبت خودکار سابقه در دیتابیس برای مشاهده سوپر ادمین
         [Parameter] public bool SaveToDatabase { get; set; } = true;
         [Parameter] public int? AdminId { get; set; }
         [Parameter] public string AdminUsername { get; set; } = string.Empty;
         [Parameter] public Employee? TargetEmployee { get; set; }
 
-        private DateTime _shownAt;
-        private string _lastSavedSignature = string.Empty;
         private Timer? _liveTimer;
 
-        // تولید متن نهایی و ترجمه‌شده برای نمایش در کامپوننت Toast
-        protected string DisplayMessage
+        // بازسازی متن ترجمه‌شده برای هر آیتم اعلان در صف
+        protected string GetItemHtmlMessage(AppBaseComponent.ToastItemModel item)
         {
-            get
+            if (!string.IsNullOrEmpty(item.MessageKey))
             {
-                if (!string.IsNullOrEmpty(MessageKey))
-                {
-                    var template = CalendarManager.Translate(MessageKey);
-                    return (MessageArgs != null && MessageArgs.Length > 0)
-                        ? string.Format(template, MessageArgs)
-                        : template;
-                }
-                return Message;
+                var template = CalendarManager.Translate(item.MessageKey);
+                return (item.MessageArgs != null && item.MessageArgs.Length > 0)
+                    ? string.Format(template, item.MessageArgs)
+                    : template;
             }
+            return item.Message;
         }
 
         protected override async Task OnParametersSetAsync()
         {
-            var serializedArgs = (MessageArgs != null && MessageArgs.Length > 0)
-                ? JsonSerializer.Serialize(MessageArgs)
-                : string.Empty;
-
-            var currentSignature = $"{Category}|{SubCategory}|{MessageKey}|{Message}|{serializedArgs}";
-
-            if (Show && !string.IsNullOrEmpty(DisplayMessage) && currentSignature != _lastSavedSignature)
+            if (Items != null && Items.Any())
             {
-                _lastSavedSignature = currentSignature;
-                var now = DateTime.Now;
-                _shownAt = now;
+                EnsureLiveTimerStarted();
 
-                // ذخیره خودکار اعلان و اطلاعات پرسنل در دیتابیس سرور
                 if (SaveToDatabase && DbContext != null)
                 {
-                    try
+                    var unsavedItems = Items.Where(i => !i.IsSavedToDb).ToList();
+                    foreach (var item in unsavedItems)
                     {
-                        var log = new AdminNotificationLog
+                        item.IsSavedToDb = true;
+                        try
                         {
-                            // ثبت نام بخش و زیردسته صادرکننده اعلان به صورت انگلیسی
-                            Category = Category,
-                            SubCategory = SubCategory,
+                            string htmlMsg = GetItemHtmlMessage(item);
+                            var serializedArgs = (item.MessageArgs != null && item.MessageArgs.Length > 0)
+                                ? JsonSerializer.Serialize(item.MessageArgs)
+                                : null;
 
-                            // ذخیره کلید ترجمه و پارامترها برای نمایش چندزبانه در پنل سوپر ادمین
-                            MessageKey = MessageKey,
-                            MessageArgs = string.IsNullOrEmpty(serializedArgs) ? null : serializedArgs,
+                            DbContext.AdminNotificationLogs.Add(new AdminNotificationLog
+                            {
+                                Category = item.Category,
+                                SubCategory = item.SubCategory,
+                                MessageKey = item.MessageKey,
+                                MessageArgs = serializedArgs,
+                                Message = Regex.Replace(htmlMsg, "<.*?>", string.Empty),
+                                NotificationType = item.IsError ? "Error" : "Success",
+                                CreatedAt = item.ShownAt,
+                                CreatedDate = item.ShownAt.ToString("yyyy-MM-dd"),
+                                CreatedTime = item.ShownAt.ToString("HH:mm:ss"),
+                                EventDate = item.EventDate,
+                                EventTime = item.EventTime,
+                                AdminId = AdminId,
+                                AdminUsername = string.IsNullOrWhiteSpace(AdminUsername) ? "Kiosk / System" : AdminUsername,
+                                EmployeeId = item.TargetEmployee?.Id,
+                                EmployeeFullName = item.TargetEmployee?.FullName ?? "-",
+                                EmployeePersonnelCode = item.TargetEmployee?.PersonnelCode ?? "-",
+                                EmployeePhone = item.TargetEmployee?.Phone ?? "-"
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            await ErrorLogger.LogBackendErrorAsync("ToastNotification.SaveLog", ex, AdminId, AdminUsername, item.TargetEmployee, CurrentLanguage);
+                        }
+                    }
 
-                            // ذخیره متن خام بدون تگ HTML به عنوان پشتیبان
-                            Message = Regex.Replace(DisplayMessage, "<.*?>", string.Empty),
-
-                            NotificationType = IsError ? "Error" : "Success",
-
-                            // ثبت زمان کامل به همراه فیلدهای مجزای تاریخ و ساعت
-                            CreatedAt = now,
-                            CreatedDate = now.ToString("yyyy-MM-dd"),
-                            CreatedTime = now.ToString("HH:mm:ss"),
-                            EventDate = EventDate,
-                            EventTime = EventTime,
-
-                            AdminId = AdminId,
-                            AdminUsername = string.IsNullOrWhiteSpace(AdminUsername) ? "Kiosk / System" : AdminUsername,
-                            EmployeeId = TargetEmployee?.Id,
-                            EmployeeFullName = TargetEmployee?.FullName ?? "-",
-                            EmployeePersonnelCode = TargetEmployee?.PersonnelCode ?? "-",
-                            EmployeePhone = TargetEmployee?.Phone ?? "-"
-                        };
-                        DbContext.AdminNotificationLogs.Add(log);
+                    if (unsavedItems.Any())
+                    {
                         await DbContext.SaveChangesAsync();
                     }
-                    catch { }
                 }
+            }
+        }
 
-                // راه‌اندازی تایمر زنده برای محاسبه «چند دقیقه پیش» و بسته شدن خودکار (در صورت تنظیم)
-                _liveTimer?.Dispose();
-                _liveTimer = new Timer(async _ =>
+        private void EnsureLiveTimerStarted()
+        {
+            if (_liveTimer != null) return;
+            _liveTimer = new Timer(async _ =>
+            {
+                if (Items != null && Items.Any())
+                    await InvokeAsync(StateHasChanged);
+                else
                 {
-                    var elapsed = DateTime.Now - _shownAt;
-                    if (AutoCloseMilliseconds > 0 && elapsed.TotalMilliseconds >= AutoCloseMilliseconds)
-                    {
-                        await InvokeAsync(CloseToastAsync);
-                    }
-                    else
-                    {
-                        await InvokeAsync(StateHasChanged);
-                    }
-                }, null, 10000, 10000);
-            }
-            else if (!Show)
-            {
-                _lastSavedSignature = string.Empty;
-                _liveTimer?.Dispose();
-            }
+                    _liveTimer?.Dispose();
+                    _liveTimer = null;
+                }
+            }, null, 10000, 10000);
         }
 
-        // محاسبه زمان سپری شده از لحظه نمایش اعلان
-        protected string GetRelativeTimeText()
+        // محاسبه ترکیبی زمان سپری‌شده از لحظه نمایش اعلان (روز، ساعت و دقیقه تا بی‌نهایت روز)
+        protected string GetRelativeTimeText(DateTime shownAt)
         {
-            var diff = DateTime.Now - _shownAt;
+            var diff = DateTime.Now - shownAt;
             if (diff.TotalMinutes < 1)
-            {
                 return CalendarManager.Translate("PCal_MainHome_Now");
-            }
-            if (diff.TotalHours < 1)
+
+            var parts = new List<string>();
+
+            if (diff.Days > 0)
+                parts.Add($"{diff.Days} {CalendarManager.Translate("PCal_Time_DayUnit")}");
+
+            if (diff.Hours > 0)
+                parts.Add($"{diff.Hours} {CalendarManager.Translate("PCal_Time_HourUnit")}");
+
+            if (diff.Minutes > 0)
+                parts.Add($"{diff.Minutes} {CalendarManager.Translate("PCal_Time_MinuteUnit")}");
+
+            string combined = string.Join(" ", parts);
+
+            // قرارگیری پیشوند «منذ» در زبان عربی و پسوند «پیش / ago / önce» در سایر زبان‌ها
+            if (CurrentLanguage == "ar")
+                return $"{CalendarManager.Translate("PCal_Time_AgoSuffix")} {combined}";
+
+            return $"{combined} {CalendarManager.Translate("PCal_Time_AgoSuffix")}";
+        }
+
+
+        // بستن دستی یک اعلان و بالا رفتن خودکار اعلان‌های زیرین
+        protected async Task RemoveToastItemAsync(Guid itemId)
+        {
+            var item = Items?.FirstOrDefault(t => t.Id == itemId);
+            if (item != null)
+                Items!.Remove(item);
+
+            if (Items == null || !Items.Any())
             {
-                return string.Format(CalendarManager.Translate("PCal_Toast_MinutesAgo"), (int)diff.TotalMinutes);
+                Show = false;
+                _liveTimer?.Dispose();
+                _liveTimer = null;
+                await ShowChanged.InvokeAsync(false);
             }
-            return string.Format(CalendarManager.Translate("PCal_Toast_HoursAgo"), (int)diff.TotalHours);
         }
 
-        // بستن دستی یا خودکار اعلان و اطلاع‌رسانی به صفحه والد
-        protected async Task CloseToastAsync()
-        {
-            Show = false;
-            _lastSavedSignature = string.Empty;
-            _liveTimer?.Dispose();
-            await ShowChanged.InvokeAsync(false);
-        }
-
-        public void Dispose()
-        {
-            _liveTimer?.Dispose();
-        }
+        public void Dispose() => _liveTimer?.Dispose();
     }
 }

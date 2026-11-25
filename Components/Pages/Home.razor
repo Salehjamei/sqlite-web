@@ -6,13 +6,13 @@
 <div class="container home-container" dir="@(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "rtl" : "ltr")" style="text-align: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left"); font-family: Tahoma;">
     <div class="card mb-3 shadow-sm">
         <div class="card-header bg-primary text-white fw-bold d-flex align-items-center justify-content-between gap-2" style="padding: 0.5rem 0.75rem;">
-            <span class="page-title text-truncate">📋 @CalendarManager.Translate("PCal_MainHome_PageTitle")</span>
+            <span class="page-title text-truncate d-none d-lg-inline">📋 @CalendarManager.Translate("PCal_MainHome_PageTitle")</span>
 
             @if (isAnyAdminLoggedIn)
             {
-                <div class="d-flex align-items-center">
-                    <div class="input-group input-group-sm mobile-responsive-search">
-                        <input class="form-control form-control-sm" 
+                <div class="d-flex align-items-center flex-grow-1">
+                    <div class="input-group input-group-sm w-100">
+                        <input class="form-control form-control-sm"
                                placeholder="@CalendarManager.Translate("PCal_MainHome_SearchPlaceholder")" 
                                @bind="searchQuery" 
                                @bind:event="oninput"
@@ -39,42 +39,6 @@
                                 ✖
                             </button>
                         }
-                        @* نوار فیلتر درختی سه‌سطحی دسته‌بندی پرسنل با چیدمان واکنش‌گرا برای موبایل، تبلت و دسکتاپ *@
-                        @if (MainCategoriesList.Any())
-                        {
-                            <div class="bg-light border-bottom p-2">
-                                <div class="row g-1 g-md-2 align-items-center">
-                                    <div class="col-md-4 col-6">
-                                        <select class="form-select form-select-sm fw-bold" value="@SelectedMainCatId" @onchange="OnMainCatFilterChanged" style="font-size: 11px;">
-                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllMainCats") --</option>
-                                            @foreach (var cat in MainCategoriesList)
-                                            {
-                                                <option value="@cat.Id">@cat.Title</option>
-                                            }
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 col-6">
-                                        <select class="form-select form-select-sm fw-bold" value="@SelectedSub1CatId" @onchange="OnSub1CatFilterChanged" disabled="@(SelectedMainCatId == 0)" style="font-size: 11px;">
-                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllSub1Cats") --</option>
-                                            @foreach (var sub1 in Sub1CategoriesList)
-                                            {
-                                                <option value="@sub1.Id">@sub1.Title</option>
-                                            }
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4 col-12">
-                                        <select class="form-select form-select-sm fw-bold" @bind="SelectedSub2CatId" disabled="@(SelectedSub1CatId == 0)" style="font-size: 11px;">
-                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllSub2Cats") --</option>
-                                            @foreach (var sub2 in Sub2CategoriesList)
-                                            {
-                                                <option value="@sub2.Id">@sub2.Title</option>
-                                            }
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-
                     </div>
                 </div>
             }
@@ -92,6 +56,54 @@
         }
         else
         {
+            @* نوار فیلتر درختی سه‌سطحی دسته‌بندی پرسنل *@
+            @if (MainCategoriesList.Any())
+            {
+                bool isRtlSelect = CurrentLanguage == "fa" || CurrentLanguage == "ar";
+                <div class="bg-light border-bottom p-2">
+                    <div class="row g-1 g-md-2 align-items-center">
+                        <div class="col-4">
+                            <select class="form-select form-select-sm fw-bold text-truncate"
+                                    value="@SelectedMainCatId"
+                                    @onchange="OnMainCatFilterChanged"
+                                    style="font-size: 11px; padding-@(isRtlSelect ? "left" : "right"): 24px;">
+                                <option value="0">@CalendarManager.Translate("PCal_Loc_AllMainCats")</option>
+                                @foreach (var cat in MainCategoriesList)
+                                {
+                                    <option value="@cat.Id">@cat.Title</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <select class="form-select form-select-sm fw-bold text-truncate"
+                                    value="@SelectedSub1CatId"
+                                    @onchange="OnSub1CatFilterChanged"
+                                    disabled="@(SelectedMainCatId == 0)"
+                                    style="font-size: 11px; padding-@(isRtlSelect ? "left" : "right"): 24px;">
+                                <option value="0">@CalendarManager.Translate("PCal_Loc_AllSub1Cats")</option>
+                                @foreach (var sub1 in Sub1CategoriesList)
+                                {
+                                    <option value="@sub1.Id">@sub1.Title</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <select class="form-select form-select-sm fw-bold text-truncate"
+                                    @bind="SelectedSub2CatId"
+                                    disabled="@(SelectedSub1CatId == 0)"
+                                    style="font-size: 11px; padding-@(isRtlSelect ? "left" : "right"): 24px;">
+                                <option value="0">@CalendarManager.Translate("PCal_Loc_AllSub2Cats")</option>
+                                @foreach (var sub2 in Sub2CategoriesList)
+                                {
+                                    <option value="@sub2.Id">@sub2.Title</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            }
+
+
             <!-- Desktop: table (large screens) -->
             <div class="table-responsive d-none d-lg-block">
                 <table class="table table-bordered table-striped text-center align-middle mb-0" style="text-align: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left");">
@@ -259,6 +271,7 @@
     </div>
 
     <ToastNotification @bind-Show="showToast"
+                       Items="@ActiveToastList"
                        Category="@toastCategory"
                        SubCategory="@toastSubCategory"
                        MessageKey="@toastMessageKey"
@@ -267,12 +280,13 @@
                        EventDate="@toastEventDate"
                        EventTime="@toastEventTime"
                        IsError="@isToastError"
-                       AutoCloseMilliseconds="3500"
+                       AutoCloseMilliseconds="0"
                        CurrentLanguage="@CurrentLanguage"
                        CalendarManager="@CalendarManager"
                        AdminId="@AdminState.CurrentOnlineAdmin?.Id"
                        AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Kiosk")"
                        TargetEmployee="@toastTargetEmployee" />
+
 
 
 
