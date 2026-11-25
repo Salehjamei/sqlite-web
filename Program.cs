@@ -23,6 +23,9 @@ builder.Services.AddScoped<sqlite_web.Services.AdminStateService>();
 
 // ثبت سرویس مرکزی دریافت موقعیت جغرافیایی و اعتبارسنجی محدوده مکانی به صورت Scoped
 builder.Services.AddScoped<sqlite_web.Services.GeoLocationService>();
+// ثبت سرویس مشترک مدیریت پرسنل، دسته‌بندی‌های سه‌سطحی و فیلترهای ترکیبی
+builder.Services.AddScoped<sqlite_web.Services.PersonnelService>();
+
 // ثبت سرویس پس‌زمینه خودکار سرور
 builder.Services.AddHostedService<sqlite_web.Services.SPNBackgroundService>();
 

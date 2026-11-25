@@ -39,6 +39,42 @@
                                 ✖
                             </button>
                         }
+                        @* نوار فیلتر درختی سه‌سطحی دسته‌بندی پرسنل با چیدمان واکنش‌گرا برای موبایل، تبلت و دسکتاپ *@
+                        @if (MainCategoriesList.Any())
+                        {
+                            <div class="bg-light border-bottom p-2">
+                                <div class="row g-1 g-md-2 align-items-center">
+                                    <div class="col-md-4 col-6">
+                                        <select class="form-select form-select-sm fw-bold" value="@SelectedMainCatId" @onchange="OnMainCatFilterChanged" style="font-size: 11px;">
+                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllMainCats") --</option>
+                                            @foreach (var cat in MainCategoriesList)
+                                            {
+                                                <option value="@cat.Id">@cat.Title</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 col-6">
+                                        <select class="form-select form-select-sm fw-bold" value="@SelectedSub1CatId" @onchange="OnSub1CatFilterChanged" disabled="@(SelectedMainCatId == 0)" style="font-size: 11px;">
+                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllSub1Cats") --</option>
+                                            @foreach (var sub1 in Sub1CategoriesList)
+                                            {
+                                                <option value="@sub1.Id">@sub1.Title</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 col-12">
+                                        <select class="form-select form-select-sm fw-bold" @bind="SelectedSub2CatId" disabled="@(SelectedSub1CatId == 0)" style="font-size: 11px;">
+                                            <option value="0">-- @CalendarManager.Translate("PCal_Loc_AllSub2Cats") --</option>
+                                            @foreach (var sub2 in Sub2CategoriesList)
+                                            {
+                                                <option value="@sub2.Id">@sub2.Title</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
                     </div>
                 </div>
             }

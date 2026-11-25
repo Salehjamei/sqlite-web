@@ -13,29 +13,47 @@ namespace sqlite_web.Components.Pages
     {
         [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
+        [Inject] public GeoLocationService GeoService { get; set; } = default!;
+        [Inject] public PersonnelService PersonnelSvc { get; set; } = default!;
         [Inject] public SystemErrorLoggerService ErrorLogger { get; set; } = default!;
 
         private string message = "";
         private List<Employee> employees = new();
         private List<Attendance> allAttendances = new();
+        private List<PersonnelCategory> allCategories = new();
+
+        // متغیرهای نگهداری شناسه دسته‌بندی‌های انتخاب‌شده در سلکتورهای سه‌سطحی کیوسک
+        private int SelectedMainCatId { get; set; } = 0;
+        private int SelectedSub1CatId { get; set; } = 0;
+        private int SelectedSub2CatId { get; set; } = 0;
+
+        // واکشی لیست‌های آبشاری هر سطح از طریق متدهای سرویس مشترک پرسنل
+        private List<PersonnelCategory> MainCategoriesList => PersonnelSvc.GetMainCategories(allCategories);
+        private List<PersonnelCategory> Sub1CategoriesList => PersonnelSvc.GetSub1Categories(allCategories, SelectedMainCatId);
+        private List<PersonnelCategory> Sub2CategoriesList => PersonnelSvc.GetSub2Categories(allCategories, SelectedSub1CatId);
 
         // Search
         private string searchQuery = "";
 
         private bool isAnyAdminLoggedIn => AdminState.IsAuthorized;
 
-        private IEnumerable<Employee> DisplayEmployees
+        // فیلتر هم‌زمان لیست نمایش کیوسک با استفاده از متد مشترک سرویس پرسنل
+        private IEnumerable<Employee> DisplayEmployees =>
+            PersonnelSvc.FilterEmployees(employees, SelectedMainCatId, SelectedSub1CatId, SelectedSub2CatId, searchQuery);
+
+        // تغییر کتگوری اصلی و بازنشانی خودکار سلکتورهای فرزند اول و دوم
+        private void OnMainCatFilterChanged(ChangeEventArgs e)
         {
-            get
-            {
-                if (string.IsNullOrWhiteSpace(searchQuery))
-                    return employees.OrderBy(e => e.FullName);
-                var q = searchQuery.Trim();
-                return employees.Where(e =>
-                    (!string.IsNullOrEmpty(e.FullName) && e.FullName.Contains(q, StringComparison.CurrentCultureIgnoreCase))
-                    || (!string.IsNullOrEmpty(e.PersonnelCode) && e.PersonnelCode.Contains(q, StringComparison.CurrentCultureIgnoreCase))
-                ).OrderBy(e => e.FullName);
-            }
+            SelectedMainCatId = int.TryParse(e.Value?.ToString(), out int id) ? id : 0;
+            SelectedSub1CatId = 0;
+            SelectedSub2CatId = 0;
+        }
+
+        // تغییر کتگوری فرزند اول و بازنشانی خودکار سلکتور فرزند دوم
+        private void OnSub1CatFilterChanged(ChangeEventArgs e)
+        {
+            SelectedSub1CatId = int.TryParse(e.Value?.ToString(), out int id) ? id : 0;
+            SelectedSub2CatId = 0;
         }
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -78,72 +96,14 @@ namespace sqlite_web.Components.Pages
             }
         }
 
+               // بارگذاری ایزوله پرسنل مجاز به نمایش در کیوسک، دسته‌بندی‌های سه‌سطحی و سوابق تردد از سرویس مشترک
         private async Task LoadData()
         {
             try
             {
-                if (DbContext != null)
-                {
-                    var settings = AdminState.CurrentSettings;
-                    bool applyAutoLogout = settings?.ApplyAutoLogout ?? true;
-                    string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
-
-                    // واکشی ترددهای باز گذشته همراه با اطلاعات کارمند جهت ثبت در لاگ سیستم
-                    var overdueRecords = await DbContext.Attendances
-                        .Include(a => a.Employee)
-                        .Where(a => a.ClockOutTime == null && a.ClockInTime.HasValue && a.ClockInTime.Value.Date < DateTime.Today)
-                        .ToListAsync();
-
-                    var now = DateTime.Now;
-
-                    foreach (var oldRecord in overdueRecords)
-                    {
-                        var parsedTime = applyAutoLogout ? TimeSpan.Parse(autoTimeStr) : TimeSpan.Parse("23:59");
-                        var autoClockOut = oldRecord.ClockInTime!.Value.Date.Add(parsedTime);
-
-                        oldRecord.ClockOutTime = autoClockOut;
-                        oldRecord.EntrySource = "AutoClose";
-                        DbContext.Attendances.Update(oldRecord);
-
-                        // ثبت مستقیم لاگ خروج خودکار در سرور بدون نام ادمین (توسط System)
-                        var empName = oldRecord.Employee?.FullName ?? "-";
-                        string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
-                        var args = new object[] { coloredEmpName, autoClockOut.ToString("HH:mm") };
-                        var template = CalendarManager.Translate("PCal_System_AutoLogoutSuccess");
-
-                        DbContext.AdminNotificationLogs.Add(new AdminNotificationLog
-                        {
-                            Category = "System",
-                            SubCategory = "AutoLogout",
-                            MessageKey = "PCal_System_AutoLogoutSuccess",
-                            MessageArgs = System.Text.Json.JsonSerializer.Serialize(args),
-                            Message = System.Text.RegularExpressions.Regex.Replace(string.Format(template, args), "<.*?>", string.Empty),
-                            NotificationType = "Info",
-                            CreatedAt = now,
-                            CreatedDate = now.ToString("yyyy-MM-dd"),
-                            CreatedTime = now.ToString("HH:mm:ss"),
-                            EventDate = autoClockOut.ToString("yyyy-MM-dd"),
-                            EventTime = autoClockOut.ToString("HH:mm:ss"),
-                            AdminId = null,
-                            AdminUsername = "System",
-                            EmployeeId = oldRecord.EmployeeId,
-                            EmployeeFullName = empName,
-                            EmployeePersonnelCode = oldRecord.Employee?.PersonnelCode ?? "-",
-                            EmployeePhone = oldRecord.Employee?.Phone ?? "-"
-                        });
-                    }
-
-                    if (overdueRecords.Any())
-                    {
-                        await DbContext.SaveChangesAsync();
-                    }
-
-                    employees = await DbContext.Employees
-                        .Where(e => !e.IsHiddenFromKiosk)
-                        .AsNoTracking()
-                        .ToListAsync();
-                    allAttendances = await DbContext.Attendances.AsNoTracking().ToListAsync();
-                }
+                employees = await PersonnelSvc.GetEmployeesAsync(onlyVisibleInKiosk: true);
+                allAttendances = await PersonnelSvc.GetAllAttendancesAsync();
+                allCategories = await PersonnelSvc.GetAllCategoriesAsync();
             }
             catch (Exception ex)
             {
@@ -156,15 +116,14 @@ namespace sqlite_web.Components.Pages
                     isError: true
                 );
             }
-
         }
-
 
         private void ClearSearch()
         {
             searchQuery = "";
         }
 
+        // ثبت ورود پرسنل در کیوسک همراه با اعتبارسنجی محدوده مکانی، دسته‌بندی سه‌سطحی و ثبت لاگ‌های مکانی و خطا
         private async Task ClockIn(int employeeId)
         {
             var targetEmp = employees.FirstOrDefault(e => e.Id == employeeId)
@@ -172,16 +131,32 @@ namespace sqlite_web.Components.Pages
 
             try
             {
+                // جلوگیری از ثبت ورود تکراری در صورت وجود رکورد تردد باز در سیستم
                 bool hasOpenRecord = await DbContext.Attendances
                     .AnyAsync(a => a.EmployeeId == employeeId && a.ClockOutTime == null);
 
                 if (hasOpenRecord)
                 {
-                    // ثبت و نمایش خطای تردد باز قبلی با زیردسته Validation
                     TriggerToast(
                         category: "Kiosk",
                         subCategory: "Validation",
                         messageKey: "PCal_MainHome_AlreadyHasOpenRecord",
+                        isError: true,
+                        targetEmp: targetEmp
+                    );
+                    return;
+                }
+
+                // بررسی مجاز بودن موقعیت مکانی دستگاه نسبت به مکان‌های تعریف‌شده برای دسته‌بندی کارمند
+                var locCheck = await GeoService.ValidateEmployeeLocationAsync(targetEmp);
+                if (!locCheck.IsAllowed)
+                {
+                    // ثبت خطای خارج از محدوده یا عدم دسترسی موقعیت در دسته‌بندی Location و زیرکتگوری PersonnelLocation
+                    TriggerToast(
+                        category: "Location",
+                        subCategory: "PersonnelLocation",
+                        messageKey: locCheck.ErrorKey,
+                        args: new object[] { targetEmp?.FullName ?? "-", locCheck.ClosestDistanceMeters },
                         isError: true,
                         targetEmp: targetEmp
                     );
@@ -194,7 +169,9 @@ namespace sqlite_web.Components.Pages
                     EmployeeId = employeeId,
                     ClockInTime = now,
                     CreationDate = now,
-                    EntrySource = "Kiosk"
+                    EntrySource = "Kiosk",
+                    ClockInLocation = locCheck.Coordinates,
+                    LocationName = locCheck.MatchedLocationName == "FreeMode" ? null : locCheck.MatchedLocationName
                 };
 
                 DbContext.Attendances.Add(attendance);
@@ -203,6 +180,7 @@ namespace sqlite_web.Components.Pages
                 var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                 await LoadData();
 
+                // ثبت اعلان موفقیت ورود در بخش کیوسک
                 TriggerToast(
                     category: "Kiosk",
                     subCategory: "Attendance",
@@ -213,9 +191,26 @@ namespace sqlite_web.Components.Pages
                     eventDate: now.ToString("yyyy-MM-dd"),
                     eventTime: now.ToString("HH:mm:ss")
                 );
+
+                // ثبت مستقل موقعیت جغرافیایی ثبت ورود پرسنل در تاریخچه اعلانات مکانی
+                if (!string.IsNullOrEmpty(locCheck.Coordinates))
+                {
+                    string locTitle = locCheck.MatchedLocationName == "FreeMode" ? "-" : locCheck.MatchedLocationName;
+                    TriggerToast(
+                        category: "Location",
+                        subCategory: "PersonnelLocation",
+                        messageKey: "PCal_Loc_PersonnelClockInLog",
+                        args: new object[] { empName, locTitle, locCheck.Coordinates },
+                        isError: false,
+                        targetEmp: targetEmp,
+                        eventDate: now.ToString("yyyy-MM-dd"),
+                        eventTime: now.ToString("HH:mm:ss")
+                    );
+                }
             }
             catch (Exception ex)
             {
+                await ErrorLogger.LogBackendErrorAsync("Home.ClockIn", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, targetEmp, CurrentLanguage);
                 TriggerToast(
                     category: "Kiosk",
                     subCategory: "Attendance",
@@ -227,6 +222,8 @@ namespace sqlite_web.Components.Pages
             }
         }
 
+
+        // ثبت خروج پرسنل در کیوسک همراه با اعتبارسنجی محدوده مکانی، دسته‌بندی سه‌سطحی و ثبت لاگ‌های مکانی و خطا
         private async Task ClockOut(int attendanceId)
         {
             Employee? targetEmp = null;
@@ -238,8 +235,24 @@ namespace sqlite_web.Components.Pages
                     targetEmp = employees.FirstOrDefault(e => e.Id == record.EmployeeId)
                                 ?? await DbContext.Employees.FindAsync(record.EmployeeId);
 
+                    // بررسی مجاز بودن موقعیت مکانی دستگاه در لحظه ثبت خروج کارمند
+                    var locCheck = await GeoService.ValidateEmployeeLocationAsync(targetEmp);
+                    if (!locCheck.IsAllowed)
+                    {
+                        TriggerToast(
+                            category: "Location",
+                            subCategory: "PersonnelLocation",
+                            messageKey: locCheck.ErrorKey,
+                            args: new object[] { targetEmp?.FullName ?? "-", locCheck.ClosestDistanceMeters },
+                            isError: true,
+                            targetEmp: targetEmp
+                        );
+                        return;
+                    }
+
                     var now = DateTime.Now;
                     record.ClockOutTime = now;
+                    record.ClockOutLocation = locCheck.Coordinates;
 
                     DbContext.Attendances.Update(record);
                     await DbContext.SaveChangesAsync();
@@ -247,6 +260,7 @@ namespace sqlite_web.Components.Pages
                     var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                     await LoadData();
 
+                    // ثبت اعلان موفقیت خروج در بخش کیوسک
                     TriggerToast(
                         category: "Kiosk",
                         subCategory: "Attendance",
@@ -257,10 +271,27 @@ namespace sqlite_web.Components.Pages
                         eventDate: now.ToString("yyyy-MM-dd"),
                         eventTime: now.ToString("HH:mm:ss")
                     );
+
+                    // ثبت مستقل موقعیت جغرافیایی ثبت خروج پرسنل در تاریخچه اعلانات مکانی
+                    if (!string.IsNullOrEmpty(locCheck.Coordinates))
+                    {
+                        string locTitle = locCheck.MatchedLocationName == "FreeMode" ? "-" : locCheck.MatchedLocationName;
+                        TriggerToast(
+                            category: "Location",
+                            subCategory: "PersonnelLocation",
+                            messageKey: "PCal_Loc_PersonnelClockOutLog",
+                            args: new object[] { empName, locTitle, locCheck.Coordinates },
+                            isError: false,
+                            targetEmp: targetEmp,
+                            eventDate: now.ToString("yyyy-MM-dd"),
+                            eventTime: now.ToString("HH:mm:ss")
+                        );
+                    }
                 }
             }
             catch (Exception ex)
             {
+                await ErrorLogger.LogBackendErrorAsync("Home.ClockOut", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, targetEmp, CurrentLanguage);
                 TriggerToast(
                     category: "Kiosk",
                     subCategory: "Attendance",

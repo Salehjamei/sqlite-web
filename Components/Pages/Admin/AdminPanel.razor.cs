@@ -16,8 +16,11 @@ namespace sqlite_web.Components.Pages
     {
         [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
+        [Inject] public GeoLocationService GeoService { get; set; } = default!;
+        [Inject] public PersonnelService PersonnelSvc { get; set; } = default!;
         [Inject] public Microsoft.JSInterop.IJSRuntime JSRuntime { get; set; } = default!;
         [Inject] public SystemErrorLoggerService ErrorLogger { get; set; } = default!;
+
 
         // نگهداری نام فیلدی که دچار خطای اعتبارسنجی شده است ("Name", "Code", "Phone")
         protected string EmpErrorField { get; set; } = string.Empty;
@@ -66,6 +69,17 @@ namespace sqlite_web.Components.Pages
         protected bool newEmpHiddenFromKiosk { get; set; } = false;
         protected bool isEmpEditMode { get; set; } = false;
         private int? _editingEmployeeId = null;
+        // نگهداری لیست کامل دسته‌بندی‌های سه‌سطحی و شناسه‌های انتخاب‌شده در فیلتر جدول پرسنل
+        protected List<PersonnelCategory> allCategories { get; set; } = new();
+        protected int FilterMainCatId { get; set; } = 0;
+        protected int FilterSub1CatId { get; set; } = 0;
+        protected int FilterSub2CatId { get; set; } = 0;
+
+        // متغیرهای نگهداری دسته‌بندی سه‌سطحی انتخاب‌شده در فرم ثبت و ویرایش کارمند
+        protected int newEmpMainCatId { get; set; } = 0;
+        protected int newEmpSub1CatId { get; set; } = 0;
+        protected int newEmpSub2CatId { get; set; } = 0;
+
 
         protected bool showModal { get; set; } = false;
         protected bool showManualAddModal { get; set; } = false;
@@ -80,11 +94,23 @@ namespace sqlite_web.Components.Pages
         protected List<Employee> employees { get; set; } = new();
         protected string SearchQuery { get; set; } = string.Empty;
 
-        protected List<Employee> FilteredEmployees => string.IsNullOrWhiteSpace(SearchQuery)
-            ? (employees ?? new())
-            : (employees ?? new()).Where(e => (e.FullName != null && e.FullName.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)) ||
-                                              (e.PersonnelCode != null && e.PersonnelCode.Contains(SearchQuery))).ToList();
+         // لیست فیلترشده پرسنل متصل به متد مشترک سرویس پرسنل (ترکیب دسته‌بندی سه‌سطحی و عبارت جستجو)
+        protected IEnumerable<Employee> FilteredEmployees =>
+            PersonnelSvc.FilterEmployees(employees, FilterMainCatId, FilterSub1CatId, FilterSub2CatId, SearchQuery);
+        // تغییر فیلتر کتگوری اصلی جدول پرسنل و بازنشانی فرزندان
+        protected void OnFilterMainCatChanged(ChangeEventArgs e)
+        {
+            FilterMainCatId = int.TryParse(e.Value?.ToString(), out int id) ? id : 0;
+            FilterSub1CatId = 0;
+            FilterSub2CatId = 0;
+        }
 
+        // تغییر فیلتر کتگوری فرزند اول جدول پرسنل و بازنشانی فرزند دوم
+        protected void OnFilterSub1CatChanged(ChangeEventArgs e)
+        {
+            FilterSub1CatId = int.TryParse(e.Value?.ToString(), out int id) ? id : 0;
+            FilterSub2CatId = 0;
+        }
         protected List<Attendance> allAttendances { get; set; } = new();
         protected string SelectedMonthFilter { get; set; } = string.Empty;
         protected string TotalRegularHours { get; set; } = "00:00";
