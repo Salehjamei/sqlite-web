@@ -175,12 +175,18 @@ namespace sqlite_web.Services
                     _navigationManager.NavigateTo("/login", forceLoad: false);
                 }
             }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("statically rendered", StringComparison.OrdinalIgnoreCase)
+                                         || ex.Message.Contains("JavaScript interop calls cannot be issued", StringComparison.OrdinalIgnoreCase))
+            {
+                // نادیده گرفتن خطای طبیعی مرحله پیش‌رندر اولیه سرور پیش از اتصال مرورگر
+                return;
+            }
             catch (Exception ex)
             {
+                // ثبت تمامی خطاهای واقعی دیگر (از جمله خطاهای دیتابیس و InvalidOperationExceptionهای غیرمرتبط با پیش‌رندر)
                 await _errorLogger.LogBackendErrorAsync("AdminStateService.CheckAccessAndRedirectAsync", ex, CurrentOnlineAdmin?.Id, adminUsername);
                 return;
             }
-
             finally
             {
                 if (!IsChecked)

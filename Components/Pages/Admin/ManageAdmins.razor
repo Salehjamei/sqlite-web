@@ -312,6 +312,7 @@
 </div> @* پایان کانتینر ریشه کامپوننت *@
 @* فراخوانی ماژول هوشمند اعلان شیشه‌ای (ثبت خودکار اعلان‌های موفق و خطا در تاریخچه سوپر ادمین) *@
 <ToastNotification @bind-Show="showToast"
+                   Items="@ActiveToastList"
                    Category="@toastCategory"
                    SubCategory="@toastSubCategory"
                    MessageKey="@toastMessageKey"
@@ -324,7 +325,8 @@
                    CurrentLanguage="@CurrentLanguage"
                    CalendarManager="@CalendarManager"
                    AdminId="@AdminState.CurrentOnlineAdmin?.Id"
-                   AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Admin")" />
+                   AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Admin")"
+                   TargetEmployee="@toastTargetEmployee" />
 @* 📅 🔒 فراخوانی هوشمند ماژول تفکیک‌شده و مستقل DeleteModal مجهز به نام پویا *@
 <DeleteModal Show="@showDeleteModal"
              Title="@CalendarManager.Translate("PCal_AdminDelete_Title")"

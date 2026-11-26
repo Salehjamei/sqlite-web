@@ -23,6 +23,7 @@
             {
                 @* فراخوانی ماژول هوشمند اعلان شیشه‌ای (بدون حذف خودکار و با ثبت در تاریخچه سوپر ادمین) *@
                 <ToastNotification @bind-Show="showToast"
+                                   Items="@ActiveToastList"
                                    Category="@toastCategory"
                                    SubCategory="@toastSubCategory"
                                    MessageKey="@toastMessageKey"
@@ -37,10 +38,6 @@
                                    AdminId="@AdminState.CurrentOnlineAdmin?.Id"
                                    AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Admin")"
                                    TargetEmployee="@toastTargetEmployee" />
-
-
-
-
                 @* ردیف ابزارهای بالادستی پنل پرسنل *@
                 <div class="row m-0 mb-3 align-items-center g-2" style="padding-left: 4px; padding-right: 4px; margin-top: -6px !important; direction: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "rtl" : "ltr");">
 
@@ -445,7 +442,27 @@
                                                                     {
                                                                         <span class="badge bg-danger text-white" style="font-size: 8.5px; padding: 1px 4px;">@CalendarManager.Translate("PCal_MainHome_SourceAuto")</span>
                                                                     }
+
+                                                                    @* نمایش نام کاربری ادمین ثبت‌کننده یا ویرایش‌کننده در کنار منبع تردد *@
+                                                                    @{
+                                                                        string actorAdminName = GetAttendanceAdminInfo(att);
+                                                                    }
+                                                                    @if (!string.IsNullOrEmpty(actorAdminName))
+                                                                    {
+                                                                        <span class="badge bg-dark text-warning ms-1" style="font-size: 8.5px; padding: 1px 5px;">
+                                                                            👤 @actorAdminName
+                                                                        </span>
+                                                                    }
+
+                                                                    @* نمایش نام مکان مجاز ثبت‌شده در کنار تردد *@
+                                                                    @if (!string.IsNullOrEmpty(att.LocationName))
+                                                                    {
+                                                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary ms-1" style="font-size: 8.5px; padding: 1px 5px;">
+                                                                            📍 @att.LocationName
+                                                                        </span>
+                                                                    }
                                                                 </div>
+
 
                                                                 @if (att.ClockOutTime.HasValue && !isFullDayAutoExit && hasOvertime)
                                                                 {

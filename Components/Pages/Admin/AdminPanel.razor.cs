@@ -97,13 +97,23 @@ namespace sqlite_web.Components.Pages
         // لیست فیلترشده پرسنل متصل به متد مشترک سرویس پرسنل (ترکیب دسته‌بندی سه‌سطحی و عبارت جستجو)
         protected IEnumerable<Employee> FilteredEmployees =>
             PersonnelSvc.FilterEmployees(employees, FilterMainCatId, FilterSub1CatId, FilterSub2CatId, SearchQuery);
-        // تغییر فیلتر کتگوری اصلی جدول پرسنل و بازنشانی فرزندان
-        protected void OnFilterMainCatChanged(ChangeEventArgs e)
+        // تغییر فیلتر کتگوری اصلی جدول پرسنل، بازنشانی فرزندان و ذخیره دائمی در حافظه مرورگر
+        protected async Task OnFilterMainCatChanged(ChangeEventArgs e)
         {
             FilterMainCatId = int.TryParse(e.Value?.ToString(), out int id) ? id : 0;
             FilterSub1CatId = 0;
             FilterSub2CatId = 0;
+
+            try
+            {
+                await LocalStorage.SetAsync("AdminPanelSelectedMainCatId", FilterMainCatId);
+            }
+            catch (Exception ex)
+            {
+                await ErrorLogger.LogBackendErrorAsync("AdminPanel.SaveMainCategoryStorage", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
+            }
         }
+
 
         // تغییر فیلتر کتگوری فرزند اول جدول پرسنل و بازنشانی فرزند دوم
         protected void OnFilterSub1CatChanged(ChangeEventArgs e)
@@ -163,14 +173,48 @@ namespace sqlite_web.Components.Pages
                 Console.WriteLine($"Error in OnInitializedAsync: {ex.Message}");
             }
         }
+        // استخراج نام کاربری ادمین ثبت‌کننده یا آخرین ویرایش‌کننده رکورد تردد برای نمایش در کارنامه
+        protected string GetAttendanceAdminInfo(Attendance att)
+        {
+            int? targetAdminId = att.LastModifiedByAdminId ?? att.CreatedByAdminId;
+            if (!targetAdminId.HasValue || targetAdminId.Value <= 0)
+                return string.Empty;
+
+            var admin = AdminState.AdminList?.FirstOrDefault(a => a.Id == targetAdminId.Value);
+            if (admin != null && !string.IsNullOrWhiteSpace(admin.Username))
+                return admin.Username;
+
+            if (AdminState.CurrentOnlineAdmin != null && AdminState.CurrentOnlineAdmin.Id == targetAdminId.Value)
+                return AdminState.CurrentOnlineAdmin.Username;
+
+            return $"Admin #{targetAdminId.Value}";
+        }
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
             {
+                // همگام‌سازی تنظیمات زبان و نوع تقویم ذخیره‌شده در مرورگر
                 await SyncLanguageFromStorageAsync();
+
+                // بازیابی دسته اصلی انتخاب‌شده قبلی در فیلتر پنل پرسنل از حافظه مرورگر
+                try
+                {
+                    var savedAdminMainCat = await LocalStorage.GetAsync<int>("AdminPanelSelectedMainCatId");
+                    if (savedAdminMainCat.Success && savedAdminMainCat.Value > 0 && allCategories.Any(c => c.Level == 1 && c.Id == savedAdminMainCat.Value))
+                    {
+                        FilterMainCatId = savedAdminMainCat.Value;
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // ثبت خطای احتمالی خواندن دسته اصلی از حافظه مرورگر در سرور
+                    await ErrorLogger.LogBackendErrorAsync("AdminPanel.LoadMainCategoryStorage", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
+                }
             }
         }
+
 
         // متد اختصاصی برای خواندن زبان از حافظه مرورگر و اعمال اجباری روی مترجم صفحه
         private async Task SyncLanguageFromStorageAsync()

@@ -41,13 +41,23 @@ namespace sqlite_web.Components.Pages
         private IEnumerable<Employee> DisplayEmployees =>
             PersonnelSvc.FilterEmployees(employees, SelectedMainCatId, SelectedSub1CatId, SelectedSub2CatId, searchQuery);
 
-        // تغییر کتگوری اصلی و بازنشانی خودکار سلکتورهای فرزند اول و دوم
-        private void OnMainCatFilterChanged(ChangeEventArgs e)
+        // تغییر کتگوری اصلی، بازنشانی فرزندان و ذخیره دائمی انتخاب در حافظه مرورگر همراه با ثبت خطای احتمالی
+        private async Task OnMainCatFilterChanged(ChangeEventArgs e)
         {
             SelectedMainCatId = int.TryParse(e.Value?.ToString(), out int id) ? id : 0;
             SelectedSub1CatId = 0;
             SelectedSub2CatId = 0;
+
+            try
+            {
+                await LocalStorage.SetAsync("KioskSelectedMainCatId", SelectedMainCatId);
+            }
+            catch (Exception ex)
+            {
+                await ErrorLogger.LogBackendErrorAsync("Home.SaveMainCategoryStorage", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
+            }
         }
+
 
         // تغییر کتگوری فرزند اول و بازنشانی خودکار سلکتور فرزند دوم
         private void OnSub1CatFilterChanged(ChangeEventArgs e)
@@ -80,15 +90,31 @@ namespace sqlite_web.Components.Pages
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // مهار خطاهای احتمالی ارتباط اولیه با لوکال استوریج در رندر اولیه
+                    // ثبت خطای ارتباط با حافظه مرورگر هنگام بازیابی تنظیمات زبان و تقویم در سرور
+                    await ErrorLogger.LogBackendErrorAsync("Home.OnAfterRenderStorage", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
                 }
 
                 // ۴. بارگذاری اطلاعات کارمندان و رکوردها پس از همگام‌سازی کامل زبان
                 if (AdminState.IsAuthorized)
                 {
                     await LoadData();
+
+                    // بازیابی دسته اصلی انتخاب‌شده قبلی از حافظه مرورگر در صورت وجود در لیست دسته‌بندی‌ها
+                    try
+                    {
+                        var savedMainCat = await LocalStorage.GetAsync<int>("KioskSelectedMainCatId");
+                        if (savedMainCat.Success && savedMainCat.Value > 0 && MainCategoriesList.Any(c => c.Id == savedMainCat.Value))
+                        {
+                            SelectedMainCatId = savedMainCat.Value;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // ثبت خطای بازیابی دسته اصلی انتخاب‌شده از حافظه مرورگر در سرور
+                        await ErrorLogger.LogBackendErrorAsync("Home.LoadMainCategoryStorage", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
+                    }
                 }
 
                 // ۵. اجبار کامل کامپوننت به بازرندری و رندر متون ترجمه‌شده جدید
@@ -96,7 +122,8 @@ namespace sqlite_web.Components.Pages
             }
         }
 
-               // بارگذاری ایزوله پرسنل مجاز به نمایش در کیوسک، دسته‌بندی‌های سه‌سطحی و سوابق تردد از سرویس مشترک
+
+        // بارگذاری ایزوله پرسنل مجاز به نمایش در کیوسک، دسته‌بندی‌های سه‌سطحی و سوابق تردد از سرویس مشترک
         private async Task LoadData()
         {
             try

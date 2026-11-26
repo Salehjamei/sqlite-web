@@ -28,23 +28,20 @@ namespace sqlite_web.Services
             _errorLogger = errorLogger;
         }
 
-        // چرخه حیات اصلی سرویس پس‌زمینه شامل اجرای جبرانی در لحظه استارت و زمان‌بندی روزانه راس ساعت مقرر
+        // چرخه حیات اصلی سرویس پس‌زمینه: اجرای فوری هنگام استارت و پایش هر ۱ دقیقه یک‌بار جهت اطمینان از بسته شدن راس ۲۳:۵۹
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            // اجرای جبرانی در لحظه راه‌اندازی یا بیدار شدن سرور از حالت خواب (Idle) برای پوشش رکوردهای جا مانده
+            // اجرای جبرانی در لحظه راه‌اندازی یا بیدار شدن سرور برای بستن ترددهای باز گذشته
             await ExecuteAutoLogoutWithRetryAsync(stoppingToken);
 
-            // حلقه انتظار هوشمند روزانه که بدون ایجاد سربار کوئری مداوم، دقیقاً تا زمان اجرای بعدی در خواب می‌ماند
-            while (!stoppingToken.IsCancellationRequested)
+            // بررسی دوره‌ای هر ۱ دقیقه یک‌بار بدون سربار (در صورت نبود رکورد باز، کوئری در کمتر از ۱ میلی‌ثانیه پایان می‌یابد)
+            using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
+            while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
             {
-                TimeSpan delay = await CalculateDelayUntilNextRunAsync(stoppingToken);
-                await Task.Delay(delay, stoppingToken);
-
-                if (stoppingToken.IsCancellationRequested) break;
-
                 await ExecuteAutoLogoutWithRetryAsync(stoppingToken);
             }
         }
+
 
         // لایه تاب‌آوری در برابر خطا جهت مدیریت شکست عملیات، ثبت هشدار برای ادمین و یک‌بار تلاش مجدد پس از ۵ دقیقه
         private async Task ExecuteAutoLogoutWithRetryAsync(CancellationToken stoppingToken)
@@ -74,13 +71,12 @@ namespace sqlite_web.Services
             }
         }
 
-        // منطق تجاری شناسایی ترددهای باز گذشته و بستن خودکار آن‌ها بر اساس قوانین ساعت کاری سرور
+        // منطق تجاری شناسایی ترددهای باز گذشته و اصلاح ترددهایی که خروج آن‌ها به روز بعد موکول شده است به 23:59 همان روز ورود
         public async Task ProcessAutoLogoutAsync(CancellationToken stoppingToken = default)
         {
             await _syncLock.WaitAsync(stoppingToken);
             try
             {
-                // ایجاد یک Scope مستقل از DbContext برای ایزوله‌سازی تراکنش پس‌زمینه از نشست‌های رابط کاربری
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
@@ -97,23 +93,27 @@ namespace sqlite_web.Services
                 var now = DateTime.Now;
                 var today = DateTime.Today;
 
-                // واکشی ترددهای بدون خروج از روزهای گذشته و همچنین ترددهای باز امروز پس از عبور از ساعت مقرر
-                var openRecords = await db.Attendances
+                // ۱. واکشی ترددهای بدون خروج از روزهای گذشته و همچنین ترددهای باز امروز پس از عبور از ساعت مقرر
+                // ۲. واکشی ترددهای خروج خودکار که به اشتباه در روزهای بعدی ثبت شده‌اند جهت اصلاح به 23:59 همان روز ورود
+                var targetRecords = await db.Attendances
                     .Include(a => a.Employee)
-                    .Where(a => a.ClockOutTime == null && a.ClockInTime.HasValue &&
-                                (a.ClockInTime.Value.Date < today ||
-                                 (a.ClockInTime.Value.Date == today && now.TimeOfDay >= parsedAutoTime)))
+                    .Where(a => a.ClockInTime.HasValue && (
+                        (a.ClockOutTime == null && (a.ClockInTime.Value.Date < today || (a.ClockInTime.Value.Date == today && now.TimeOfDay >= parsedAutoTime))) ||
+                        (a.ClockOutTime != null && a.EntrySource == "AutoClose" && a.ClockOutTime.Value.Date > a.ClockInTime.Value.Date)
+                    ))
                     .ToListAsync(stoppingToken);
 
-                if (!openRecords.Any()) return;
+                if (!targetRecords.Any()) return;
 
                 var pCal = new PCalendar { CurrentLanguage = "fa" };
 
-                foreach (var record in openRecords)
+                foreach (var record in targetRecords)
                 {
+                    bool wasAlreadyClosedWrongDate = record.ClockOutTime.HasValue;
+
+                    // تنظیم دقیق ساعت خروج روی 23:59 همان تاریخ روزی که ورود ثبت شده است
                     var autoClockOut = record.ClockInTime!.Value.Date.Add(parsedAutoTime);
 
-                    // جلوگیری از ثبت ساعت خروج عقب‌تر از زمان ورود در صورت ثبت تردد در دقایق پایانی شب
                     if (autoClockOut < record.ClockInTime.Value)
                     {
                         autoClockOut = record.ClockInTime.Value.Date.Add(new TimeSpan(23, 59, 0));
@@ -123,7 +123,7 @@ namespace sqlite_web.Services
                     record.EntrySource = "AutoClose";
                     db.Attendances.Update(record);
 
-                    // تولید رکورد ممیزی (Audit Log) چندزبانه برای اطلاع‌رسانی بستن خودکار تردد به سوپر ادمین
+                    // ثبت لاگ در جدول اعلانات سرور در صورت بسته شدن تردد باز یا اصلاح تاریخ خروج
                     var empName = record.Employee?.FullName ?? "-";
                     string coloredEmpName = $"<span style='color: #dc3545; font-weight: 900;'>«{empName}»</span>";
                     var args = new object[] { coloredEmpName, autoClockOut.ToString("HH:mm") };
@@ -155,11 +155,9 @@ namespace sqlite_web.Services
             }
             finally
             {
-                // آزادسازی قطعی قفل هم‌زمانی در هر شرایطی جهت جلوگیری از بن‌بست (Deadlock) در اجراهای بعدی
                 _syncLock.Release();
             }
         }
-
         // ثبت مستقیم پیام‌های هشدار و خطای عملیاتی سرویس پس‌زمینه در جدول اعلانات مدیریتی
         private async Task LogSystemErrorAsync(string messageKey, string errorDetail, CancellationToken stoppingToken)
         {

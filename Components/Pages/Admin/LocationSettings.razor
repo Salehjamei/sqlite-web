@@ -249,5 +249,22 @@
     </div>
 }
 
-<ToastNotification @bind-Show="showToast" Category="@toastCategory" SubCategory="@toastSubCategory" MessageKey="@toastMessageKey" MessageArgs="@toastMessageArgs" Message="@toastMessage" IsError="@isToastError" AutoCloseMilliseconds="0" CurrentLanguage="@CurrentLanguage" CalendarManager="@CalendarManager" AdminId="@AdminState.CurrentOnlineAdmin?.Id" AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Admin")" />
+
+<ToastNotification @bind-Show="showToast"
+                   Items="@ActiveToastList"
+                   Category="@toastCategory"
+                   SubCategory="@toastSubCategory"
+                   MessageKey="@toastMessageKey"
+                   MessageArgs="@toastMessageArgs"
+                   Message="@toastMessage"
+                   EventDate="@toastEventDate"
+                   EventTime="@toastEventTime"
+                   IsError="@isToastError"
+                   AutoCloseMilliseconds="0"
+                   CurrentLanguage="@CurrentLanguage"
+                   CalendarManager="@CalendarManager"
+                   AdminId="@AdminState.CurrentOnlineAdmin?.Id"
+                   AdminUsername="@(AdminState.CurrentOnlineAdmin?.Username ?? "Admin")"
+                   TargetEmployee="@toastTargetEmployee" />
+
 <DeleteModal Show="@ShowDeleteModal" Title="@CalendarManager.Translate("DeleteTitle")" SelectedItemLabel="@CalendarManager.Translate("DeleteSelectedItem")" TargetName="@DeleteTargetName" Message="@CalendarManager.Translate("DeleteMsg")" SubMessage="@CalendarManager.Translate("DeleteSubMsg")" DeleteConfirmBtn="@CalendarManager.Translate("DeleteConfirmBtn")" kancelBtn="@CalendarManager.Translate("kancelBtn")" OnConfirm="ConfirmDeleteAsync" OnCancel="CancelDelete" />
