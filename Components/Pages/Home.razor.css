@@ -53,28 +53,29 @@
   display: inline-block;
 }
 
+/* تغییر شکل آواتارها از دایره به مربع با گوشه‌های گرد و افزایش ابعاد برای وضوح بیشتر */
 .avatar-img {
-  width: 45px;
-  height: 45px;
-  object-fit: cover;
-  display: block;
-  border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    display: block;
+    border-radius: 10px;
 }
 
 .avatar-img-sm {
-  width: 48px;
-  height: 48px;
-  object-fit: cover;
-  display: block;
-  border-radius: 50%;
+    width: 58px;
+    height: 58px;
+    object-fit: cover;
+    display: block;
+    border-radius: 10px;
 }
 
 .avatar-img-md {
-  width: 56px;
-  height: 56px;
-  object-fit: cover;
-  display: block;
-  border-radius: 50%;
+    width: 66px;
+    height: 66px;
+    object-fit: cover;
+    display: block;
+    border-radius: 10px;
 }
 
 .card-body .btn {

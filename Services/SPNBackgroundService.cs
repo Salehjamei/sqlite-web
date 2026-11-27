@@ -192,39 +192,6 @@ namespace sqlite_web.Services
                 await db.SaveChangesAsync(stoppingToken);
             }
             catch { }
-        }     
-        // محاسبه دقیق بازه زمانی انتظار تا سررسید بعدی بر اساس ساعت خروج خودکار ذخیره‌شده در تنظیمات سرور
-        private async Task<TimeSpan> CalculateDelayUntilNextRunAsync(CancellationToken stoppingToken)
-        {
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var settings = await db.WorkSettings.AsNoTracking().FirstOrDefaultAsync(stoppingToken);
-
-                string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
-                if (!TimeSpan.TryParse(autoTimeStr, out var targetTime))
-                {
-                    targetTime = new TimeSpan(23, 59, 0);
-                }
-
-                var now = DateTime.Now;
-                var nextRun = now.Date.Add(targetTime);
-
-                // انتقال زمان اجرای بعدی به روز فردا در صورت عبور ساعت فعلی از سررسید امروز
-                if (nextRun <= now)
-                {
-                    nextRun = nextRun.AddDays(1);
-                }
-
-                // افزودن ۵ ثانیه حاشیه اطمینان جهت جلوگیری از بیدار شدن زودهنگام در میلی‌ثانیه‌های مرزی
-                return (nextRun - now).Add(TimeSpan.FromSeconds(5));
-            }
-            catch (Exception ex)
-            {
-                await _errorLogger.LogBackendErrorAsync("SPNBackgroundService.CalculateDelay", ex);
-                return TimeSpan.FromHours(1);
-            }
-        }
+        }       
     }
 }

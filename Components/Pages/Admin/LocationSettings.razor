@@ -8,18 +8,21 @@
 
 @{
     bool isRtl = CurrentLanguage == "fa" || CurrentLanguage == "ar";
+    // بررسی دسترسی سوپر ادمین یا مدیران دارای تیک مجوز مدیریت مکان‌ها و دسته‌بندی‌ها
+    bool canAccessLocations = AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanManageLocations ?? false);
 }
 
 <div class="container mt-2 modal-animation-fade" dir="@(isRtl ? "rtl" : "ltr")" style="text-align: @(isRtl ? "right" : "left"); font-family: Tahoma; max-width: 100%; padding-left: 10px; padding-right: 10px; min-height: 100vh;">
 
-    @if (AdminState.IsChecked && !AdminState.isCurrentUserSuperAdmin)
+    @if (AdminState.IsChecked && !canAccessLocations)
     {
         <div class="alert alert-danger text-center fw-bold p-3 my-3 shadow-sm mx-1" role="alert" style="font-size: 13px;">
             @CalendarManager.Translate("PCal_AdminModal_AccessDeniedError")
         </div>
     }
-    else if (AdminState.IsChecked && AdminState.isCurrentUserSuperAdmin)
+    else if (AdminState.IsChecked && canAccessLocations)
     {
+
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 px-1">
             <h4 class="m-0 fw-bold text-dark" style="font-size: calc(13.5px + 0.2vw);">
                 📍 @CalendarManager.Translate("PCal_Loc_PageTitle")
@@ -176,24 +179,48 @@
         </div>
     }
 </div>
+@* مودال ثبت و ویرایش مکان جغرافیایی مجاز همراه با ماژول نقشه تعاملی و دایره شعاع زنده *@
 @if (ShowLocationModal)
 {
     <div style="position: fixed; inset: 0; background-color: rgba(0,0,0,0.6); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 15px;" @onclick="CloseLocationModal">
-        <div class="modal-animation-fade bg-white rounded shadow-lg w-100" style="max-width: 480px; overflow: hidden; direction: @(isRtl ? "rtl" : "ltr"); text-align: @(isRtl ? "right" : "left");" @onclick:stopPropagation>
-            <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
+        <div class="modal-animation-fade bg-white rounded shadow-lg w-100"
+             style="max-width: 500px; max-height: 92vh; overflow-y: auto; direction: @(isRtl ? "rtl" : "ltr"); text-align: @(isRtl ? "right" : "left");"
+             @onclick:stopPropagation>
+
+            @* هدر مودال ثبت یا ویرایش مکان *@
+            <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3 sticky-top">
                 <h6 class="m-0 fw-bold">📍 @(IsLocationEditMode ? CalendarManager.Translate("PCal_Loc_EditModalTitle") : CalendarManager.Translate("PCal_Loc_AddModalTitle"))</h6>
                 <button type="button" class="btn-close btn-close-white" @onclick="CloseLocationModal"></button>
             </div>
+
             <div class="p-3">
+                @* کادر نام مکان مجاز *@
                 <div class="mb-2">
                     <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_Loc_ThName"):</label>
                     <input type="text" class="form-control form-control-sm" @bind="LocName" />
                 </div>
+
+                @* دکمه دریافت خودکار مختصات فعلی دستگاه از طریق GPS *@
                 <div class="mb-2">
                     <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-bold" @onclick="FetchCurrentGpsForFormAsync" disabled="@IsFetchingGps">
                         @(IsFetchingGps ? "⏳ ..." : "📡 " + CalendarManager.Translate("PCal_Loc_GetMyLocationBtn"))
                     </button>
                 </div>
+
+                @* ماژول نقشه تعاملی جهت انتخاب نقطه مرکزی با کلیک و مشاهده زنده دایره شعاع مجاز *@
+                <div class="mb-2">
+                    <InteractiveMap IsPickerMode="true"
+                                    Height="210px"
+                                    Latitude="@ParsedMapLat"
+                                    Longitude="@ParsedMapLng"
+                                    RadiusMeters="@LocRadiusMeters"
+                                    OnLocationPicked="HandleMapLocationPicked" />
+                    <small class="text-muted d-block mt-1" style="font-size: 10px;">
+                        💡 @CalendarManager.Translate("PCal_Loc_MapClickHint")
+                    </small>
+                </div>
+
+                @* کادرهای نمایش و ویرایش دستی عرض و طول جغرافیایی *@
                 <div class="row g-2 mb-2" style="direction: ltr;">
                     <div class="col-6">
                         <label class="form-label text-muted small mb-1">Latitude:</label>
@@ -204,10 +231,12 @@
                         <input type="text" class="form-control form-control-sm font-monospace" @bind="LocLongitudeStr" />
                     </div>
                 </div>
+
+                @* تنظیم شعاع مجاز به متر و وضعیت فعال/غیرفعال بودن مکان *@
                 <div class="row g-2 mb-3">
                     <div class="col-7">
                         <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_Loc_ThRadius") (m):</label>
-                        <input type="number" class="form-control form-control-sm fw-bold text-center" @bind="LocRadiusMeters" min="10" max="50000" />
+                        <input type="number" class="form-control form-control-sm fw-bold text-center" @bind="LocRadiusMeters" @bind:event="oninput" min="10" max="50000" />
                     </div>
                     <div class="col-5 d-flex align-items-end">
                         <div class="form-check form-switch mb-1">
@@ -216,6 +245,8 @@
                         </div>
                     </div>
                 </div>
+
+                @* انتخاب محدودیت دسته‌بندی سه‌سطحی پرسنل مجاز به تردد در این مکان *@
                 <div class="p-2 border rounded bg-light mb-3">
                     <div class="fw-bold text-dark small mb-2">🗂️ @CalendarManager.Translate("PCal_Loc_ThAllowedCats"):</div>
                     <select class="form-select form-select-sm mb-1.5" @bind="LocAllowedMainCatId" style="font-size: 11px;">
@@ -240,6 +271,8 @@
                         }
                     </select>
                 </div>
+
+                @* دکمه‌های ثبت نهایی و انصراف *@
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-success btn-sm flex-grow-1 fw-bold" @onclick="SaveLocationAsync">@CalendarManager.Translate("SaveBtn")</button>
                     <button type="button" class="btn btn-secondary btn-sm" @onclick="CloseLocationModal">@CalendarManager.Translate("CancelBtn")</button>
@@ -248,7 +281,6 @@
         </div>
     </div>
 }
-
 
 <ToastNotification @bind-Show="showToast"
                    Items="@ActiveToastList"

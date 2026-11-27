@@ -12,6 +12,11 @@
         public bool CanAddEmployee { get; set; } = false;
         public bool CanEditEmployee { get; set; } = false;
         public bool CanDeleteEmployee { get; set; } = false;
+        // مجوز مشاهده موقعیت جغرافیایی و نقشه ورود و خروج پرسنل در کارنامه
+        public bool CanViewLocationMap { get; set; } = false;
+        // مجوز دسترسی به صفحه مدیریت مکان‌های مجاز و دسته‌بندی سه‌سطحی پرسنل
+        public bool CanManageLocations { get; set; } = false;
+
         // 🔒 فیلدهای جدید امنیتی و مدیریت توکن:
         public string? CurrentToken { get; set; } // توکن فعلی و معتبر ادمین که در مرورگر ذخیره می‌شود
         public bool IsFrozen { get; set; } = false; // پرچم فریز/غیرفعال‌سازی موقت ادمین توسط سوپر ادمین

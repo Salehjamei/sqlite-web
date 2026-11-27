@@ -92,6 +92,15 @@
                                 }
                             </div>
                         }
+                        else if (AdminState.CurrentOnlineAdmin?.CanManageLocations ?? false)
+                        {
+                            @* نمایش دکمه مستقیم مدیریت مکان‌ها و دسته‌ها برای مدیران عادی دارای مجوز مربوطه *@
+                            <button type="button"
+                                    class="btn-modern @(ActivePage == "locations" ? "btn-modern-success active-custom" : "btn-modern-warning")"
+                                    @onclick='() => NavigateToPage("/admin/locations")'>
+                                📍 @CalendarManager.Translate("PCal_Loc_NavBtn")
+                            </button>
+                        }
 
                     </div>
                 }

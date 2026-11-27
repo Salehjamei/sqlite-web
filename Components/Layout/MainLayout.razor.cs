@@ -190,22 +190,30 @@ namespace sqlite_web.Components.Layout
 
         protected void CloseUrlHijackModal() => ShowUrlHijackModal = false;
 
+        // هدایت هوشمند و امن ادمین آنلاین از صفحه کیوسک به داشبورد مدیریتی متناسب با سطح دسترسی او
         protected void NavigateToDashboardSafe()
         {
+            // در صورت نبود نشست معتبر برای ادمین، عملیات متوقف می‌شود
             if (AdminState.CurrentOnlineAdmin == null) return;
             var currentAdmin = AdminState.CurrentOnlineAdmin;
 
+            // اولویت اول: هدایت سوپر ادمین یا مدیران دارای مجوزهای پرسنلی به پنل مدیریت پرسنل
             if (currentAdmin.IsSuperAdmin || currentAdmin.CanAddEmployee || currentAdmin.CanEditEmployee || currentAdmin.CanDeleteEmployee)
             {
                 NavigationManager.NavigateTo("/admin/panel", forceLoad: false);
             }
+            // اولویت دوم: هدایت مدیرانی که فقط مجوز مدیریت مکان‌ها و دسته‌بندی‌ها را دارند به صفحه مکان‌ها
+            else if (currentAdmin.CanManageLocations)
+            {
+                NavigationManager.NavigateTo("/admin/locations", forceLoad: false);
+            }
+            // اولویت سوم: نمایش پنجره هشدار عدم دسترسی در صورت نداشتن هیچ‌گونه مجوز مدیریتی
             else
             {
                 ShowAccessDeniedModal = true;
                 InvokeAsync(StateHasChanged);
             }
         }
-
         protected void CloseAccessModal() => ShowAccessDeniedModal = false;
 
         // متد گوش دادن بومی به تغییرات وضعیت سرویس مرکزی جهت به‌روزرسانی آنی زبان و دکمه‌های هدر
@@ -265,13 +273,21 @@ namespace sqlite_web.Components.Layout
             if (AdminState.CurrentOnlineAdmin == null) return;
             var user = AdminState.CurrentOnlineAdmin;
 
-            // بررسی دسترسی سوپر ادمین برای صفحات مدیریت مدیران، مکان‌ها و تاریخچه اعلانات
+            // بررسی دسترسی اختصاصی سوپر ادمین برای صفحات مدیریت مدیران و تاریخچه اعلانات
             if ((url.Contains("/admin/manage-admins", StringComparison.OrdinalIgnoreCase) ||
-                 url.Contains("/admin/locations", StringComparison.OrdinalIgnoreCase) ||
                  url.Contains("/admin/notifications", StringComparison.OrdinalIgnoreCase)) && !user.IsSuperAdmin)
             {
                 ShowUrlHijackModal = true;
                 NavigationManager.NavigateTo("/admin/panel", forceLoad: false);
+                return;
+            }
+
+            // بررسی دسترسی به صفحه مکان‌ها و دسته‌بندی‌ها (مجاز برای سوپر ادمین یا مدیران دارای تیک CanManageLocations)
+            if (url.Contains("/admin/locations", StringComparison.OrdinalIgnoreCase) && !user.IsSuperAdmin && !user.CanManageLocations)
+            {
+                ShowUrlHijackModal = true;
+                NavigationManager.NavigateTo("/admin/panel", forceLoad: false);
+                return;
             }
 
             // بررسی حداقل مجوزهای پرسنلی برای ورود مدیران محدود به پنل مدیریت پرسنل
@@ -279,11 +295,19 @@ namespace sqlite_web.Components.Layout
             {
                 if (!user.CanAddEmployee && !user.CanEditEmployee && !user.CanDeleteEmployee)
                 {
-                    ShowUrlHijackModal = true;
-                    NavigationManager.NavigateTo("/", forceLoad: false);
+                    if (user.CanManageLocations)
+                    {
+                        NavigationManager.NavigateTo("/admin/locations", forceLoad: false);
+                    }
+                    else
+                    {
+                        ShowUrlHijackModal = true;
+                        NavigationManager.NavigateTo("/", forceLoad: false);
+                    }
                 }
             }
         }
+
 
         // تشخیص صفحه فعال بر اساس نشانی فعلی مرورگر جهت اعمال حاشیه سبز روی دکمه مربوطه در هدر
         private void UpdateActivePageIndicator(string url)

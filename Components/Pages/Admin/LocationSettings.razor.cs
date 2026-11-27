@@ -57,6 +57,16 @@ namespace sqlite_web.Components.Pages.Admin
         protected string DeleteTargetType { get; set; } = string.Empty;
         protected int DeleteTargetId { get; set; } = 0;
         protected string DeleteTargetName { get; set; } = string.Empty;
+        // تبدیل رشته مختصات فرم به عدد اعشاری استاندارد برای ارسال به ماژول نقشه
+        protected double ParsedMapLat => double.TryParse(LocLatitudeStr.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out double lat) ? lat : 40.765400;
+        protected double ParsedMapLng => double.TryParse(LocLongitudeStr.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out double lng) ? lng : 29.940800;
+
+        // دریافت آنی مختصات جدید هنگام کلیک ادمین روی نقشه در ماژول InteractiveMap
+        protected void HandleMapLocationPicked((double Lat, double Lng) coords)
+        {
+            LocLatitudeStr = coords.Lat.ToString("F6", CultureInfo.InvariantCulture);
+            LocLongitudeStr = coords.Lng.ToString("F6", CultureInfo.InvariantCulture);
+        }
 
         protected override async Task OnInitializedAsync()
         {

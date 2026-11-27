@@ -413,7 +413,7 @@
                                                             </td>
 
                                                             <td style="font-size: 11px; text-align: center; padding: 4px 2px; direction: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "rtl" : "ltr"); vertical-align: middle;">
-                                                                @CalendarManager.Translate("PCal_AdminPanel_LabelClockIn") @att.ClockInTime!.Value.ToString("HH:mm") |
+                                                                @CalendarManager.Translate("PCal_AdminPanel_LabelClockIn") @att.ClockInTime!.Value.ToString("HH:mm")                                                             
 
                                                                 @if (isFullDayAutoExit)
                                                                 {
@@ -478,8 +478,22 @@
                                                                 @GetSingleDuration(att)
                                                             </td>
 
+                                                            @* ستون چهارم کارنامه: دکمه‌های عملیات رکورد تردد (مشاهده نقشه، توقف سریع، ویرایش دستی و حذف) *@
                                                             <td style="padding: 4px 2px; vertical-align: middle;">
                                                                 <div class="d-flex justify-content-center gap-1">
+                                                                    @* دکمه باز کردن نقشه موقعیت ورود و خروج در صورت داشتن مجوز و ثبت مختصات جغرافیایی *@
+                                                                    @if (canViewMapPerm && HasValidCoordinates(att))
+                                                                    {
+                                                                        <button type="button"
+                                                                                class="btn btn-outline-primary btn-report-inner"
+                                                                                style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;"
+                                                                                title="@CalendarManager.Translate("PCal_Loc_ViewOnMapBtn")"
+                                                                                @onclick="() => OpenAttendanceMapModal(att)">
+                                                                            📍
+                                                                        </button>
+                                                                    }
+
+                                                                    @* دکمه ثبت خروج سریع در صورت باز بودن تردد، یا دکمه ویرایش ساعت در صورت بسته بودن تردد *@
                                                                     @if (att.ClockOutTime == null)
                                                                     {
                                                                         <button type="button" disabled="@(!canEditPerm)" class="btn btn-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StopAttendanceNow(att.Id)">@CalendarManager.Translate("PCal_AdminPanel_BtnStopFast")</button>
@@ -488,6 +502,8 @@
                                                                     {
                                                                         <button type="button" disabled="@(!canEditPerm)" class="btn btn-warning text-dark btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;" @onclick="() => StartAttEdit(att)">@CalendarManager.Translate("PCal_AdminPanel_BtnEditTime")</button>
                                                                     }
+
+                                                                    @* دکمه حذف رکورد تردد از کارنامه پرسنل *@
                                                                     <button type="button" disabled="@(!canEditPerm && !AdminState.isCurrentUserSuperAdmin)"
                                                                             class="btn btn-outline-danger btn-report-inner" style="font-size: 9.5px; padding: 2px 4px; border-radius: 3px;"
                                                                             @onclick="() => TriggerDeleteTimeRecord(att)">
@@ -495,6 +511,7 @@
                                                                     </button>
                                                                 </div>
                                                             </td>
+
                                                         </tr>
                                                     }
                                                 }
@@ -854,6 +871,15 @@
 
             }
         </div>
+        @* فراخوانی ماژول مستقل مودال نقشه موقعیت ورود و خروج کارمند *@
+        <InteractiveMap IsModal="true"
+                        IsPickerMode="false"
+                        Height="280px"
+                        @bind-ShowModal="showAttMapModal"
+                        AttendanceRecord="@mapTargetAttendance"
+                        EmployeeName="@(selectedEmployee?.FullName ?? string.Empty)"
+                        CurrentLanguage="@CurrentLanguage"
+                        CalendarManager="@CalendarManager" />
 
         <DeleteModal Show="@showDeleteModal"
                      Title="@deleteModalTitle"

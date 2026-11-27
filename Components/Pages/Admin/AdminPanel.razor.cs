@@ -49,6 +49,8 @@ namespace sqlite_web.Components.Pages
         protected bool canAddPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanAddEmployee ?? false);
         protected bool canEditPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanEditEmployee ?? false);
         protected bool canDeletePerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanDeleteEmployee ?? false);
+        // بررسی مجوز مشاهده نقشه موقعیت مکانی ورود و خروج پرسنل در کارنامه
+        protected bool canViewMapPerm => AdminState.isCurrentUserSuperAdmin || (AdminState.CurrentOnlineAdmin?.CanViewLocationMap ?? false);
 
         protected string SystemMessage { get; set; } = string.Empty;
 
@@ -142,6 +144,53 @@ namespace sqlite_web.Components.Pages
         {
             public string Value { get; set; } = string.Empty;
             public string Text { get; set; } = string.Empty;
+        }
+        // پرچم کنترل وضعیت باز یا بسته بودن مودال نقشه موقعیت جغرافیایی تردد در کارنامه
+        protected bool showAttMapModal { get; set; } = false;
+
+        // نگهداری رکورد تردد انتخاب‌شده جهت نمایش موقعیت ورود و خروج آن روی نقشه
+        protected Attendance? mapTargetAttendance { get; set; }
+
+        // بررسی اینکه آیا برای رکورد تردد حداقل یکی از مختصات ورود یا خروج ثبت شده است یا خیر
+        protected bool HasValidCoordinates(Attendance att)
+        {
+            return !string.IsNullOrWhiteSpace(att.ClockInLocation) || !string.IsNullOrWhiteSpace(att.ClockOutLocation);
+        }
+
+        // تجزیه رشته مختصات جغرافیایی با فرمت "عرض,طول" به دو عدد اعشاری استاندارد برای ارسال به ماژول نقشه
+        protected (double? lat, double? lng) ParseCoordPair(string? coord)
+        {
+            // در صورت خالی بودن رشته مختصات، مقادیر تهی برگردانده می‌شود
+            if (string.IsNullOrWhiteSpace(coord)) return (null, null);
+
+            // جداسازی عرض و طول جغرافیایی با جداکننده کاما
+            var parts = coord.Split(',');
+
+            // اعتبارسنجی دو بخشی بودن مختصات و تبدیل امن آن‌ها به عدد اعشاری با استاندارد انگلیسی
+            if (parts.Length == 2 &&
+                double.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lat) &&
+                double.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double lng))
+            {
+                return (lat, lng);
+            }
+
+            return (null, null);
+        }
+
+        // باز کردن مودال نقشه تعاملی برای نمایش نقاط ثبت ورود و خروج رکورد تردد انتخاب‌شده
+        protected void OpenAttendanceMapModal(Attendance att)
+        {
+            // ثبت رکورد تردد هدف و فعال‌سازی نمایش مودال نقشه
+            mapTargetAttendance = att;
+            showAttMapModal = true;
+        }
+
+        // بستن مودال نقشه تعاملی و پاکسازی رکورد انتخاب‌شده از حافظه
+        protected void CloseAttendanceMapModal()
+        {
+            // غیرفعال کردن نمایش مودال و آزادسازی مرجع رکورد تردد
+            showAttMapModal = false;
+            mapTargetAttendance = null;
         }
 
         protected override async Task OnInitializedAsync()

@@ -44,6 +44,10 @@ namespace sqlite_web.Services
         public bool FormCanAdd { get; set; } = false;
         public bool FormCanEdit { get; set; } = false;
         public bool FormCanDelete { get; set; } = false;
+        // فیلدهای بایند مجوز مشاهده نقشه تردد پرسنل و مدیریت مکان‌ها و دسته‌بندی‌ها
+        public bool FormCanViewLocationMap { get; set; } = false;
+        public bool FormCanManageLocations { get; set; } = false;
+
         // 🌟 فیلد ذخیره زنده تنظیمات کاری واکشی شده از سرور
         public WorkSettings CurrentSettings { get; set; } = new();
         private int? _editingAdminId = null;
@@ -196,11 +200,7 @@ namespace sqlite_web.Services
                 }
             }
         }
-
-
-        /// <summary>
         /// 👑 مقداردهی اولیه و ساخت مدیر ارشد سیستم در اولین اجرای پروژه
-        /// </summary>
         public async Task InitializeDefaultSuperAdminAsync()
         {
             if (_dbContext == null) return;
@@ -215,6 +215,9 @@ namespace sqlite_web.Services
                     CanAddEmployee = true,
                     CanEditEmployee = true,
                     CanDeleteEmployee = true,
+                    CanViewLocationMap = true,
+                    CanManageLocations = true,
+
                     IsFrozen = false,
                     IsTokenStopped = false
                 });
@@ -370,47 +373,68 @@ namespace sqlite_web.Services
                 NotifyStateChanged();
             }
         }
-
+        // ذخیره یا ویرایش اطلاعات و سطوح دسترسی مدیر در دیتابیس همراه با بازخورد چندزبانه
         public async Task<bool> SaveAdminAsync()
         {
+            // بررسی آماده بودن دیتابیس و پر بودن فیلدهای اجباری نام کاربری و رمز عبور
             if (_dbContext == null) return false;
             if (string.IsNullOrWhiteSpace(FormAdminUsername) || string.IsNullOrWhiteSpace(FormAdminPassword)) return false;
 
+            // بازیابی زبان فعال سیستم از حافظه مرورگر جهت ترجمه پیام‌های بازخورد
+            string currentLang = "fa";
+            try
+            {
+                var storedLang = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "SystemLanguageSetting");
+                if (!string.IsNullOrWhiteSpace(storedLang))
+                {
+                    currentLang = storedLang.Trim('"');
+                }
+            }
+            catch { }
+
+            var pCal = new sqlite_web.Components.Models.Calendar.PCalendar { CurrentLanguage = currentLang };
+
+            // حالت اول: ویرایش اطلاعات و مجوزهای یک مدیر موجود در سیستم
             if (IsEditMode && _editingAdminId.HasValue)
             {
+                // واکشی رکورد مدیر مورد نظر از دیتابیس
                 var existingAdmin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == _editingAdminId.Value);
                 if (existingAdmin != null)
                 {
                     bool finalSuperAdminStatus = FormIsSuperAdmin;
 
-                    // بررسی اینکه آیا کاربر قصد دارد تیک سوپر ادمین یک سوپر ادمین موجود را بردارد
+                    // بررسی جلوگیری از حذف رتبه سوپر ادمین در صورتی که تنها یک سوپر ادمین در کل سیستم وجود دارد
                     if (!FormIsSuperAdmin && existingAdmin.IsSuperAdmin)
                     {
                         int totalSuperAdmins = await _dbContext.Admins.CountAsync(a => a.IsSuperAdmin);
 
-                        // اگر فقط همین یک سوپر ادمین در دیتابیس وجود دارد، اجازه تغییر نمی‌دهیم
                         if (totalSuperAdmins <= 1)
                         {
-                            FeedbackMessage = "❌ خطا: سیستم باید حداقل دارای یک سوپر ادمین باشد. امکان حذف رتبه تنها سوپر ادمین وجود ندارد!";
-                            return false; // 🛑 متوقف کردن فوری متد و بازگرداندن وضعیت شکست عملیات
+                            FeedbackMessage = pCal.Translate("PCal_ManageAdmins_LastSuperAdminErr");
+                            return false;
                         }
                     }
 
+                    // به‌روزرسانی مشخصات هویتی و تمامی سطوح دسترسی مدیر (شامل مجوزهای جدید نقشه و مکان‌ها)
                     existingAdmin.Username = FormAdminUsername;
                     existingAdmin.Password = FormAdminPassword;
                     existingAdmin.IsSuperAdmin = finalSuperAdminStatus;
                     existingAdmin.CanAddEmployee = FormCanAdd;
                     existingAdmin.CanEditEmployee = FormCanEdit;
                     existingAdmin.CanDeleteEmployee = FormCanDelete;
+                    existingAdmin.CanViewLocationMap = FormCanViewLocationMap;
+                    existingAdmin.CanManageLocations = FormCanManageLocations;
 
                     _dbContext.Admins.Update(existingAdmin);
 
+                    // همگام‌سازی فوری نشست آنلاین در صورتی که مدیر در حال ویرایش حساب کاربری خودش باشد
                     if (CurrentOnlineAdmin != null && CurrentOnlineAdmin.Id == existingAdmin.Id)
                     {
                         CurrentOnlineAdmin = existingAdmin;
                     }
                 }
             }
+            // حالت دوم: ایجاد یک حساب مدیریتی جدید همراه با مجوزهای انتخاب‌شده
             else
             {
                 _dbContext.Admins.Add(new AdminUser
@@ -420,15 +444,18 @@ namespace sqlite_web.Services
                     IsSuperAdmin = FormIsSuperAdmin,
                     CanAddEmployee = FormCanAdd,
                     CanEditEmployee = FormCanEdit,
-                    CanDeleteEmployee = FormCanDelete
+                    CanDeleteEmployee = FormCanDelete,
+                    CanViewLocationMap = FormCanViewLocationMap,
+                    CanManageLocations = FormCanManageLocations
                 });
             }
 
+            // ذخیره نهایی تغییرات در دیتابیس، بارگذاری مجدد لیست مدیران و پاکسازی فرم
             await _dbContext.SaveChangesAsync();
             await LoadAdminsDataAsync();
             ClearForm();
-            FeedbackMessage = "✅ تغییرات با موفقیت ذخیره شد.";
-            return true; // ✨ عملیات با موفقیت واقعی ثبت شد
+            FeedbackMessage = pCal.Translate("PCal_ManageAdmins_SaveSuccess");
+            return true;
         }
 
 
@@ -478,6 +505,9 @@ namespace sqlite_web.Services
             FormCanAdd = admin.CanAddEmployee;
             FormCanEdit = admin.CanEditEmployee;
             FormCanDelete = admin.CanDeleteEmployee;
+
+            FormCanViewLocationMap = admin.CanViewLocationMap;
+            FormCanManageLocations = admin.CanManageLocations;
             NotifyStateChanged();
         }
         public void CancelEdit()
@@ -511,6 +541,8 @@ namespace sqlite_web.Services
             FormCanEdit = false;
             FormCanDelete = false;
             _editingAdminId = null;
+            FormCanViewLocationMap = false;
+            FormCanManageLocations = false;
         }
         private void FillAdminData(AdminUser admin)
         {

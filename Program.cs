@@ -26,9 +26,8 @@ builder.Services.AddScoped<sqlite_web.Services.GeoLocationService>();
 // ثبت سرویس مشترک مدیریت پرسنل، دسته‌بندی‌های سه‌سطحی و فیلترهای ترکیبی
 builder.Services.AddScoped<sqlite_web.Services.PersonnelService>();
 
-// ثبت سرویس پس‌زمینه خودکار سرور
+// فعال‌سازی سرویس پس‌زمینه جهت پایش دقیقه‌ای و ثبت خروج خودکار در ساعت 23:59
 builder.Services.AddHostedService<sqlite_web.Services.SPNBackgroundService>();
-
 // ثبت سرویس مرکزی ثبت خطاهای سیستمی و سروری در جدول اعلانات
 builder.Services.AddSingleton<sqlite_web.Services.SystemErrorLoggerService>();
 

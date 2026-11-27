@@ -1,0 +1,52 @@
+﻿@namespace sqlite_web.Components.Modules
+
+@if (IsModal)
+{
+    @* حالت نمایش به صورت پنجره مودال مستقل جهت مشاهده موقعیت ورود و خروج کارمند *@
+    @if (ShowModal && AttendanceRecord != null)
+    {
+        bool isRtl = CurrentLanguage == "fa" || CurrentLanguage == "ar";
+        var inCoords = ParseCoordPair(AttendanceRecord.ClockInLocation);
+        var outCoords = ParseCoordPair(AttendanceRecord.ClockOutLocation);
+
+        <div style="position: fixed !important; inset: 0; background-color: rgba(0, 0, 0, 0.65); z-index: 999999 !important; display: flex; justify-content: center; align-items: center; padding: 15px;"
+             @onmousedown="CloseModalAsync">
+            <div class="modal-animation-fade bg-white rounded shadow-lg w-100"
+                 style="max-width: 540px; overflow: hidden; direction: @(isRtl ? "rtl" : "ltr"); text-align: @(isRtl ? "right" : "left");"
+                 @onclick:stopPropagation
+                 @onmousedown:stopPropagation>
+
+                @* هدر مودال نقشه تردد *@
+                <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3">
+                    <h6 class="m-0 fw-bold" style="font-size: 13px;">
+                        📍 @CalendarManager.Translate("PCal_Loc_AttMapModalTitle") - @EmployeeName
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModalAsync"></button>
+                </div>
+
+                @* بدنه مودال شامل مختصات ورود/خروج و نقشه تعاملی *@
+                <div class="p-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 small fw-bold">
+                        <span class="text-success">🟢 @CalendarManager.Translate("PCal_AdminPanel_LabelClockIn") @(AttendanceRecord.ClockInLocation ?? "-")</span>
+                        <span class="text-danger">🔴 @CalendarManager.Translate("PCal_AdminPanel_LabelClockOut") @(AttendanceRecord.ClockOutLocation ?? "-")</span>
+                    </div>
+
+                    <div id="@MapElementId" style="height: @Height; width: 100%; border-radius: 8px; border: 1px solid #ced4da; z-index: 1;"></div>
+
+                    <div class="mt-2 text-end">
+                        <button type="button" class="btn btn-secondary btn-sm fw-bold px-3" @onclick="CloseModalAsync">
+                            @CalendarManager.Translate("PCal_MainHome_CloseBtn")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+else
+{
+    @* حالت تعبیه مستقیم در فرم جهت انتخاب نقطه مرکزی و شعاع محدوده مجاز *@
+    <div class="w-100">
+        <div id="@MapElementId" style="height: @Height; width: 100%; border-radius: 8px; border: 1px solid #ced4da; z-index: 1;"></div>
+    </div>
+}

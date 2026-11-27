@@ -132,7 +132,7 @@
 
                                 <tr>
                                     <td class="align-middle">
-                                        <div class="avatar-wrapper" style="width:45px;height:45px; margin: 0 auto;">
+                                        <div class="avatar-wrapper" style="width:60px; height:60px; margin: 0 auto;">
                                             @if (!string.IsNullOrEmpty(emp.ImagePath))
                                             {
                                                 <img src="@emp.ImagePath" class="avatar-img border border-2 shadow-sm" />
@@ -189,8 +189,8 @@
 
                             <div class="col-md-6">
                                 <div class="card h-100 shadow-sm small">
-                                    <div class="card-body d-flex gap-2 align-items-center py-2 px-3">
-                                        <div class="avatar-wrapper-container" style="width:56px; position:relative;">
+                                    <div class="card-body d-flex gap-3 align-items-center py-2 px-3">
+                                        <div class="avatar-wrapper-container flex-shrink-0" style="width:66px; height:66px; position:relative;">
                                             @if (!string.IsNullOrEmpty(emp.ImagePath))
                                             {
                                                 <img src="@emp.ImagePath" class="avatar-img-md border" />
@@ -221,6 +221,7 @@
                     }
                 </div>
             </div>
+
             <!-- Mobile: stacked cards -->
             <div class="d-block d-md-none p-1">
                 @if (DisplayEmployees == null || !DisplayEmployees.Any())
@@ -236,8 +237,8 @@
                         bool isPresent = lastRecord != null && lastRecord.ClockOutTime == null;
 
                         <div class="card mb-2 shadow-sm">
-                            <div class="card-body d-flex align-items-center gap-2 py-2 px-3">
-                                <div class="avatar-wrapper-container" style="width:48px; position:relative;">
+                            <div class="card-body d-flex align-items-center gap-3 py-2 px-3">
+                                <div class="avatar-wrapper-container flex-shrink-0" style="width:58px; height:58px; position:relative;">
                                     @if (!string.IsNullOrEmpty(emp.ImagePath))
                                     {
                                         <img src="@emp.ImagePath" class="avatar-img-sm border" />
@@ -264,9 +265,9 @@
                             </div>
                         </div>
                     }
-
                 }
             </div>
+
         }
     </div>
 

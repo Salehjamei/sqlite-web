@@ -32,6 +32,12 @@ namespace sqlite_web.Migrations
                     b.Property<bool>("CanEditEmployee")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("CanManageLocations")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CanViewLocationMap")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("CurrentToken")
                         .HasColumnType("TEXT");
 
