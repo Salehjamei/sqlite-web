@@ -89,12 +89,26 @@
                                         bool hasActiveToken = !admin.IsTokenStopped && !string.IsNullOrEmpty(admin.CurrentToken);
 
                                         <tr>
-                                            @* ستون نام کاربری مدیر *@
+                                            @* ستون نام کاربری مدیر همراه با تصویر پروفایل مربع‌شکل *@
                                             <td style="text-align: @(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left"); padding-@(CurrentLanguage == "fa" || CurrentLanguage == "ar" ? "right" : "left"): 12px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                                <strong style="color: #212529;">
-                                                    @(admin.Username?.Length > 40 ? admin.Username.Substring(0, 37) + "..." : admin.Username)
-                                                </strong>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    @* نمایش تصویر پروفایل ادمین در صورت وجود، یا نمایش آواتار پیش‌فرض *@
+                                                    @if (!string.IsNullOrEmpty(admin.ImagePath))
+                                                    {
+                                                        <img src="@admin.ImagePath" alt="@admin.Username" style="width: 34px; height: 34px; object-fit: cover; border-radius: 7px; border: 1px solid #dee2e6; flex-shrink: 0;" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <div style="width: 34px; height: 34px; border-radius: 7px; background-color: #e9ecef; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;">🛡️</div>
+                                                    }
+
+                                                    @* نمایش نام کاربری مدیر با محدودیت حداکثر ۴۰ کاراکتر *@
+                                                    <strong style="color: #212529;">
+                                                        @(admin.Username?.Length > 40 ? admin.Username.Substring(0, 37) + "..." : admin.Username)
+                                                    </strong>
+                                                </div>
                                             </td>
+
 
                                             @* ستون نوع دسترسی (سوپر ادمین / مدیر محدود) *@
                                             <td>
@@ -232,32 +246,54 @@
                 </div>
             </div>
         </div>
-        @* 🔒 ۳. مودال فرم ثبت و ویرایش مجوزها *@
+        @* 🔒 ۳. مودال فرم ثبت و ویرایش مشخصات و سطوح دسترسی مدیران *@
         @if (showFormModal)
         {
             bool isModalRtl = CurrentLanguage == "fa" || CurrentLanguage == "ar";
 
-            @* بک‌دراپ تیره مهار کلیک بیرون: لمس این فضا مودال فرم را غیب می‌کند *@
+            @* بک‌دراپ تیره مهار کلیک بیرون: لمس این فضا مودال فرم را می‌بندد *@
             <div style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100% !important; height: 100vh !important; background-color: rgba(0, 0, 0, 0.6) !important; z-index: 2000 !important; display: flex !important; justify-content: center !important; align-items: center !important; padding: 15px !important;" @onclick="CloseFormModal">
 
-                @* بدنه سفید مودال: استاپ پروپاگیشن مانع از بسته شدن ناخواسته فرم هنگام تکمیل فیلدها می‌شود *@
-                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important; overflow: hidden;" @onclick:stopPropagation>
+                @* بدنه سفید مودال همراه با اسکرول داخلی جهت نمایش مناسب در صفحه‌های کوچک *@
+                <div class="modal-animation-fade" style="background: #ffffff !important; border-radius: 8px !important; width: 100% !important; max-width: 460px !important; max-height: 92vh !important; overflow-y: auto !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; display: flex !important; flex-direction: column !important;" @onclick:stopPropagation>
 
-                    <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3" style="direction: @(isModalRtl ? "rtl" : "ltr");">
+                    @* هدر مودال ثبت یا ویرایش ادمین *@
+                    <div class="bg-dark text-white d-flex justify-content-between align-items-center p-3 sticky-top" style="direction: @(isModalRtl ? "rtl" : "ltr");">
                         <h5 class="m-0" style="font-size: 14.5px; font-weight: bold;">
                             @(AdminState.IsEditMode ? CalendarManager.Translate("PCal_AdminModal_EditTitle") : CalendarManager.Translate("PCal_AdminModal_AddTitle"))
                         </h5>
                         <button type="button" class="btn-close btn-close-white" @onclick="CloseFormModal"></button>
                     </div>
 
+                    @* بدنه فرم اطلاعات هویتی، تصویر پروفایل و مجوزهای مدیریتی *@
                     <div class="p-3" style="direction: @(isModalRtl ? "rtl" : "ltr"); text-align: @(isModalRtl ? "right" : "left");">
                         <form @onsubmit="HandleSaveAdmin" @onsubmit:preventDefault>
 
+                            @* بخش انتخاب، آپلود و پیش‌نمایش مربع‌شکل تصویر پروفایل ادمین *@
+                            <div class="d-flex flex-column align-items-center mb-3 pb-2 border-bottom">
+                                <div style="width: 74px; height: 74px; border-radius: 12px; overflow: hidden; border: 2px solid #dee2e6; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.08);">
+                                    @if (!string.IsNullOrEmpty(AdminState.FormAdminImagePath))
+                                    {
+                                        <img src="@AdminState.FormAdminImagePath" alt="Admin Avatar" style="width: 100%; height: 100%; object-fit: cover;" />
+                                    }
+                                    else
+                                    {
+                                        <span style="font-size: 30px;">🛡️</span>
+                                    }
+                                </div>
+                                <label class="btn btn-xs btn-outline-secondary fw-bold mt-2 px-2 py-1" style="font-size: 10.5px; cursor: pointer;">
+                                    📷 @CalendarManager.Translate("EmpLabelUpload")
+                                    <InputFile OnChange="HandleAdminImageUpload" accept="image/*" style="display: none;" />
+                                </label>
+                            </div>
+
+                            @* فیلد نام کاربری مدیر *@
                             <div class="mb-2.5">
                                 <label class="form-label text-muted small mb-1">@CalendarManager.Translate("PCal_AdminModal_UsernameLabel")</label>
                                 <input type="text" @bind="AdminState.FormAdminUsername" class="form-control form-control-sm" style="font-size: 13px; font-family: Tahoma;" />
                             </div>
 
+                            @* فیلد رمز عبور مدیر *@
                             <div class="mb-2.5">
                                 <label class="form-label text-muted small mb-1">
                                     @CalendarManager.Translate("PCal_AdminModal_PasswordLabel")@(AdminState.IsEditMode ? CalendarManager.Translate("PCal_AdminModal_PasswordHint") : ":")
@@ -265,7 +301,7 @@
                                 <input type="password" @bind="AdminState.FormAdminPassword" class="form-control form-control-sm font-monospace" style="font-size: 13px;" placeholder="••••••••" />
                             </div>
 
-                            @* 👑 زون سوییچ سوپر ادمین متصل به سرویس مرکزی *@
+                            @* 👑 سوییچ اعطای دسترسی سوپر ادمین *@
                             <div class="form-check form-switch mb-3 mt-3 border-top pt-2">
                                 <input class="form-check-input" type="checkbox" id="flexSwitchSuper" @bind="AdminState.FormIsSuperAdmin" />
                                 <label class="form-check-label fw-bold text-danger small pr-2" for="flexSwitchSuper">@CalendarManager.Translate("PCal_AdminModal_SuperAdminLabel")</label>
@@ -315,6 +351,7 @@
                                 </div>
                             }
 
+                            @* دکمه‌های ثبت نهایی و انصراف *@
                             <div class="d-flex gap-2 mt-3 border-top pt-3">
                                 <button type="submit" class="btn @(AdminState.IsEditMode ? "btn-warning text-dark" : "btn-success") btn-sm flex-grow-1 fw-bold" style="font-size: 12px; height: 32px;">
                                     @CalendarManager.Translate("PCal_AdminModal_SaveBtn")
@@ -330,7 +367,6 @@
             </div>
         }
 
-    
         @* 🔒 پایان بلاک سوپر ادمین *@
     }
 </div> @* پایان کانتینر ریشه کامپوننت *@

@@ -12,9 +12,9 @@ namespace sqlite_web.Components.Pages.Admin
 {
     public partial class NotificationLogs : AppBaseComponent, IDisposable
     {
-        [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
-
+        // تزریق سرویس ایزوله مدیریت تاریخچه اعلانات سرور
+        [Inject] public NotificationLogService NotifLogSvc { get; set; } = default!;
         // لیست کل لاگ‌های واکشی شده از دیتابیس
         protected List<AdminNotificationLog> allLogs = new();
 
@@ -163,34 +163,6 @@ namespace sqlite_web.Components.Pages.Admin
             catch { }
             await InvokeAsync(StateHasChanged);
         }
-
-        // واکشی لاگ‌ها از سرور و علامت‌گذاری موارد خوانده‌نشده به عنوان خوانده‌شده
-        protected async Task LoadLogsAsync()
-        {
-            if (DbContext == null) return;
-            try
-            {
-                allLogs = await DbContext.AdminNotificationLogs
-                    .OrderByDescending(l => l.CreatedAt)
-                    .ToListAsync();
-
-                // علامت‌گذاری خودکار تمام اعلان‌های جدید به عنوان خوانده‌شده توسط سوپر ادمین
-                var unreadLogs = allLogs.Where(l => !l.IsReadBySuperAdmin).ToList();
-                if (unreadLogs.Any())
-                {
-                    foreach (var item in unreadLogs)
-                    {
-                        item.IsReadBySuperAdmin = true;
-                    }
-                    await DbContext.SaveChangesAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading notification logs: {ex.Message}");
-            }
-        }
-
         // بازسازی و ترجمه هوشمند متن هر اعلان به زبان فعلی سوپر ادمین
         protected string GetLocalizedLogMessage(AdminNotificationLog log)
         {
@@ -219,7 +191,49 @@ namespace sqlite_web.Components.Pages.Admin
             }
             return log.Message;
         }
+        // واکشی لاگ‌ها از سرویس مرکزی و علامت‌گذاری خودکار موارد خوانده‌نشده
+        protected async Task LoadLogsAsync()
+        {
+            allLogs = await NotifLogSvc.GetAndMarkAllAsReadAsync(
+                actorAdminId: AdminState.CurrentOnlineAdmin?.Id,
+                actorAdminUsername: AdminState.adminUsername,
+                currentLanguage: CurrentLanguage
+            );
+        }
 
+        // حذف تکی یک رکورد لاگ از طریق سرویس مرکزی اعلانات
+        protected async Task DeleteSingleLogAsync(int id)
+        {
+            bool deleted = await NotifLogSvc.DeleteSingleLogAsync(
+                logId: id,
+                actorAdminId: AdminState.CurrentOnlineAdmin?.Id,
+                actorAdminUsername: AdminState.adminUsername,
+                currentLanguage: CurrentLanguage
+            );
+
+            if (deleted)
+            {
+                var item = allLogs.FirstOrDefault(l => l.Id == id);
+                if (item != null) allLogs.Remove(item);
+            }
+        }
+
+        // پاکسازی کامل تاریخچه اعلانات از طریق سرویس مرکزی اعلانات
+        protected async Task ExecuteClearAllLogsAsync()
+        {
+            showClearConfirmModal = false;
+            bool cleared = await NotifLogSvc.ClearAllLogsAsync(
+                actorAdminId: AdminState.CurrentOnlineAdmin?.Id,
+                actorAdminUsername: AdminState.adminUsername,
+                currentLanguage: CurrentLanguage
+            );
+
+            if (cleared)
+            {
+                allLogs.Clear();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
 
         // تغییر دسته‌بندی اصلی و بازنشانی زیردسته
         protected void OnCategoryChanged(ChangeEventArgs e)
@@ -227,34 +241,64 @@ namespace sqlite_web.Components.Pages.Admin
             SelectedCategory = e.Value?.ToString() ?? "ALL";
             SelectedSubCategory = "ALL";
         }
-        // حذف تکی یک رکورد لاگ
-        protected async Task DeleteSingleLogAsync(int id)
-        {
-            if (DbContext == null) return;
-            var item = await DbContext.AdminNotificationLogs.FindAsync(id);
-            if (item != null)
-            {
-                DbContext.AdminNotificationLogs.Remove(item);
-                await DbContext.SaveChangesAsync();
-                allLogs.Remove(item);
-            }
-        }
-
-        // پاکسازی کامل تاریخچه اعلانات
-        protected async Task ExecuteClearAllLogsAsync()
-        {
-            showClearConfirmModal = false;
-            if (DbContext == null) return;
-
-            DbContext.AdminNotificationLogs.RemoveRange(DbContext.AdminNotificationLogs);
-            await DbContext.SaveChangesAsync();
-            allLogs.Clear();
-            await InvokeAsync(StateHasChanged);
-        }
-
         public void Dispose()
         {
             AdminState.OnChange -= HandleStateChanged;
         }
+        // پرچم کنترل وضعیت نمایش مودال نقشه موقعیت جغرافیایی در صفحه تاریخچه اعلانات
+        protected bool showLogMapModal { get; set; } = false;
+
+        // نگهداری شیء موقت تردد جهت ارسال مختصات استخراج‌شده از متن لاگ به ماژول نقشه
+        protected Attendance? logMapAttendance { get; set; }
+
+        // نگهداری نام کارمند یا عنوان رویداد جهت نمایش در هدر مودال نقشه
+        protected string logMapTitleName { get; set; } = string.Empty;
+
+        // بررسی اینکه آیا در متن پیام لاگ مختصات جغرافیایی به فرمت (lat, lng) وجود دارد یا خیر
+        protected bool HasLogCoordinates(AdminNotificationLog log)
+        {
+            if (log == null || log.Category != "Location" || string.IsNullOrWhiteSpace(log.Message))
+                return false;
+
+            return System.Text.RegularExpressions.Regex.IsMatch(log.Message, @"\(\s*-?\d+\.\d+\s*,\s*-?\d+\.\d+\s*\)");
+        }
+
+        // استخراج مختصات و نام مکان از متن لاگ اعلان و باز کردن مودال نقشه تعاملی
+        protected void OpenLogMapModal(AdminNotificationLog log)
+        {
+            if (log == null || string.IsNullOrWhiteSpace(log.Message)) return;
+
+            // استخراج رشته مختصات داخل پرانتز از متن پیام لاگ
+            var coordMatch = System.Text.RegularExpressions.Regex.Match(log.Message, @"\(\s*(-?\d+\.\d+\s*,\s*-?\d+\.\d+)\s*\)");
+            if (!coordMatch.Success) return;
+
+            string extractedCoords = coordMatch.Groups[1].Value;
+
+            // استخراج نام مکان داخل گیومه «...» از متن پیام در صورت وجود
+            string? extractedLocName = null;
+            var locNameMatch = System.Text.RegularExpressions.Regex.Match(log.Message, @"«([^»]+)»");
+            if (locNameMatch.Success)
+            {
+                extractedLocName = locNameMatch.Groups[1].Value;
+            }
+
+            // ساخت یک شیء موقت Attendance برای نمایش در ماژول استاندارد InteractiveMap
+            logMapAttendance = new Attendance
+            {
+                Id = log.Id,
+                ClockInTime = log.CreatedAt,
+                ClockInLocation = extractedCoords,
+                LocationName = extractedLocName,
+                EntrySource = log.SubCategory == "AdminLocation" ? "AdminFast" : "Kiosk",
+                CreatedByAdminId = log.SubCategory == "AdminLocation" ? log.AdminId : null
+            };
+
+            logMapTitleName = !string.IsNullOrWhiteSpace(log.EmployeeFullName) && log.EmployeeFullName != "-"
+                ? log.EmployeeFullName
+                : log.AdminUsername;
+
+            showLogMapModal = true;
+        }
+
     }
 }

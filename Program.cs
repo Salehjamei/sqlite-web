@@ -28,6 +28,10 @@ builder.Services.AddScoped<sqlite_web.Services.PersonnelService>();
 
 // فعال‌سازی سرویس پس‌زمینه جهت پایش دقیقه‌ای و ثبت خروج خودکار در ساعت 23:59
 builder.Services.AddHostedService<sqlite_web.Services.SPNBackgroundService>();
+// ثبت سرویس متمرکز فشرده‌سازی و ذخیره‌سازی تصاویر پرسنل و مدیران
+builder.Services.AddScoped<sqlite_web.Services.ImageStorageService>();
+// ثبت سرویس مرکزی و ایزوله مدیریت تاریخچه اعلانات سرور
+builder.Services.AddScoped<sqlite_web.Services.NotificationLogService>();
 // ثبت سرویس مرکزی ثبت خطاهای سیستمی و سروری در جدول اعلانات
 builder.Services.AddSingleton<sqlite_web.Services.SystemErrorLoggerService>();
 

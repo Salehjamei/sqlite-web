@@ -24,11 +24,44 @@
                     <button type="button" class="btn-close btn-close-white" @onclick="CloseModalAsync"></button>
                 </div>
 
-                @* بدنه مودال شامل مختصات ورود/خروج و نقشه تعاملی *@
+                @* بدنه مودال شامل مختصات و مشخصات ثبت‌کننده ورود/خروج و نقشه تعاملی *@
                 <div class="p-3">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 small fw-bold">
-                        <span class="text-success">🟢 @CalendarManager.Translate("PCal_AdminPanel_LabelClockIn") @(AttendanceRecord.ClockInLocation ?? "-")</span>
-                        <span class="text-danger">🔴 @CalendarManager.Translate("PCal_AdminPanel_LabelClockOut") @(AttendanceRecord.ClockOutLocation ?? "-")</span>
+                    <div class="d-flex flex-column gap-1 mb-2 p-2 bg-light border rounded small fw-bold">
+                        @* ردیف مشخصات و مختصات ورود *@
+                        <div class="d-flex flex-wrap justify-content-between align-items-center">
+                            <span class="text-success">
+                                🟢 @CalendarManager.Translate("PCal_AdminPanel_LabelClockIn") @(AttendanceRecord.ClockInTime?.ToString("HH:mm") ?? "-")
+                                <span class="badge bg-secondary ms-1" style="font-size: 9px;">@GetClockInActorText()</span>
+                            </span>
+                            <span class="text-muted font-monospace" style="direction: ltr; font-size: 11px;">
+                                @(string.IsNullOrWhiteSpace(AttendanceRecord.ClockInLocation) ? "-" : AttendanceRecord.ClockInLocation)
+                            </span>
+                        </div>
+
+                        @* ردیف مشخصات و مختصات خروج (با تشخیص خروج خودکار سیستم در 23:59) *@
+                        <div class="d-flex flex-wrap justify-content-between align-items-center border-top pt-1">
+                            <span class="text-danger">
+                                🔴 @CalendarManager.Translate("PCal_AdminPanel_LabelClockOut") @(AttendanceRecord.ClockOutTime?.ToString("HH:mm") ?? "-")
+                                @if (AttendanceRecord.ClockOutTime.HasValue)
+                                {
+                                    <span class="badge bg-dark text-warning ms-1" style="font-size: 9px;">@GetClockOutActorText()</span>
+                                }
+                            </span>
+                            <span class="text-muted font-monospace" style="direction: ltr; font-size: 11px;">
+                                @if (!string.IsNullOrWhiteSpace(AttendanceRecord.ClockOutLocation))
+                                {
+                                    @AttendanceRecord.ClockOutLocation
+                                }
+                                else if (AttendanceRecord.EntrySource == "AutoClose" || AttendanceRecord.ClockOutTime?.ToString("HH:mm") == "23:59")
+                                {
+                                    <span class="badge bg-warning text-dark" style="font-size: 9.5px;">🤖 @CalendarManager.Translate("PCal_MainHome_SourceAuto") (23:59)</span>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </span>
+                        </div>
                     </div>
 
                     <div id="@MapElementId" style="height: @Height; width: 100%; border-radius: 8px; border: 1px solid #ced4da; z-index: 1;"></div>
@@ -39,6 +72,7 @@
                         </button>
                     </div>
                 </div>
+
             </div>
         </div>
     }

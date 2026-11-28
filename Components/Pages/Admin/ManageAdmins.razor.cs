@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using sqlite_web.Components.Models;
 using sqlite_web.Components.Models.Admin;
 using sqlite_web.Services;
@@ -216,10 +217,22 @@ namespace sqlite_web.Components.Pages.Admin
             CloseAllMobileDropdowns();
             showFormModal = true;
         }
-
-        /// <summary>
+        // ارسال فایل تصویر انتخاب‌شده به سرویس مدیریت ادمین‌ها جهت ذخیره در سرور
+        protected async Task HandleAdminImageUpload(InputFileChangeEventArgs e)
+        {
+            var result = await AdminState.UploadAdminAvatarAsync(e.File);
+            if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+            {
+                TriggerToast(
+                    category: "ManageAdmins",
+                    subCategory: "Validation",
+                    messageKey: "PCal_AdminPanel_ImageUploadError",
+                    args: new object[] { result.ErrorMessage },
+                    isError: true
+                );
+            }
+        }
         /// آماده‌سازی پنجره مودال تاییدیه حذف مدیر
-        /// </summary>
         protected void TriggerDeleteAdmin(int id, string name)
         {
             if (AdminState.CurrentOnlineAdmin?.Id == id) return;
@@ -228,10 +241,7 @@ namespace sqlite_web.Components.Pages.Admin
             CloseAllMobileDropdowns();
             showDeleteModal = true;
         }
-
-        /// <summary>
-        /// اجرای حذف قطعی مدیر و صدور اعلان شیشه‌ای چندزبانه همراه با ثبت در تاریخچه سرور
-        /// </summary>
+        /// اجرای حذف قطعی مدیر و صدور اعلان شیشه‌ای چندزبانه همراه با ثبت در تاریخچه سرور     
         protected async Task ExecuteConfirmedAdminDelete()
         {
             showDeleteModal = false;

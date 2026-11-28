@@ -9,15 +9,16 @@ using sqlite_web.Components.Models.Admin;
 
 namespace sqlite_web.Services
 {
-    /// <summary>
     /// سرویس متمرکز مدیریت وضعیت، سطوح دسترسی و عملیات دیتابیسی مدیران سیستم
-    /// </summary>
     public class AdminStateService
     {
         private readonly AppDbContext _dbContext;
         private readonly IJSRuntime _jsRuntime;
         private readonly NavigationManager _navigationManager;
         private readonly SystemErrorLoggerService _errorLogger;
+        // مسیر تصویر پروفایل انتخاب‌شده در فرم ثبت یا ویرایش ادمین
+        public string? FormAdminImagePath { get; set; }
+
         // 🔘 شیء زنده ادمین آنلاین واکشی شده از دیتابیس
         public AdminUser? CurrentOnlineAdmin { get; private set; }
 
@@ -51,13 +52,15 @@ namespace sqlite_web.Services
         // 🌟 فیلد ذخیره زنده تنظیمات کاری واکشی شده از سرور
         public WorkSettings CurrentSettings { get; set; } = new();
         private int? _editingAdminId = null;
+        private readonly ImageStorageService _imageStorage;
 
-        public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime, NavigationManager navigationManager, SystemErrorLoggerService errorLogger)
+        public AdminStateService(AppDbContext dbContext, IJSRuntime jsRuntime, NavigationManager navigationManager, SystemErrorLoggerService errorLogger, ImageStorageService imageStorage)
         {
             _dbContext = dbContext;
             _jsRuntime = jsRuntime;
             _navigationManager = navigationManager;
             _errorLogger = errorLogger;
+            _imageStorage = imageStorage;
         }
 
         public void RedirectToLogin() => _navigationManager.NavigateTo("/login", forceLoad: false);
@@ -322,8 +325,6 @@ namespace sqlite_web.Services
                 return false;
             }
         }
-
-
         /// متد خروج مرکزی سیستم، ابطال همزمان سشن و ثبت رویداد خروج در تاریخچه اعلانات
         public async Task LogoutAsync()
         {
@@ -363,8 +364,6 @@ namespace sqlite_web.Services
             NotifyStateChanged();
             _navigationManager.NavigateTo("/login", forceLoad: true);
         }
-
-
         public async Task LoadAdminsDataAsync()
         {
             if (_dbContext != null)
@@ -402,7 +401,7 @@ namespace sqlite_web.Services
                 if (existingAdmin != null)
                 {
                     bool finalSuperAdminStatus = FormIsSuperAdmin;
-
+                    existingAdmin.ImagePath = FormAdminImagePath;
                     // بررسی جلوگیری از حذف رتبه سوپر ادمین در صورتی که تنها یک سوپر ادمین در کل سیستم وجود دارد
                     if (!FormIsSuperAdmin && existingAdmin.IsSuperAdmin)
                     {
@@ -446,7 +445,11 @@ namespace sqlite_web.Services
                     CanEditEmployee = FormCanEdit,
                     CanDeleteEmployee = FormCanDelete,
                     CanViewLocationMap = FormCanViewLocationMap,
-                    CanManageLocations = FormCanManageLocations
+                    CanManageLocations = FormCanManageLocations,
+                    ImagePath = FormAdminImagePath,
+                    CreatedAt = DateTime.Now,
+                    CreatedByAdminId = CurrentOnlineAdmin?.Id
+
                 });
             }
 
@@ -456,6 +459,37 @@ namespace sqlite_web.Services
             ClearForm();
             FeedbackMessage = pCal.Translate("PCal_ManageAdmins_SaveSuccess");
             return true;
+        }
+        // ذخیره ایمن فایل تصویر پروفایل ادمین در پوشه wwwroot/uploads/admins و پاکسازی تصویر قدیمی هنگام جایگزینی
+        // ذخیره تصویر پروفایل ادمین با استفاده از سرویس متمرکز ImageStorageService
+        public async Task<(bool Success, string ErrorMessage)> UploadAdminAvatarAsync(Microsoft.AspNetCore.Components.Forms.IBrowserFile? file)
+        {
+            string currentLang = "fa";
+            try
+            {
+                var storedLang = await _jsRuntime.InvokeAsync<string>("localStorage.getItem", "SystemLanguageSetting");
+                if (!string.IsNullOrWhiteSpace(storedLang)) currentLang = storedLang.Trim('"');
+            }
+            catch { }
+
+            var result = await _imageStorage.SaveCompressedImageAsync(
+                file: file,
+                subFolder: "admins",
+                filePrefix: "admin",
+                previousImageUrl: FormAdminImagePath,
+                currentLanguage: currentLang,
+                actorAdminId: CurrentOnlineAdmin?.Id,
+                actorAdminUsername: adminUsername
+            );
+
+            if (result.Success)
+            {
+                FormAdminImagePath = result.ImageUrl;
+                NotifyStateChanged();
+                return (true, string.Empty);
+            }
+
+            return (false, result.ErrorMessage);
         }
 
 
@@ -501,6 +535,7 @@ namespace sqlite_web.Services
             _editingAdminId = admin.Id;
             FormAdminUsername = admin.Username;
             FormAdminPassword = admin.Password;
+            FormAdminImagePath = admin.ImagePath;
             FormIsSuperAdmin = admin.IsSuperAdmin;
             FormCanAdd = admin.CanAddEmployee;
             FormCanEdit = admin.CanEditEmployee;
@@ -516,21 +551,33 @@ namespace sqlite_web.Services
             ClearForm();
             NotifyStateChanged();
         }
+        // حذف حساب کاربری مدیر غیر ارشد از دیتابیس به همراه پاکسازی فیزیکی تصویر پروفایل او از دیسک سرور
         public async Task DeleteAdminAsync(int id)
         {
-            // ۱. محافظت اول: ادمین جاری سیستم نباید بتواند خودش را حذف کند
+            // ۱. محافظت اول: ادمین جاری سیستم نباید بتواند حساب کاربری خودش را حذف کند
             if (_dbContext == null || (CurrentOnlineAdmin != null && CurrentOnlineAdmin.Id == id)) return;
 
+            // واکشی رکورد مدیر هدف از جدول ادمین‌ها
             var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.Id == id);
 
-            // ۲. محافظت دوم: جایگزینی "admintop" با شرط ساختاری (هیچ سوپر ادمینی نباید حذف شود)
+            // ۲. محافظت دوم: هیچ سوپر ادمینی نباید از سیستم حذف شود
             if (admin != null && !admin.IsSuperAdmin)
             {
+                // نگهداری مسیر تصویر پروفایل مدیر جهت حذف فیزیکی پس از پاک شدن رکورد از دیتابیس
+                string? adminImageToDelete = admin.ImagePath;
+
+                // حذف رکورد مدیر از دیتابیس و ثبت نهایی تغییرات
                 _dbContext.Admins.Remove(admin);
                 await _dbContext.SaveChangesAsync();
+
+                // حذف فایل تصویر پروفایل مدیر از پوشه wwwroot/uploads/admins
+                _imageStorage.DeleteImageFile(adminImageToDelete);
             }
+
+            // بارگذاری مجدد لیست مدیران جهت به‌روزرسانی جدول رابط کاربری
             await LoadAdminsDataAsync();
         }
+
 
         private void ClearForm()
         {
@@ -541,6 +588,7 @@ namespace sqlite_web.Services
             FormCanEdit = false;
             FormCanDelete = false;
             _editingAdminId = null;
+            FormAdminImagePath = null;
             FormCanViewLocationMap = false;
             FormCanManageLocations = false;
         }
@@ -556,9 +604,7 @@ namespace sqlite_web.Services
             IsAuthorized = false;
             _hasLoggedOnlineSession = false;
         }
-        /// <summary>
         /// متد آسنکرون بارگذاری یا ساخت پیش‌فرض تنظیمات کاری از بانک اطلاعاتی SQLite با ایمنی کامل
-        /// </summary>
         public async Task LoadWorkSettingsAsync()
         {
             if (_dbContext == null) return;
@@ -599,10 +645,7 @@ namespace sqlite_web.Services
                 NotifyStateChanged();
             }
         }
-
-        /// <summary>
         /// متد به روزرسانی پویا پارامترهای محاسباتی و قوانین خروج خودکار توسط سوپر ادمین ارشد
-        /// </summary>
         public async Task<bool> SaveWorkSettingsAsync(string startTime, string endTime, List<string> offDays)
         {
             if (_dbContext == null) return false;

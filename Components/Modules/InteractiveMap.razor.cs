@@ -15,6 +15,8 @@ namespace sqlite_web.Components.Modules
         [Inject] public IJSRuntime JSRuntime { get; set; } = default!;
         [Inject] public SystemErrorLoggerService ErrorLogger { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
+        // تزریق سرویس مرکزی مدیریت موقعیت جغرافیایی و مکان‌های مجاز
+        [Inject] public GeoLocationService GeoService { get; set; } = default!;
 
         [Parameter] public string MapElementId { get; set; } = $"spn_map_{Guid.NewGuid():N}";
         [Parameter] public string Height { get; set; } = "230px";
@@ -106,25 +108,129 @@ namespace sqlite_web.Components.Modules
             }
         }
 
-        // رسم نقاط ورود (سبز) و خروج (قرمز) کارمند درون مودال نقشه
+        // استخراج نام انجام‌دهنده و نوع عملیات برای ثبت ورود جهت نمایش در مودال و پاپ‌آپ نقشه
+        protected string GetClockInActorText()
+        {
+            // اگر رکورد تردد انتخاب نشده باشد، رشته خالی برگردانده می‌شود
+            if (AttendanceRecord == null) return string.Empty;
+
+            // نگهداری نام کاربری ادمین ثبت‌کننده ورود در صورت وجود
+            string adminName = string.Empty;
+
+            // بررسی اینکه آیا ثبت ورود توسط یک ادمین انجام شده است یا خیر
+            if (AttendanceRecord.CreatedByAdminId.HasValue)
+            {
+                // جستجوی مشخصات ادمین ثبت‌کننده در لیست مدیران بارگذاری‌شده سیستم
+                var admin = AdminState.AdminList?.FirstOrDefault(a => a.Id == AttendanceRecord.CreatedByAdminId.Value);
+
+                // استخراج نام کاربری ادمین از لیست، یا از نشست آنلاین فعلی و یا نمایش شناسه عددی او در صورت نبود نام
+                adminName = admin?.Username ?? (AdminState.CurrentOnlineAdmin?.Id == AttendanceRecord.CreatedByAdminId.Value
+                    ? AdminState.CurrentOnlineAdmin.Username
+                    : $"Admin #{AttendanceRecord.CreatedByAdminId}");
+            }
+
+            // بازگرداندن برچسب «ثبت سریع» همراه با نام ادمین در صورت ثبت سریع از پنل مدیریت
+            if (AttendanceRecord.EntrySource == "AdminFast")
+                return $"{CalendarManager.Translate("PCal_MainHome_SourceFast")} ({adminName})";
+
+            // بازگرداندن برچسب «ثبت دستی» همراه با نام ادمین در صورت ورود دستی از کارنامه
+            if (AttendanceRecord.EntrySource == "AdminManual")
+                return $"{CalendarManager.Translate("PCal_MainHome_SourceManual")} ({adminName})";
+
+            // استخراج نام مکان مجاز در صورت ثبت شدن تردد در محدوده یک مکان تعریف‌شده
+            string loc = !string.IsNullOrWhiteSpace(AttendanceRecord.LocationName) ? $" - {AttendanceRecord.LocationName}" : "";
+
+            // بازگرداندن برچسب «دستگاه کیوسک» همراه با نام مکان مجاز به عنوان حالت پیش‌فرض
+            return $"{CalendarManager.Translate("PCal_MainHome_SourceKiosk")}{loc}";
+        }
+
+        // استخراج نام انجام‌دهنده و نوع عملیات برای ثبت خروج جهت نمایش در مودال و پاپ‌آپ نقشه
+        protected string GetClockOutActorText()
+        {
+            // اگر رکورد تردد وجود نداشته باشد یا هنوز خروج برای آن ثبت نشده باشد، رشته خالی برمی‌گردد
+            if (AttendanceRecord == null || !AttendanceRecord.ClockOutTime.HasValue) return string.Empty;
+
+            // تشخیص بسته شدن خودکار تردد توسط سرویس پس‌زمینه سیستم در ساعت 23:59
+            if (AttendanceRecord.EntrySource == "AutoClose" || AttendanceRecord.ClockOutTime.Value.ToString("HH:mm") == "23:59")
+                return CalendarManager.Translate("PCal_MainHome_SourceAuto");
+
+            // دریافت شناسه آخرین ادمین ویرایش‌کننده یا ادمین ثبت‌کننده برای خروج‌های مدیریتی
+            int? actorId = AttendanceRecord.LastModifiedByAdminId ?? AttendanceRecord.CreatedByAdminId;
+            if (actorId.HasValue)
+            {
+                // جستجوی مشخصات ادمین انجام‌دهنده در لیست مدیران سیستم
+                var admin = AdminState.AdminList?.FirstOrDefault(a => a.Id == actorId.Value);
+
+                // استخراج نام کاربری ادمین از لیست، یا نشست آنلاین فعلی و یا نمایش شناسه عددی او
+                string adminName = admin?.Username ?? (AdminState.CurrentOnlineAdmin?.Id == actorId.Value
+                    ? AdminState.CurrentOnlineAdmin.Username
+                    : $"Admin #{actorId}");
+
+                // تعیین عنوان نوع عملیات خروج (ثبت دستی یا ثبت سریع ادمین)
+                string sourceLabel = AttendanceRecord.EntrySource == "AdminManual"
+                    ? CalendarManager.Translate("PCal_MainHome_SourceManual")
+                    : CalendarManager.Translate("PCal_MainHome_SourceFast");
+
+                // بازگرداندن نوع عملیات خروج به همراه نام کاربری ادمین انجام‌دهنده
+                return $"{sourceLabel} ({adminName})";
+            }
+
+            // استخراج نام مکان مجاز ثبت‌شده در صورت خروج عادی از طریق دستگاه کیوسک
+            string loc = !string.IsNullOrWhiteSpace(AttendanceRecord.LocationName) ? $" - {AttendanceRecord.LocationName}" : "";
+
+            // بازگرداندن برچسب «دستگاه کیوسک» به همراه نام مکان مجاز
+            return $"{CalendarManager.Translate("PCal_MainHome_SourceKiosk")}{loc}";
+        }
+
+        // رسم نقاط ورود (پین سبز)، خروج (پین قرمز) و دایره شعاع مجاز مکان درون مودال نقشه
         private async Task RenderAttendanceViewMapAsync()
         {
+            // توقف اجرا در صورت تهی بودن رکورد تردد انتخاب‌شده
             if (AttendanceRecord == null) return;
 
             try
             {
+                // تجزیه رشته‌های مختصات جغرافیایی ورود و خروج به مقادیر عددی عرض و طول جغرافیایی
                 var inCoords = ParseCoordPair(AttendanceRecord.ClockInLocation);
                 var outCoords = ParseCoordPair(AttendanceRecord.ClockOutLocation);
 
-                string inLabel = $"🟢 {CalendarManager.Translate("PCal_AdminPanel_LabelClockIn")} {AttendanceRecord.ClockInTime?.ToString("HH:mm")}";
-                string outLabel = $"🔴 {CalendarManager.Translate("PCal_AdminPanel_LabelClockOut")} {AttendanceRecord.ClockOutTime?.ToString("HH:mm")}";
+                // واکشی اطلاعات مرکز و شعاع مجاز مکان ثبت‌شده از طریق سرویس GeoLocationService
+                double? locLat = null;
+                double? locLng = null;
+                int locRadius = 0;
 
+                if (!string.IsNullOrWhiteSpace(AttendanceRecord.LocationName))
+                {
+                    var matchedLoc = await GeoService.GetAllowedLocationByNameAsync(AttendanceRecord.LocationName);
+                    if (matchedLoc != null)
+                    {
+                        locLat = matchedLoc.Latitude;
+                        locLng = matchedLoc.Longitude;
+                        locRadius = matchedLoc.RadiusMeters;
+                    }
+                }
+
+                // ساخت محتوای HTML پاپ‌آپ پین سبز ورود شامل ساعت و مشخصات انجام‌دهنده
+                string inLabel = $"<div style='text-align:center; font-family:Tahoma; font-size:11px;'><b>🟢 {CalendarManager.Translate("PCal_AdminPanel_LabelClockIn")} {AttendanceRecord.ClockInTime?.ToString("HH:mm")}</b><br/><span style='color:#555;'>{GetClockInActorText()}</span></div>";
+
+                // ساخت محتوای HTML پاپ‌آپ پین قرمز خروج شامل ساعت و مشخصات انجام‌دهنده
+                string outLabel = $"<div style='text-align:center; font-family:Tahoma; font-size:11px;'><b>🔴 {CalendarManager.Translate("PCal_AdminPanel_LabelClockOut")} {AttendanceRecord.ClockOutTime?.ToString("HH:mm")}</b><br/><span style='color:#555;'>{GetClockOutActorText()}</span></div>";
+
+                // فراخوانی تابع جاوااسکریپت جهت ترسیم نقشه، دایره شعاع مجاز مکان و پین‌های ورود و خروج
                 await JSRuntime.InvokeVoidAsync("spnMapManager.initAttendanceViewMap",
-                    MapElementId, inCoords.lat, inCoords.lng, outCoords.lat, outCoords.lng, inLabel, outLabel);
+                    MapElementId,
+                    inCoords.lat, inCoords.lng,
+                    outCoords.lat, outCoords.lng,
+                    inLabel, outLabel,
+                    locLat, locLng, locRadius, AttendanceRecord.LocationName);
             }
-            catch (JSDisconnectedException) { }
+            catch (JSDisconnectedException)
+            {
+                // نادیده گرفتن خطای قطع ارتباط طبیعی مرورگر هنگام بستن یا رفرش صفحه
+            }
             catch (Exception ex)
             {
+                // ثبت جزئیات خطای فنی رسم نقشه تردد در تاریخچه اعلانات سوپر ادمین
                 await ErrorLogger.LogBackendErrorAsync("InteractiveMap.RenderAttendanceViewMap", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername);
             }
         }

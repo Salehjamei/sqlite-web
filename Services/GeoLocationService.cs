@@ -4,11 +4,13 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 using sqlite_web.Components.Models;
 
 namespace sqlite_web.Services
 {
+    // مدل نگهداری نتیجه دریافت مختصات جغرافیایی از مرورگر دستگاه
     public class DeviceLocationResult
     {
         public bool Success { get; set; }
@@ -16,11 +18,14 @@ namespace sqlite_web.Services
         public double Longitude { get; set; }
         public double Accuracy { get; set; }
         public string ErrorCode { get; set; } = string.Empty;
+
+        // تولید رشته استاندارد مختصات با فرمت انگلیسی جهت ذخیره در دیتابیس
         public string FormattedCoordinates => Success
             ? $"{Latitude.ToString("F6", CultureInfo.InvariantCulture)}, {Longitude.ToString("F6", CultureInfo.InvariantCulture)}"
             : string.Empty;
     }
 
+    // مدل نگهداری نتیجه اعتبارسنجی موقعیت مکانی پرسنل نسبت به محدوده‌های مجاز
     public class LocationValidationResult
     {
         public bool IsAllowed { get; set; }
@@ -31,16 +36,19 @@ namespace sqlite_web.Services
     }
 
     /// <summary>
-    /// سرویس مرکزی دریافت GPS دستگاه، محاسبه فاصله جغرافیایی و اعتبارسنجی محدوده مجاز بر اساس دسته‌بندی پرسنل
+    /// سرویس مرکزی دریافت GPS دستگاه، محاسبه فاصله جغرافیایی، مدیریت مکان‌ها و اعتبارسنجی محدوده مجاز پرسنل
     /// </summary>
     public class GeoLocationService
     {
-        private readonly AppDbContext _dbContext;
+        // تزریق کارخانه ساخت اسکوپ دیتابیس جهت اجرای ایزوله کوئری‌ها بدون تداخل DbContext
+        private readonly IServiceScopeFactory _scopeFactory;
+
+        // تزریق سرویس ارتباط با جاوااسکریپت مرورگر جهت خواندن GPS دستگاه
         private readonly IJSRuntime _jsRuntime;
 
-        public GeoLocationService(AppDbContext dbContext, IJSRuntime jsRuntime)
+        public GeoLocationService(IServiceScopeFactory scopeFactory, IJSRuntime jsRuntime)
         {
-            _dbContext = dbContext;
+            _scopeFactory = scopeFactory;
             _jsRuntime = jsRuntime;
         }
 
@@ -61,7 +69,7 @@ namespace sqlite_web.Services
         // محاسبه فاصله دقیق بین دو نقطه جغرافیایی بر حسب متر (فرمول استاندارد Haversine)
         public double CalculateDistanceMeters(double lat1, double lon1, double lat2, double lon2)
         {
-            const double R = 6371000; // شعاع کره زمین به متر
+            const double R = 6371000;
             double dLat = (lat2 - lat1) * Math.PI / 180.0;
             double dLon = (lon2 - lon1) * Math.PI / 180.0;
 
@@ -76,14 +84,17 @@ namespace sqlite_web.Services
         // بررسی مجاز بودن تردد کارمند در موقعیت فعلی با توجه به مکان‌های فعال و دسته‌بندی سه‌سطحی کارمند
         public async Task<LocationValidationResult> ValidateEmployeeLocationAsync(Employee? employee)
         {
-            var activeLocations = await _dbContext.AllowedLocations
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var activeLocations = await db.AllowedLocations
                 .AsNoTracking()
                 .Where(l => l.IsActive)
                 .ToListAsync();
 
-            // اگر هیچ مکان مجازی در سیستم تعریف نشده باشد، دریافت مختصات جهت لاگ انجام می‌شود اما مانع تردد نمی‌شود
             var deviceLoc = await GetCurrentDeviceLocationAsync();
 
+            // اگر هیچ مکان مجازی تعریف نشده باشد، تردد آزاد است و فقط مختصات ثبت می‌شود
             if (!activeLocations.Any())
             {
                 return new LocationValidationResult
@@ -94,7 +105,7 @@ namespace sqlite_web.Services
                 };
             }
 
-            // در صورت فعال بودن مکان‌های مجاز، دریافت موقعیت دستگاه اجباری است
+            // در صورت وجود مکان مجاز فعال، دریافت موقعیت دستگاه اجباری است
             if (!deviceLoc.Success)
             {
                 return new LocationValidationResult
@@ -123,6 +134,7 @@ namespace sqlite_web.Services
                 };
             }
 
+            // محاسبه فاصله کارمند تا نزدیک‌ترین مکان مجاز و بررسی قرارگیری درون دایره شعاع
             double minDistance = double.MaxValue;
             foreach (var loc in eligibleLocations)
             {
@@ -162,13 +174,16 @@ namespace sqlite_web.Services
         {
             try
             {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
                 var pCal = new sqlite_web.Components.Models.Calendar.PCalendar { CurrentLanguage = "fa" };
                 var template = pCal.Translate(messageKey);
                 var formattedMsg = (args != null && args.Length > 0) ? string.Format(template, args) : template;
                 var cleanMsg = System.Text.RegularExpressions.Regex.Replace(formattedMsg, "<.*?>", string.Empty);
                 var now = DateTime.Now;
 
-                _dbContext.AdminNotificationLogs.Add(new AdminNotificationLog
+                db.AdminNotificationLogs.Add(new AdminNotificationLog
                 {
                     Category = "Location",
                     SubCategory = subCategory,
@@ -189,9 +204,141 @@ namespace sqlite_web.Services
                     EmployeePhone = targetEmp?.Phone ?? "-"
                 });
 
-                await _dbContext.SaveChangesAsync();
+                await db.SaveChangesAsync();
             }
             catch { }
+        }
+
+        // واکشی اطلاعات مرکز و شعاع مجاز یک مکان از دیتابیس بر اساس نام ثبت‌شده در رکورد تردد
+        public async Task<AllowedLocation?> GetAllowedLocationByNameAsync(string? locationName)
+        {
+            if (string.IsNullOrWhiteSpace(locationName)) return null;
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            return await db.AllowedLocations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(l => l.Name == locationName);
+        }
+
+        // واکشی لیست کامل مکان‌های جغرافیایی مجاز همراه با اطلاعات دسته‌بندی‌های متصل به صورت ایزوله
+        public async Task<List<AllowedLocation>> GetAllAllowedLocationsAsync()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            return await db.AllowedLocations
+                .Include(l => l.AllowedMainCategory)
+                .Include(l => l.AllowedSubCategory1)
+                .Include(l => l.AllowedSubCategory2)
+                .AsNoTracking()
+                .OrderByDescending(l => l.Id)
+                .ToListAsync();
+        }
+
+        // افزودن دسته‌بندی جدید در یکی از سه سطح درخت دسته‌بندی پرسنل به صورت ایزوله
+        public async Task AddPersonnelCategoryAsync(string title, int level, int? parentId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            db.PersonelCategorys.Add(new PersonnelCategory
+            {
+                Title = title,
+                Level = level,
+                ParentId = parentId
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // ذخیره مکان مجاز جدید یا ویرایش مشخصات مکان موجود در دیتابیس به صورت ایزوله
+        public async Task<bool> SaveOrUpdateAllowedLocationAsync(
+            int? editingId,
+            string name,
+            double latitude,
+            double longitude,
+            int radiusMeters,
+            bool isActive,
+            int? mainCatId,
+            int? sub1CatId,
+            int? sub2CatId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            if (editingId.HasValue && editingId.Value > 0)
+            {
+                var existing = await db.AllowedLocations.FirstOrDefaultAsync(l => l.Id == editingId.Value);
+                if (existing == null) return false;
+
+                existing.Name = name;
+                existing.Latitude = latitude;
+                existing.Longitude = longitude;
+                existing.RadiusMeters = radiusMeters;
+                existing.IsActive = isActive;
+                existing.AllowedMainCategoryId = mainCatId;
+                existing.AllowedSubCategory1Id = sub1CatId;
+                existing.AllowedSubCategory2Id = sub2CatId;
+
+                db.AllowedLocations.Update(existing);
+            }
+            else
+            {
+                db.AllowedLocations.Add(new AllowedLocation
+                {
+                    Name = name,
+                    Latitude = latitude,
+                    Longitude = longitude,
+                    RadiusMeters = radiusMeters,
+                    IsActive = isActive,
+                    AllowedMainCategoryId = mainCatId,
+                    AllowedSubCategory1Id = sub1CatId,
+                    AllowedSubCategory2Id = sub2CatId
+                });
+            }
+
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        // حذف قطعی یک مکان مجاز از دیتابیس به صورت ایزوله
+        public async Task<bool> DeleteAllowedLocationAsync(int locationId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var loc = await db.AllowedLocations.FirstOrDefaultAsync(l => l.Id == locationId);
+            if (loc == null) return false;
+
+            db.AllowedLocations.Remove(loc);
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        // حذف قطعی یک دسته‌بندی و پاکسازی ارجاع‌های آن از پرونده‌های پرسنل مرتبط به صورت ایزوله
+        public async Task<bool> DeletePersonnelCategoryAsync(int categoryId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var cat = await db.PersonelCategorys.FirstOrDefaultAsync(c => c.Id == categoryId);
+            if (cat == null) return false;
+
+            var relatedEmps = await db.Employees
+                .Where(e => e.MainCategoryId == cat.Id || e.SubCategory1Id == cat.Id || e.SubCategory2Id == cat.Id)
+                .ToListAsync();
+
+            foreach (var e in relatedEmps)
+            {
+                if (e.MainCategoryId == cat.Id) e.MainCategoryId = null;
+                if (e.SubCategory1Id == cat.Id) e.SubCategory1Id = null;
+                if (e.SubCategory2Id == cat.Id) e.SubCategory2Id = null;
+            }
+
+            db.PersonelCategorys.Remove(cat);
+            await db.SaveChangesAsync();
+            return true;
         }
     }
 }

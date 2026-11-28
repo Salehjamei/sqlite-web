@@ -127,5 +127,212 @@ namespace sqlite_web.Services
 
             return parts.Any() ? string.Join(" / ", parts) : "-";
         }
+        // بررسی تکراری نبودن کد ملی کارمند در دیتابیس
+        public async Task<bool> IsPersonnelCodeDuplicateAsync(string code, int? excludeEmployeeId = null)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            return await db.Employees.AnyAsync(e =>
+                e.PersonnelCode == code && (!excludeEmployeeId.HasValue || e.Id != excludeEmployeeId.Value));
+        }
+
+        // ثبت کارمند جدید یا ویرایش اطلاعات کارمند موجود به صورت ایزوله و بازگرداندن شیء نهایی و وضعیت تغییر نمایش کیوسک
+        public async Task<(Employee? SavedEmployee, bool VisibilityChanged)> SaveOrUpdateEmployeeAsync(
+            int? editingId,
+            string fullName,
+            string? phone,
+            string personnelCode,
+            string? imagePath,
+            bool isHiddenFromKiosk,
+            int? mainCatId,
+            int? sub1CatId,
+            int? sub2CatId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            if (editingId.HasValue)
+            {
+                var emp = await db.Employees.FirstOrDefaultAsync(e => e.Id == editingId.Value);
+                if (emp == null) return (null, false);
+
+                bool visibilityChanged = emp.IsHiddenFromKiosk != isHiddenFromKiosk;
+
+                emp.FullName = fullName;
+                emp.Phone = phone;
+                emp.PersonnelCode = personnelCode;
+                emp.ImagePath = imagePath;
+                emp.IsHiddenFromKiosk = isHiddenFromKiosk;
+                emp.MainCategoryId = mainCatId;
+                emp.SubCategory1Id = sub1CatId;
+                emp.SubCategory2Id = sub2CatId;
+
+                db.Employees.Update(emp);
+                await db.SaveChangesAsync();
+                return (emp, visibilityChanged);
+            }
+            else
+            {
+                var newEmp = new Employee
+                {
+                    FullName = fullName,
+                    Phone = phone,
+                    PersonnelCode = personnelCode,
+                    ImagePath = imagePath,
+                    IsHiddenFromKiosk = isHiddenFromKiosk,
+                    MainCategoryId = mainCatId,
+                    SubCategory1Id = sub1CatId,
+                    SubCategory2Id = sub2CatId
+                };
+
+                db.Employees.Add(newEmp);
+                await db.SaveChangesAsync();
+                return (newEmp, false);
+            }
+        }
+
+        // حذف کامل پرونده کارمند و تمام سوابق تردد او از دیتابیس به صورت ایزوله
+        public async Task<Employee?> DeleteEmployeeWithAttendancesAsync(int employeeId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var emp = await db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+            if (emp == null) return null;
+
+            var attendances = db.Attendances.Where(a => a.EmployeeId == employeeId);
+            db.Attendances.RemoveRange(attendances);
+            db.Employees.Remove(emp);
+            await db.SaveChangesAsync();
+
+            return emp;
+        }
+
+        // ثبت ورود جدید (از کیوسک یا سریع ادمین) با بررسی عدم وجود تردد باز قبلی
+        public async Task<(bool Success, Attendance? Record)> RecordClockInAsync(
+            int employeeId,
+            DateTime clockInTime,
+            string entrySource,
+            string? coordinates,
+            string? locationName,
+            int? adminId = null)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            bool hasOpen = await db.Attendances.AnyAsync(a => a.EmployeeId == employeeId && a.ClockOutTime == null);
+            if (hasOpen) return (false, null);
+
+            var att = new Attendance
+            {
+                EmployeeId = employeeId,
+                ClockInTime = clockInTime,
+                CreationDate = clockInTime,
+                EntrySource = entrySource,
+                ClockInLocation = coordinates,
+                LocationName = locationName,
+                CreatedByAdminId = adminId
+            };
+
+            db.Attendances.Add(att);
+            await db.SaveChangesAsync();
+            return (true, att);
+        }
+
+        // ثبت خروج روی یک رکورد تردد باز (از کیوسک یا سریع ادمین)
+        public async Task<Attendance?> RecordClockOutAsync(
+            int attendanceId,
+            DateTime clockOutTime,
+            string? coordinates,
+            int? adminId = null)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var att = await db.Attendances.FirstOrDefaultAsync(a => a.Id == attendanceId);
+            if (att == null) return null;
+
+            att.ClockOutTime = clockOutTime;
+            att.ClockOutLocation = coordinates;
+            if (adminId.HasValue)
+            {
+                att.LastModifiedByAdminId = adminId;
+            }
+
+            db.Attendances.Update(att);
+            await db.SaveChangesAsync();
+            return att;
+        }
+
+        // ثبت دستی یا ویرایش رکورد تردد در کارنامه همراه با ثبت تاریخچه تغییرات (Audit Log)
+        public async Task<bool> SaveOrUpdateManualAttendanceAsync(
+            int? editingAttendanceId,
+            int employeeId,
+            DateTime inTime,
+            DateTime outTime,
+            int? adminId,
+            string adminUsername,
+            string auditReason)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            if (editingAttendanceId.HasValue)
+            {
+                var att = await db.Attendances.FirstOrDefaultAsync(a => a.Id == editingAttendanceId.Value);
+                if (att == null) return false;
+
+                db.AttendanceEditLogs.Add(new AttendanceEditLog
+                {
+                    AttendanceId = att.Id,
+                    AdminId = adminId ?? 0,
+                    AdminUsername = adminUsername,
+                    EditDate = DateTime.Now,
+                    OldClockInTime = att.ClockInTime,
+                    OldClockOutTime = att.ClockOutTime,
+                    NewClockInTime = inTime,
+                    NewClockOutTime = outTime,
+                    Reason = auditReason
+                });
+
+                att.ClockInTime = inTime;
+                att.ClockOutTime = outTime;
+                att.LastModifiedByAdminId = adminId;
+
+                db.Attendances.Update(att);
+            }
+            else
+            {
+                db.Attendances.Add(new Attendance
+                {
+                    EmployeeId = employeeId,
+                    ClockInTime = inTime,
+                    ClockOutTime = outTime,
+                    CreationDate = DateTime.Now,
+                    EntrySource = "AdminManual",
+                    CreatedByAdminId = adminId,
+                    LastModifiedByAdminId = adminId
+                });
+            }
+
+            await db.SaveChangesAsync();
+            return true;
+        }
+
+        // حذف تکی یک رکورد تردد از کارنامه پرسنل
+        public async Task<Attendance?> DeleteAttendanceRecordAsync(int attendanceId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var att = await db.Attendances.FirstOrDefaultAsync(a => a.Id == attendanceId);
+            if (att == null) return null;
+
+            db.Attendances.Remove(att);
+            await db.SaveChangesAsync();
+            return att;
+        }
+
     }
 }

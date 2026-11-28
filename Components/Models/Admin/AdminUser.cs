@@ -6,8 +6,16 @@
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
+        // مسیر تصویر پروفایل ادمین ذخیره‌شده در پوشه wwwroot
+        public string? ImagePath { get; set; }
 
-        // 👈 فیلد جدید: مشخص می‌کند فرد مدیر ارشد است یا معمولی
+        // تاریخ و زمان دقیق ایجاد حساب کاربری ادمین در سیستم
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        // شناسه سوپر ادمینی که این حساب مدیریتی را ایجاد کرده است
+        public int? CreatedByAdminId { get; set; }
+
+        // 👈 فیل مدیر ارشد است یا معمولی
         public bool IsSuperAdmin { get; set; }
         public bool CanAddEmployee { get; set; } = false;
         public bool CanEditEmployee { get; set; } = false;

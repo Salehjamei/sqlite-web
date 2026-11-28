@@ -38,11 +38,20 @@ namespace sqlite_web.Migrations
                     b.Property<bool>("CanViewLocationMap")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CreatedByAdminId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("CurrentToken")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("FullName")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImagePath")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsFrozen")

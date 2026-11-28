@@ -80,15 +80,14 @@ namespace sqlite_web.Services
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+                // دریافت تنظیمات ساعت پایان شب از دیتابیس (پیش‌فرض 23:59)
                 var settings = await db.WorkSettings.AsNoTracking().FirstOrDefaultAsync(stoppingToken);
-                bool applyAutoLogout = settings?.ApplyAutoLogout ?? true;
-                if (!applyAutoLogout) return;
-
                 string autoTimeStr = settings?.AutoLogoutTime ?? "23:59";
                 if (!TimeSpan.TryParse(autoTimeStr, out var parsedAutoTime))
                 {
                     parsedAutoTime = new TimeSpan(23, 59, 0);
                 }
+
 
                 var now = DateTime.Now;
                 var today = DateTime.Today;

@@ -11,7 +11,6 @@ namespace sqlite_web.Components.Pages
 {
     public partial class Home : AppBaseComponent
     {
-        [Inject] public AppDbContext DbContext { get; set; } = default!;
         [Inject] public AdminStateService AdminState { get; set; } = default!;
         [Inject] public GeoLocationService GeoService { get; set; } = default!;
         [Inject] public PersonnelService PersonnelSvc { get; set; } = default!;
@@ -150,20 +149,49 @@ namespace sqlite_web.Components.Pages
             searchQuery = "";
         }
 
-        // ثبت ورود پرسنل در کیوسک با بررسی محدوده مکانی، نمایش اعلان ساده ورود و ثبت بی‌صدای مختصات برای سوپر ادمین
+        // ثبت ورود پرسنل در کیوسک از طریق سرویس پرسنل همراه با بررسی محدوده مکانی و ثبت بی‌صدای مختصات
         private async Task ClockIn(int employeeId)
         {
-            // واکشی اطلاعات کارمند هدف از لیست حافظه یا دیتابیس
-            var targetEmp = employees.FirstOrDefault(e => e.Id == employeeId)
-                            ?? await DbContext.Employees.FindAsync(employeeId);
+            // واکشی اطلاعات کارمند هدف از لیست حافظه یا سرویس پرسنل
+            var targetEmp = employees.FirstOrDefault(e => e.Id == employeeId);
 
             try
             {
-                // بررسی نبود رکورد تردد باز قبلی برای جلوگیری از ثبت ورود تکراری
-                bool hasOpenRecord = await DbContext.Attendances
-                    .AnyAsync(a => a.EmployeeId == employeeId && a.ClockOutTime == null);
+                // اعتبارسنجی موقعیت مکانی فعلی دستگاه نسبت به مکان‌های مجاز دسته‌بندی کارمند
+                var locCheck = await GeoService.ValidateEmployeeLocationAsync(targetEmp);
+                if (!locCheck.IsAllowed)
+                {
+                    string empDisplayName = targetEmp?.FullName ?? "-";
+                    object[] errorArgs = locCheck.ErrorKey == "PCal_Loc_OutOfRange"
+                        ? new object[] { empDisplayName, locCheck.ClosestDistanceMeters }
+                        : new object[] { empDisplayName };
 
-                if (hasOpenRecord)
+                    // نمایش خطای خارج از محدوده یا عدم دسترسی موقعیت به کاربر و ثبت در اعلانات مکانی
+                    TriggerToast(
+                        category: "Location",
+                        subCategory: "PersonnelLocation",
+                        messageKey: locCheck.ErrorKey,
+                        args: errorArgs,
+                        isError: true,
+                        targetEmp: targetEmp
+                    );
+                    return;
+                }
+
+                // ارسال درخواست ثبت ورود به سرویس پرسنل با بررسی هم‌زمان نبود تردد باز قبلی
+                var now = DateTime.Now;
+                string? matchedLoc = locCheck.MatchedLocationName == "FreeMode" ? null : locCheck.MatchedLocationName;
+                var clockInResult = await PersonnelSvc.RecordClockInAsync(
+                    employeeId: employeeId,
+                    clockInTime: now,
+                    entrySource: "Kiosk",
+                    coordinates: locCheck.Coordinates,
+                    locationName: matchedLoc,
+                    adminId: null
+                );
+
+                // در صورت داشتن تردد باز فعال قبلی، پیام هشدار به کاربر نمایش داده می‌شود
+                if (!clockInResult.Success)
                 {
                     TriggerToast(
                         category: "Kiosk",
@@ -174,37 +202,6 @@ namespace sqlite_web.Components.Pages
                     );
                     return;
                 }
-
-                // اعتبارسنجی موقعیت مکانی فعلی دستگاه نسبت به مکان‌های مجاز دسته‌بندی کارمند
-                var locCheck = await GeoService.ValidateEmployeeLocationAsync(targetEmp);
-                if (!locCheck.IsAllowed)
-                {
-                    // نمایش خطای خارج از محدوده یا عدم دسترسی موقعیت به کاربر و ثبت در اعلانات مکانی
-                    TriggerToast(
-                        category: "Location",
-                        subCategory: "PersonnelLocation",
-                        messageKey: locCheck.ErrorKey,
-                        args: new object[] { targetEmp?.FullName ?? "-", locCheck.ClosestDistanceMeters },
-                        isError: true,
-                        targetEmp: targetEmp
-                    );
-                    return;
-                }
-
-                // ساخت و ذخیره رکورد جدید ورود همراه با مختصات جغرافیایی و نام مکان مجاز
-                var now = DateTime.Now;
-                var attendance = new Attendance
-                {
-                    EmployeeId = employeeId,
-                    ClockInTime = now,
-                    CreationDate = now,
-                    EntrySource = "Kiosk",
-                    ClockInLocation = locCheck.Coordinates,
-                    LocationName = locCheck.MatchedLocationName == "FreeMode" ? null : locCheck.MatchedLocationName
-                };
-
-                DbContext.Attendances.Add(attendance);
-                await DbContext.SaveChangesAsync();
 
                 var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
                 await LoadData();
@@ -224,7 +221,7 @@ namespace sqlite_web.Components.Pages
                 // ثبت بی‌صدای مختصات مکانی ورود در جدول اعلانات سرور جهت گزارش‌گیری سوپر ادمین
                 if (!string.IsNullOrEmpty(locCheck.Coordinates))
                 {
-                    string locTitle = locCheck.MatchedLocationName == "FreeMode" ? "-" : locCheck.MatchedLocationName;
+                    string locTitle = matchedLoc ?? "-";
                     await GeoService.LogLocationAuditSilentlyAsync(
                         subCategory: "PersonnelLocation",
                         messageKey: "PCal_Loc_PersonnelClockInLog",
@@ -251,72 +248,81 @@ namespace sqlite_web.Components.Pages
                 );
             }
         }
-        // ثبت خروج پرسنل در کیوسک با بررسی محدوده مکانی، نمایش اعلان ساده خروج و ثبت بی‌صدای مختصات برای سوپر ادمین
+
+        // ثبت خروج پرسنل در کیوسک از طریق سرویس پرسنل همراه با بررسی محدوده مکانی و ثبت بی‌صدای مختصات
         private async Task ClockOut(int attendanceId)
         {
             Employee? targetEmp = null;
             try
             {
-                // واکشی رکورد تردد باز و اطلاعات کارمند مرتبط
-                var record = await DbContext.Attendances.FindAsync(attendanceId);
+                // واکشی رکورد تردد باز از لیست حافظه جهت شناسایی کارمند مرتبط
+                var record = allAttendances.FirstOrDefault(a => a.Id == attendanceId);
                 if (record != null)
                 {
-                    targetEmp = employees.FirstOrDefault(e => e.Id == record.EmployeeId)
-                                ?? await DbContext.Employees.FindAsync(record.EmployeeId);
+                    targetEmp = employees.FirstOrDefault(e => e.Id == record.EmployeeId);
 
                     // اعتبارسنجی موقعیت مکانی فعلی دستگاه در لحظه ثبت خروج کارمند
                     var locCheck = await GeoService.ValidateEmployeeLocationAsync(targetEmp);
                     if (!locCheck.IsAllowed)
                     {
+                        string empDisplayName = targetEmp?.FullName ?? "-";
+                        object[] errorArgs = locCheck.ErrorKey == "PCal_Loc_OutOfRange"
+                            ? new object[] { empDisplayName, locCheck.ClosestDistanceMeters }
+                            : new object[] { empDisplayName };
+
                         // نمایش خطای خارج از محدوده یا عدم دسترسی موقعیت به کاربر و ثبت در اعلانات مکانی
                         TriggerToast(
                             category: "Location",
                             subCategory: "PersonnelLocation",
                             messageKey: locCheck.ErrorKey,
-                            args: new object[] { targetEmp?.FullName ?? "-", locCheck.ClosestDistanceMeters },
+                            args: errorArgs,
                             isError: true,
                             targetEmp: targetEmp
                         );
                         return;
                     }
 
-                    // به‌روزرسانی ساعت خروج و ذخیره مختصات جغرافیایی خروج در رکورد تردد
+                    // به‌روزرسانی ساعت خروج و ذخیره مختصات جغرافیایی از طریق سرویس پرسنل
                     var now = DateTime.Now;
-                    record.ClockOutTime = now;
-                    record.ClockOutLocation = locCheck.Coordinates;
-
-                    DbContext.Attendances.Update(record);
-                    await DbContext.SaveChangesAsync();
-
-                    var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
-                    await LoadData();
-
-                    // نمایش اعلان شیشه‌ای موفقیت خروج به کارمند بدون افشای مختصات جغرافیایی روی صفحه
-                    TriggerToast(
-                        category: "Kiosk",
-                        subCategory: "Attendance",
-                        messageKey: "PCal_MainHome_ClockOutSuccess",
-                        args: new object[] { empName },
-                        isError: false,
-                        targetEmp: targetEmp,
-                        eventDate: now.ToString("yyyy-MM-dd"),
-                        eventTime: now.ToString("HH:mm:ss")
+                    var updated = await PersonnelSvc.RecordClockOutAsync(
+                        attendanceId: attendanceId,
+                        clockOutTime: now,
+                        coordinates: locCheck.Coordinates,
+                        adminId: null
                     );
 
-                    // ثبت بی‌صدای مختصات مکانی خروج در جدول اعلانات سرور جهت گزارش‌گیری سوپر ادمین
-                    if (!string.IsNullOrEmpty(locCheck.Coordinates))
+                    if (updated != null)
                     {
-                        string locTitle = locCheck.MatchedLocationName == "FreeMode" ? "-" : locCheck.MatchedLocationName;
-                        await GeoService.LogLocationAuditSilentlyAsync(
-                            subCategory: "PersonnelLocation",
-                            messageKey: "PCal_Loc_PersonnelClockOutLog",
-                            args: new object[] { empName, locTitle, locCheck.Coordinates },
-                            actorAdminId: AdminState.CurrentOnlineAdmin?.Id,
-                            actorAdminUsername: AdminState.CurrentOnlineAdmin?.Username ?? "Kiosk",
+                        var empName = targetEmp?.FullName ?? CalendarManager.Translate("PCal_MainHome_DefaultUser");
+                        await LoadData();
+
+                        // نمایش اعلان شیشه‌ای موفقیت خروج به کارمند بدون افشای مختصات جغرافیایی روی صفحه
+                        TriggerToast(
+                            category: "Kiosk",
+                            subCategory: "Attendance",
+                            messageKey: "PCal_MainHome_ClockOutSuccess",
+                            args: new object[] { empName },
+                            isError: false,
                             targetEmp: targetEmp,
                             eventDate: now.ToString("yyyy-MM-dd"),
                             eventTime: now.ToString("HH:mm:ss")
                         );
+
+                        // ثبت بی‌صدای مختصات مکانی خروج در جدول اعلانات سرور جهت گزارش‌گیری سوپر ادمین
+                        if (!string.IsNullOrEmpty(locCheck.Coordinates))
+                        {
+                            string locTitle = locCheck.MatchedLocationName == "FreeMode" ? "-" : locCheck.MatchedLocationName;
+                            await GeoService.LogLocationAuditSilentlyAsync(
+                                subCategory: "PersonnelLocation",
+                                messageKey: "PCal_Loc_PersonnelClockOutLog",
+                                args: new object[] { empName, locTitle, locCheck.Coordinates },
+                                actorAdminId: AdminState.CurrentOnlineAdmin?.Id,
+                                actorAdminUsername: AdminState.CurrentOnlineAdmin?.Username ?? "Kiosk",
+                                targetEmp: targetEmp,
+                                eventDate: now.ToString("yyyy-MM-dd"),
+                                eventTime: now.ToString("HH:mm:ss")
+                            );
+                        }
                     }
                 }
             }

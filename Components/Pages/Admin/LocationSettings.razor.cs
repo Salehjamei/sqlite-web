@@ -4,22 +4,21 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Components;
-using Microsoft.EntityFrameworkCore;
 using sqlite_web.Components.Models;
 using sqlite_web.Services;
 
 namespace sqlite_web.Components.Pages.Admin
 {
-    // منطق پشت‌صحنه مدیریت درخت دسته‌بندی سه‌سطحی پرسنل و تعریف مکان‌های جغرافیایی مجاز (Geofencing)
+    // منطق پشت‌صحنه مدیریت درخت دسته‌بندی سه‌سطحی پرسنل و تعریف مکان‌های جغرافیایی مجاز (بدون وابستگی مستقیم به دیتابیس)
     public partial class LocationSettings : AppBaseComponent, IDisposable
     {
-        [Inject] public AppDbContext DbContext { get; set; } = default!;
+        // تزریق سرویس‌های مرکزی سیستم جهت مدیریت وضعیت ادمین، موقعیت مکانی، پرسنل و ثبت خطاها
         [Inject] public AdminStateService AdminState { get; set; } = default!;
         [Inject] public GeoLocationService GeoService { get; set; } = default!;
         [Inject] public PersonnelService PersonnelSvc { get; set; } = default!;
         [Inject] public SystemErrorLoggerService ErrorLogger { get; set; } = default!;
 
-        // لیست کامل دسته‌بندی‌های سه‌سطحی و مکان‌های مجاز واکشی‌شده از دیتابیس
+        // لیست کامل دسته‌بندی‌های سه‌سطحی و مکان‌های مجاز واکشی‌شده از سرویس‌ها
         protected List<PersonnelCategory> AllCategories { get; set; } = new();
         protected List<AllowedLocation> LocationsList { get; set; } = new();
 
@@ -57,7 +56,8 @@ namespace sqlite_web.Components.Pages.Admin
         protected string DeleteTargetType { get; set; } = string.Empty;
         protected int DeleteTargetId { get; set; } = 0;
         protected string DeleteTargetName { get; set; } = string.Empty;
-        // تبدیل رشته مختصات فرم به عدد اعشاری استاندارد برای ارسال به ماژول نقشه
+
+        // تبدیل رشته مختصات فرم به عدد اعشاری استاندارد برای ارسال به ماژول نقشه تعاملی
         protected double ParsedMapLat => double.TryParse(LocLatitudeStr.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out double lat) ? lat : 40.765400;
         protected double ParsedMapLng => double.TryParse(LocLongitudeStr.Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out double lng) ? lng : 29.940800;
 
@@ -67,7 +67,7 @@ namespace sqlite_web.Components.Pages.Admin
             LocLatitudeStr = coords.Lat.ToString("F6", CultureInfo.InvariantCulture);
             LocLongitudeStr = coords.Lng.ToString("F6", CultureInfo.InvariantCulture);
         }
-
+        // مقداردهی اولیه صفحه، بررسی سطح دسترسی و بارگذاری داده‌های مکانی و دسته‌بندی‌ها
         protected override async Task OnInitializedAsync()
         {
             AdminState.OnChange += OnAdminStateChanged;
@@ -75,6 +75,7 @@ namespace sqlite_web.Components.Pages.Admin
             await LoadAllDataAsync();
         }
 
+        // واکنش لحظه‌ای به تغییر زبان یا وضعیت سشن ادمین در هدر
         private async void OnAdminStateChanged()
         {
             await LoadStoredLanguageAndCalendarAsync();
@@ -83,20 +84,13 @@ namespace sqlite_web.Components.Pages.Admin
             await InvokeAsync(StateHasChanged);
         }
 
-        // واکشی ایزوله دسته‌بندی‌های درختی و مکان‌های مجاز از دیتابیس
+        // واکشی ایزوله دسته‌بندی‌های درختی و مکان‌های مجاز از سرویس‌های مربوطه
         protected async Task LoadAllDataAsync()
         {
             try
             {
                 AllCategories = await PersonnelSvc.GetAllCategoriesAsync();
-
-                LocationsList = await DbContext.AllowedLocations
-                    .Include(l => l.AllowedMainCategory)
-                    .Include(l => l.AllowedSubCategory1)
-                    .Include(l => l.AllowedSubCategory2)
-                    .AsNoTracking()
-                    .OrderByDescending(l => l.Id)
-                    .ToListAsync();
+                LocationsList = await GeoService.GetAllAllowedLocationsAsync();
             }
             catch (Exception ex)
             {
@@ -104,15 +98,14 @@ namespace sqlite_web.Components.Pages.Admin
             }
         }
 
-        // افزودن کتگوری اصلی (سطح ۱) و ثبت در اعلانات مکانی
+        // افزودن کتگوری اصلی (سطح ۱) از طریق سرویس موقعیت مکانی و ثبت در اعلانات
         protected async Task AddMainCategoryAsync()
         {
             if (string.IsNullOrWhiteSpace(NewMainCategoryTitle)) return;
             try
             {
                 string title = NewMainCategoryTitle.Trim();
-                DbContext.PersonelCategorys.Add(new PersonnelCategory { Title = title, Level = 1, ParentId = null });
-                await DbContext.SaveChangesAsync();
+                await GeoService.AddPersonnelCategoryAsync(title, level: 1, parentId: null);
 
                 NewMainCategoryTitle = string.Empty;
                 await LoadAllDataAsync();
@@ -126,15 +119,14 @@ namespace sqlite_web.Components.Pages.Admin
             }
         }
 
-        // افزودن کتگوری فرزند اول (سطح ۲) زیرمجموعه یک کتگوری اصلی
+        // افزودن کتگوری فرزند اول (سطح ۲) زیرمجموعه یک کتگوری اصلی از طریق سرویس
         protected async Task AddSub1CategoryAsync()
         {
             if (string.IsNullOrWhiteSpace(NewSub1CategoryTitle) || SelectedParentForSub1 <= 0) return;
             try
             {
                 string title = NewSub1CategoryTitle.Trim();
-                DbContext.PersonelCategorys.Add(new PersonnelCategory { Title = title, Level = 2, ParentId = SelectedParentForSub1 });
-                await DbContext.SaveChangesAsync();
+                await GeoService.AddPersonnelCategoryAsync(title, level: 2, parentId: SelectedParentForSub1);
 
                 NewSub1CategoryTitle = string.Empty;
                 await LoadAllDataAsync();
@@ -148,15 +140,14 @@ namespace sqlite_web.Components.Pages.Admin
             }
         }
 
-        // افزودن کتگوری فرزند دوم (سطح ۳ - عنوان کاری) زیرمجموعه کتگوری فرزند اول
+        // افزودن کتگوری فرزند دوم (سطح ۳ - عنوان کاری) زیرمجموعه کتگوری فرزند اول از طریق سرویس
         protected async Task AddSub2CategoryAsync()
         {
             if (string.IsNullOrWhiteSpace(NewSub2CategoryTitle) || SelectedParentForSub2 <= 0) return;
             try
             {
                 string title = NewSub2CategoryTitle.Trim();
-                DbContext.PersonelCategorys.Add(new PersonnelCategory { Title = title, Level = 3, ParentId = SelectedParentForSub2 });
-                await DbContext.SaveChangesAsync();
+                await GeoService.AddPersonnelCategoryAsync(title, level: 3, parentId: SelectedParentForSub2);
 
                 NewSub2CategoryTitle = string.Empty;
                 await LoadAllDataAsync();
@@ -169,7 +160,7 @@ namespace sqlite_web.Components.Pages.Admin
                 await ErrorLogger.LogBackendErrorAsync("LocationSettings.AddSub2Category", ex, AdminState.CurrentOnlineAdmin?.Id, AdminState.adminUsername, null, CurrentLanguage);
             }
         }
-        // باز کردن مودال ثبت مکان مجاز جدید
+        // باز کردن مودال ثبت مکان مجاز جدید و بازنشانی مقادیر فرم
         protected void OpenAddLocationModal()
         {
             IsLocationEditMode = false;
@@ -185,7 +176,7 @@ namespace sqlite_web.Components.Pages.Admin
             ShowLocationModal = true;
         }
 
-        // باز کردن مودال ویرایش مکان مجاز موجود
+        // باز کردن مودال ویرایش مکان مجاز موجود و بارگذاری مقادیر فعلی آن
         protected void OpenEditLocationModal(AllowedLocation loc)
         {
             IsLocationEditMode = true;
@@ -201,6 +192,7 @@ namespace sqlite_web.Components.Pages.Admin
             ShowLocationModal = true;
         }
 
+        // بستن پنجره مودال ثبت یا ویرایش مکان
         protected void CloseLocationModal() => ShowLocationModal = false;
 
         // دریافت مختصات جغرافیایی فعلی دستگاه ادمین از طریق مرورگر جهت ثبت سریع نقطه مرکزی
@@ -224,7 +216,7 @@ namespace sqlite_web.Components.Pages.Admin
             }
         }
 
-        // ذخیره یا ویرایش مکان مجاز در دیتابیس همراه با ثبت اعلان در زیرکتگوری AllowedLocation
+        // ذخیره یا ویرایش مکان مجاز از طریق سرویس موقعیت مکانی همراه با ثبت اعلان در زیرکتگوری AllowedLocation
         protected async Task SaveLocationAsync()
         {
             if (string.IsNullOrWhiteSpace(LocName)) return;
@@ -242,42 +234,23 @@ namespace sqlite_web.Components.Pages.Admin
                 string cleanName = LocName.Trim();
                 string coloredLoc = $"<span style='color: #dc3545; font-weight: 900;'>«{cleanName}»</span>";
 
-                if (IsLocationEditMode && EditingLocationId > 0)
+                int? editId = (IsLocationEditMode && EditingLocationId > 0) ? EditingLocationId : null;
+                bool saved = await GeoService.SaveOrUpdateAllowedLocationAsync(
+                    editingId: editId,
+                    name: cleanName,
+                    latitude: lat,
+                    longitude: lon,
+                    radiusMeters: LocRadiusMeters,
+                    isActive: LocIsActive,
+                    mainCatId: LocAllowedMainCatId > 0 ? LocAllowedMainCatId : null,
+                    sub1CatId: LocAllowedSub1CatId > 0 ? LocAllowedSub1CatId : null,
+                    sub2CatId: LocAllowedSub2CatId > 0 ? LocAllowedSub2CatId : null
+                );
+
+                if (saved)
                 {
-                    var existing = await DbContext.AllowedLocations.FirstOrDefaultAsync(l => l.Id == EditingLocationId);
-                    if (existing != null)
-                    {
-                        existing.Name = cleanName;
-                        existing.Latitude = lat;
-                        existing.Longitude = lon;
-                        existing.RadiusMeters = LocRadiusMeters;
-                        existing.IsActive = LocIsActive;
-                        existing.AllowedMainCategoryId = LocAllowedMainCatId > 0 ? LocAllowedMainCatId : null;
-                        existing.AllowedSubCategory1Id = LocAllowedSub1CatId > 0 ? LocAllowedSub1CatId : null;
-                        existing.AllowedSubCategory2Id = LocAllowedSub2CatId > 0 ? LocAllowedSub2CatId : null;
-
-                        DbContext.AllowedLocations.Update(existing);
-                        await DbContext.SaveChangesAsync();
-
-                        TriggerToast("Location", "AllowedLocation", "PCal_Loc_LocationUpdatedLog", new object[] { coloredLoc, LocRadiusMeters }, false);
-                    }
-                }
-                else
-                {
-                    DbContext.AllowedLocations.Add(new AllowedLocation
-                    {
-                        Name = cleanName,
-                        Latitude = lat,
-                        Longitude = lon,
-                        RadiusMeters = LocRadiusMeters,
-                        IsActive = LocIsActive,
-                        AllowedMainCategoryId = LocAllowedMainCatId > 0 ? LocAllowedMainCatId : null,
-                        AllowedSubCategory1Id = LocAllowedSub1CatId > 0 ? LocAllowedSub1CatId : null,
-                        AllowedSubCategory2Id = LocAllowedSub2CatId > 0 ? LocAllowedSub2CatId : null
-                    });
-                    await DbContext.SaveChangesAsync();
-
-                    TriggerToast("Location", "AllowedLocation", "PCal_Loc_LocationAddedLog", new object[] { coloredLoc, LocRadiusMeters }, false);
+                    string logKey = editId.HasValue ? "PCal_Loc_LocationUpdatedLog" : "PCal_Loc_LocationAddedLog";
+                    TriggerToast("Location", "AllowedLocation", logKey, new object[] { coloredLoc, LocRadiusMeters }, false);
                 }
 
                 ShowLocationModal = false;
@@ -289,6 +262,7 @@ namespace sqlite_web.Components.Pages.Admin
             }
         }
 
+        // باز کردن پنجره تاییدیه حذف مکان یا دسته‌بندی
         protected void PromptDelete(string type, int id, string name)
         {
             DeleteTargetType = type;
@@ -297,13 +271,14 @@ namespace sqlite_web.Components.Pages.Admin
             ShowDeleteModal = true;
         }
 
+        // بستن پنجره تاییدیه حذف
         protected void CancelDelete()
         {
             ShowDeleteModal = false;
             DeleteTargetId = 0;
         }
 
-        // اجرای حذف قطعی مکان یا دسته‌بندی و ثبت در تاریخچه اعلانات مکانی
+        // اجرای حذف قطعی مکان یا دسته‌بندی از طریق سرویس موقعیت مکانی و ثبت در تاریخچه اعلانات
         protected async Task ConfirmDeleteAsync()
         {
             ShowDeleteModal = false;
@@ -313,29 +288,17 @@ namespace sqlite_web.Components.Pages.Admin
 
                 if (DeleteTargetType == "Location")
                 {
-                    var loc = await DbContext.AllowedLocations.FirstOrDefaultAsync(l => l.Id == DeleteTargetId);
-                    if (loc != null)
+                    bool deleted = await GeoService.DeleteAllowedLocationAsync(DeleteTargetId);
+                    if (deleted)
                     {
-                        DbContext.AllowedLocations.Remove(loc);
-                        await DbContext.SaveChangesAsync();
                         TriggerToast("Location", "AllowedLocation", "PCal_Loc_LocationDeletedLog", new object[] { coloredName }, false);
                     }
                 }
                 else if (DeleteTargetType == "Category")
                 {
-                    var cat = await DbContext.PersonelCategorys.FirstOrDefaultAsync(c => c.Id == DeleteTargetId);
-                    if (cat != null)
+                    bool deleted = await GeoService.DeletePersonnelCategoryAsync(DeleteTargetId);
+                    if (deleted)
                     {
-                        var relatedEmps = await DbContext.Employees.Where(e => e.MainCategoryId == cat.Id || e.SubCategory1Id == cat.Id || e.SubCategory2Id == cat.Id).ToListAsync();
-                        foreach (var e in relatedEmps)
-                        {
-                            if (e.MainCategoryId == cat.Id) e.MainCategoryId = null;
-                            if (e.SubCategory1Id == cat.Id) e.SubCategory1Id = null;
-                            if (e.SubCategory2Id == cat.Id) e.SubCategory2Id = null;
-                        }
-
-                        DbContext.PersonelCategorys.Remove(cat);
-                        await DbContext.SaveChangesAsync();
                         TriggerToast("Location", "AllowedLocation", "PCal_Loc_CategoryDeletedLog", new object[] { coloredName }, false);
                     }
                 }
@@ -348,6 +311,7 @@ namespace sqlite_web.Components.Pages.Admin
             }
         }
 
+        // بازیابی زبان و نوع تقویم ذخیره‌شده از حافظه مرورگر در اولین رندر صفحه
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (firstRender)
@@ -359,6 +323,7 @@ namespace sqlite_web.Components.Pages.Admin
             }
         }
 
+        // آزادسازی رویداد هنگام خروج از صفحه
         public void Dispose()
         {
             AdminState.OnChange -= OnAdminStateChanged;

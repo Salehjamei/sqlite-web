@@ -8,7 +8,7 @@
     initPickerMap: function (elementId, lat, lng, radiusMeters, dotNetRef) {
         setTimeout(function () {
             var container = document.getElementById(elementId);
-            if (!container) return;
+            if (!container || typeof L === 'undefined') return;
 
             if (window.spnMapManager.pickerMap) {
                 window.spnMapManager.pickerMap.remove();
@@ -47,8 +47,8 @@
             window.spnMapManager.pickerMarker = marker;
             window.spnMapManager.pickerCircle = circle;
 
-            setTimeout(function () { map.invalidateSize(); }, 150);
-        }, 100);
+            setTimeout(function () { map.invalidateSize(); }, 200);
+        }, 150);
     },
 
     // تغییر زنده مرکز و شعاع دایره روی نقشه هنگام تغییر عدد شعاع یا دریافت GPS
@@ -63,19 +63,21 @@
         }
     },
 
-    // نمایش نقشه موقعیت ثبت ورود (سبز) و خروج (قرمز) کارمند در مودال کارنامه ادمین
-    initAttendanceViewMap: function (elementId, inLat, inLng, outLat, outLng, inLabel, outLabel) {
+    // نمایش نقشه موقعیت ثبت ورود (سبز)، خروج (قرمز) و دایره محدوده شعاع مجاز مکان در مودال کارنامه ادمین
+    initAttendanceViewMap: function (elementId, inLat, inLng, outLat, outLng, inLabel, outLabel, locLat, locLng, locRadius, locName) {
         setTimeout(function () {
             var container = document.getElementById(elementId);
-            if (!container) return;
+            if (!container || typeof L === 'undefined') return;
 
             if (window.spnMapManager.viewMap) {
                 window.spnMapManager.viewMap.remove();
                 window.spnMapManager.viewMap = null;
             }
 
-            var centerLat = inLat || outLat;
-            var centerLng = inLng || outLng;
+            var centerLat = inLat || outLat || locLat;
+            var centerLng = inLng || outLng || locLng;
+            if (!centerLat || !centerLng) return;
+
             var map = L.map(elementId).setView([centerLat, centerLng], 16);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -85,28 +87,46 @@
 
             var bounds = [];
 
+            // ترسیم دایره آبی شعاع مجاز مکان در صورت وجود اطلاعات مکان تطبیق‌یافته
+            if (locLat && locLng && locRadius > 0) {
+                var fenceCircle = L.circle([locLat, locLng], {
+                    color: '#0d6efd',
+                    fillColor: '#0d6efd',
+                    fillOpacity: 0.15,
+                    weight: 2,
+                    radius: locRadius
+                }).addTo(map);
+
+                if (locName) {
+                    fenceCircle.bindTooltip(locName, { permanent: false, direction: 'top' });
+                }
+                bounds.push([locLat, locLng]);
+            }
+
+            // ترسیم نقطه سبز ثبت ورود کارمند
             if (inLat && inLng) {
                 var inCircle = L.circleMarker([inLat, inLng], {
-                    radius: 10, color: '#198754', fillColor: '#28a745', fillOpacity: 0.9
+                    radius: 9, color: '#198754', fillColor: '#28a745', fillOpacity: 0.95
                 }).addTo(map);
                 inCircle.bindPopup(inLabel).openPopup();
                 bounds.push([inLat, inLng]);
             }
 
+            // ترسیم نقطه قرمز ثبت خروج کارمند
             if (outLat && outLng) {
                 var outCircle = L.circleMarker([outLat, outLng], {
-                    radius: 10, color: '#dc3545', fillColor: '#dc3545', fillOpacity: 0.9
+                    radius: 9, color: '#dc3545', fillColor: '#dc3545', fillOpacity: 0.95
                 }).addTo(map);
                 outCircle.bindPopup(outLabel);
                 bounds.push([outLat, outLng]);
             }
 
             if (bounds.length > 1) {
-                map.fitBounds(bounds, { padding: [35, 35] });
+                map.fitBounds(bounds, { padding: [45, 45] });
             }
 
             window.spnMapManager.viewMap = map;
-            setTimeout(function () { map.invalidateSize(); }, 150);
-        }, 100);
+            setTimeout(function () { map.invalidateSize(); }, 200);
+        }, 150);
     }
 };
